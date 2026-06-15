@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evaluador Tecnico</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="login-screen hidden" id="loginScreen">
+      <form class="login-panel" id="loginForm">
+        <img class="login-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
+        <p class="eyebrow">Acceso entrevistador</p>
+        <h2>Centro de Evaluacion</h2>
+        <label class="field">
+          Usuario
+          <input id="loginUser" type="text" autocomplete="username" placeholder="Ingresa el usuario" />
+        </label>
+        <label class="field">
+          Contrasena
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Ingresa la contrasena" />
+        </label>
+        <p class="login-error hidden" id="loginError">Usuario o contrasena incorrectos.</p>
+        <button class="primary-button" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <main class="app-shell">
+      <section class="topbar">
+        <div class="brand-block">
+          <img class="brand-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
+          <div>
+            <p class="eyebrow">Puebla | Reclutamiento tecnico</p>
+            <h1>Centro de Evaluacion</h1>
+          </div>
+        </div>
+        <div class="topbar-meta">
+          <span>Examen por competencias</span>
+          <div class="status-pill" id="modeLabel">Entrevistador</div>
+          <button class="logout-button" id="logoutButton" type="button">Cerrar sesion</button>
+        </div>
+      </section>
+
+      <section class="layout">
+        <aside class="sidebar">
+          <div class="sidebar-title">
+            <span>REDGPS</span>
+            <strong>Assessment</strong>
+          </div>
+          <button class="nav-button active" data-view="interviewerView">Crear examen</button>
+          <button class="nav-button" data-view="candidateView">Responder examen</button>
+          <button class="nav-button" data-view="resultsView">Resultados</button>
+          <button class="nav-button" data-view="answersView">Respuestas</button>
+          <button class="nav-button" data-view="answerKeyView">Correctas</button>
+        </aside>
+
+        <section class="workspace">
+          <section class="view active" id="interviewerView">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Banco de preguntas</p>
+                <h2>Arma una evaluacion para el puesto</h2>
+              </div>
+              <label class="field small-field">
+                Tiempo
+                <select id="timeLimit">
+                  <option value="10">10 min</option>
+                  <option value="20" selected>20 min</option>
+                  <option value="30">30 min</option>
+                  <option value="45">45 min</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="question-bank" id="questionBank"></div>
+
+            <div class="actions-row">
+              <button class="primary-button" id="createExamButton">Generar examen aleatorio</button>
+              <button class="ghost-button" id="selectAllButton">Seleccionar todo</button>
+            </div>
+
+            <div class="link-box hidden" id="examLinkBox">
+              <p>Enlace para enviar al candidato</p>
+              <div class="copy-row">
+                <input id="examLink" readonly />
+                <button id="copyLinkButton">Copiar</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="view" id="candidateView">
+            <div class="exam-header">
+              <div>
+                <p class="eyebrow">Examen activo</p>
+                <h2 id="examTitle">Evaluacion tecnica RedGPS</h2>
+              </div>
+              <div class="timer" id="timer">--:--</div>
+            </div>
+
+            <label class="field candidate-name-field">
+              Nombre del candidato
+              <input id="candidateName" placeholder="Escribe tu nombre completo" autocomplete="name" />
+            </label>
+
+            <form id="examForm" class="exam-form"></form>
+
+            <div class="actions-row">
+              <button class="primary-button" id="finishExamButton" type="button">Finalizar examen</button>
+            </div>
+          </section>
+
+          <section class="view" id="resultsView">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Evaluacion</p>
+                <h2>Resultado del candidato</h2>
+              </div>
+              <div class="score" id="scoreLabel">0/100</div>
+            </div>
+
+            <div class="result-summary" id="resultSummary">
+              Aun no hay respuestas evaluadas.
+            </div>
+            <div class="result-list" id="resultList"></div>
+          </section>
+
+          <section class="view" id="answersView">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Entrevistador</p>
+                <h2>Respuestas guardadas</h2>
+              </div>
+              <button class="ghost-button" id="clearHistoryButton" type="button">Limpiar historial</button>
+            </div>
+
+            <div class="result-summary" id="answersSummary">
+              Aun no hay examenes guardados.
+            </div>
+            <div class="result-list" id="answersList"></div>
+          </section>
+
+          <section class="view" id="answerKeyView">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Guia del entrevistador</p>
+                <h2>Respuestas correctas</h2>
+              </div>
+            </div>
+
+            <div class="result-summary">
+              Esta guia solo es para el entrevistador. El candidato no la ve cuando entra desde su enlace.
+            </div>
+            <div class="result-list" id="answerKeyList"></div>
+          </section>
+
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

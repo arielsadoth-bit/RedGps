@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title">
+  <title id="title">RedGPS</title>
+  <rect width="1200" height="320" fill="none"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M944 26c66 0 126 27 169 70s70 103 70 169" stroke="#8f9195" stroke-width="31"/>
+    <path d="M944 70c54 0 103 22 138 58s58 84 58 138" stroke="#8f9195" stroke-width="31"/>
+  </g>
+  <text x="110" y="236"
+    font-family="Arial Rounded MT Bold, Arial, Helvetica, sans-serif"
+    font-size="218"
+    font-weight="700"
+    letter-spacing="-13">
+    <tspan fill="#8f9195">Red</tspan><tspan fill="#f6a000">Gps</tspan>
+  </text>
+</svg>

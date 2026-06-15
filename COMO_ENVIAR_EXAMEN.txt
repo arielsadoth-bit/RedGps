@@ -1,0 +1,16 @@
+COMO ENVIAR UN EXAMEN FUERA DE TU RED
+
+1. Doble clic en iniciar-sistema.bat
+2. Doble clic en abrir-publico.bat
+3. Espera la URL que se vea como:
+   https://algo.trycloudflare.com
+4. Abre esa URL publica en tu navegador.
+5. Inicia sesion como entrevistador.
+6. Ahora presiona:
+   Generar examen aleatorio
+7. Copia el enlace generado y mandalo por WhatsApp.
+
+IMPORTANTE:
+Nunca mandes localhost:8080 a otra persona.
+localhost solo funciona en tu propia computadora.
+Para mandar el examen fuera de tu red, genera el examen desde la URL publica de Cloudflare.

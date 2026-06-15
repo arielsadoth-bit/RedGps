@@ -1,0 +1,29 @@
+REDGPS - Sistema de evaluacion
+
+1. Para iniciar el sitio:
+   Doble clic en iniciar-sistema.bat
+
+2. Para abrir el sitio:
+   http://192.168.5.51:8080
+
+3. Contrasena del entrevistador:
+   12345
+
+4. Base de datos real:
+   data\redgps_exam.db
+
+5. Para ver la base facil en Excel:
+   Doble clic en ver-base-datos.bat
+   Esto genera y abre data\resultados_examenes.csv
+   El CSV incluye nombre del candidato, calificacion automatica y calificacion ajustada.
+
+6. Para abrir la base con SQLite:
+   Doble clic en abrir-sqlite.bat
+   Comandos utiles:
+   .tables
+   .schema exam_results
+   SELECT * FROM exam_results;
+
+Nota:
+No abras redgps_exam.db con Bloc de notas, Adobe, Photoshop o Illustrator.
+Es una base SQLite y necesita SQLite o exportarse a CSV.

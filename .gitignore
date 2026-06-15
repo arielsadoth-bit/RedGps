@@ -1,0 +1,13 @@
+bin/
+obj/
+
+*.log
+cloudflared*.log
+URL_PUBLICA.txt
+
+data/*.db
+data/*.db-*
+data/*.csv
+
+.vs/
+.vscode/
