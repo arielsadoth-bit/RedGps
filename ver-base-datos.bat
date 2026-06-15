@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0export-database.ps1"
+powershell -NoExit -NoProfile -ExecutionPolicy Bypass -File "%~dp0open-database.ps1"

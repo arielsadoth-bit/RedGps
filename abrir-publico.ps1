@@ -7,6 +7,8 @@ if (Test-Path $publicUrlFile) {
   Remove-Item $publicUrlFile -Force
 }
 
+Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
+
 $cloudflared = (Get-Command cloudflared.exe -ErrorAction SilentlyContinue).Source
 
 if (-not $cloudflared) {
@@ -29,8 +31,7 @@ try {
 
 Write-Host ""
 Write-Host "Generando URL publica..."
-Write-Host "Cuando aparezca, se copiara automaticamente al portapapeles y se abrira en el navegador."
-Write-Host "Pega esa URL en el campo 'URL publica para candidatos' antes de generar el examen."
+Write-Host "Cuando aparezca y responda correctamente, se copiara automaticamente al portapapeles y se abrira en el navegador."
 Write-Host "Deja esta ventana abierta mientras el candidato contesta."
 Write-Host ""
 
@@ -57,15 +58,38 @@ while (-not $process.HasExited) {
   Write-Host $line
 
   if (-not $publicUrl -and $line -match $urlPattern) {
-    $publicUrl = $Matches[0]
-    Set-Content -Path $publicUrlFile -Value $publicUrl -Encoding UTF8
-    Set-Clipboard $publicUrl
-    Start-Process $publicUrl
+    $candidateUrl = $Matches[0]
     Write-Host ""
-    Write-Host "URL PUBLICA COPIADA:"
-    Write-Host $publicUrl
-    Write-Host ""
-    Write-Host "Ahora pega esta URL en el campo 'URL publica para candidatos' y genera el examen."
-    Write-Host ""
+    Write-Host "Probando URL publica:"
+    Write-Host $candidateUrl
+
+    $ready = $false
+    for ($attempt = 1; $attempt -le 12; $attempt++) {
+      try {
+        Invoke-WebRequest -Uri $candidateUrl -UseBasicParsing -TimeoutSec 5 | Out-Null
+        $ready = $true
+        break
+      } catch {
+        Write-Host "Esperando que Cloudflare active la URL... intento $attempt/12"
+        Start-Sleep -Seconds 3
+      }
+    }
+
+    if ($ready) {
+      $publicUrl = $candidateUrl
+      Set-Content -Path $publicUrlFile -Value $publicUrl -Encoding UTF8
+      Set-Clipboard $publicUrl
+      Start-Process $publicUrl
+      Write-Host ""
+      Write-Host "URL PUBLICA LISTA Y COPIADA:"
+      Write-Host $publicUrl
+      Write-Host ""
+      Write-Host "Usa esta URL para entrar desde fuera de tu red."
+      Write-Host ""
+    } else {
+      Write-Host ""
+      Write-Host "Cloudflare entrego una URL, pero todavia no responde. Cierra esta ventana e intenta abrir-publico.bat otra vez."
+      Write-Host ""
+    }
   }
 }
