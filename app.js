@@ -302,8 +302,8 @@ const isCandidateLink = urlParams.has("exam");
 const INTERVIEWER_USERS = {
   ariel: "12345",
   hector: "12345",
-  iliean: "12345",
-  alex: "12345",
+  ilian: "12345",
+  alejandro: "12345",
 };
 const SESSION_KEY = "redgpsInterviewerSession";
 const USER_KEY = "redgpsInterviewerUser";
