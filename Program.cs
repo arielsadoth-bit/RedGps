@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Collections.Concurrent;
+using System.Text;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.FileProviders;
@@ -10,6 +12,7 @@ var app = builder.Build();
 var root = app.Environment.ContentRootPath;
 var dataDirectory = Path.Combine(root, "data");
 var databasePath = Path.Combine(dataDirectory, "redgps_exam.db");
+var sessions = new ConcurrentDictionary<string, string>();
 
 Directory.CreateDirectory(dataDirectory);
 InitializeDatabase(databasePath);
@@ -19,8 +22,52 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(root),
 });
 
-app.MapGet("/api/results", () =>
+app.MapPost("/api/login", async (HttpRequest request) =>
 {
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var user = GetString(document.RootElement, "user").Trim().ToLowerInvariant();
+    var password = GetString(document.RootElement, "password");
+
+    if (!AppData.Interviewers.TryGetValue(user, out var savedPassword) || savedPassword != password)
+    {
+        return Results.Unauthorized();
+    }
+
+    var token = Guid.NewGuid().ToString("N");
+    sessions[token] = user;
+    return Results.Json(new { ok = true, user, token });
+});
+
+app.MapGet("/api/questions", () => Results.Json(AppData.Questions.Select(ToPublicQuestion)));
+
+app.MapGet("/api/answer-key", (HttpRequest request) =>
+{
+    if (!TryGetInterviewer(request, sessions, out _))
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Json(AppData.Questions.Select(question => new
+    {
+        question.Id,
+        question.Area,
+        question.Type,
+        question.Title,
+        question.Prompt,
+        question.Points,
+        question.Expected,
+        CorrectAnswer = question.CorrectAnswer,
+        question.Options
+    }));
+});
+
+app.MapGet("/api/results", (HttpRequest request) =>
+{
+    if (!TryGetInterviewer(request, sessions, out _))
+    {
+        return Results.Unauthorized();
+    }
+
     using var connection = OpenConnection(databasePath);
     using var command = connection.CreateCommand();
     command.CommandText = """
@@ -84,15 +131,44 @@ app.MapPost("/api/exam-access/{examId}", async (string examId, HttpRequest reque
     });
 });
 
-app.MapPost("/api/results", async (HttpRequest request) =>
+app.MapPost("/api/evaluate", async (HttpRequest request) =>
 {
     using var document = await JsonDocument.ParseAsync(request.Body);
     var rootElement = document.RootElement;
+    var savedResult = EvaluateExam(rootElement, includeExpected: true);
+    var result = EvaluateExam(rootElement, includeExpected: false);
 
+    if (savedResult is null || result is null)
+    {
+        return Results.BadRequest(new { error = "El resultado no tiene id." });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    SaveResult(connection, JsonSerializer.SerializeToElement(savedResult));
+
+    return Results.Json(result);
+});
+
+app.MapPost("/api/results", async (HttpRequest request) =>
+{
+    if (!TryGetInterviewer(request, sessions, out _))
+    {
+        return Results.Unauthorized();
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    using var connection = OpenConnection(databasePath);
+    SaveResult(connection, document.RootElement);
+
+    return Results.Ok(new { ok = true });
+});
+
+static void SaveResult(SqliteConnection connection, JsonElement rootElement)
+{
     var id = GetString(rootElement, "id");
     if (string.IsNullOrWhiteSpace(id))
     {
-        return Results.BadRequest(new { error = "El resultado no tiene id." });
+        throw new InvalidOperationException("El resultado no tiene id.");
     }
 
     var score = GetInt(rootElement, "score");
@@ -107,7 +183,6 @@ app.MapPost("/api/results", async (HttpRequest request) =>
     var finishedAt = GetString(rootElement, "finishedAt");
     var payload = JsonSerializer.Serialize(rootElement);
 
-    using var connection = OpenConnection(databasePath);
     using var command = connection.CreateCommand();
     command.CommandText = """
         INSERT INTO resultados_examenes
@@ -141,12 +216,15 @@ app.MapPost("/api/results", async (HttpRequest request) =>
     command.Parameters.AddWithValue("$payload", payload);
     command.ExecuteNonQuery();
     SaveAnswerRows(connection, id, rootElement, modifiedBy, modifiedAt);
+}
 
-    return Results.Ok(new { ok = true });
-});
-
-app.MapDelete("/api/results", () =>
+app.MapDelete("/api/results", (HttpRequest request) =>
 {
+    if (!TryGetInterviewer(request, sessions, out _))
+    {
+        return Results.Unauthorized();
+    }
+
     using var connection = OpenConnection(databasePath);
     using var command = connection.CreateCommand();
     command.CommandText = """
@@ -161,9 +239,26 @@ app.MapDelete("/api/results", () =>
 
 app.MapFallback(async context =>
 {
+    var allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "",
+        "index.html",
+        "styles.css",
+        "app.js",
+        "assets/redgps-logo.svg"
+    };
+
     var fileProvider = new PhysicalFileProvider(root);
     var contentTypeProvider = new FileExtensionContentTypeProvider();
     var requestPath = context.Request.Path.Value?.TrimStart('/') ?? "";
+
+    if (!allowedFiles.Contains(requestPath))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsync("No encontrado");
+        return;
+    }
+
     var relativePath = string.IsNullOrWhiteSpace(requestPath) ? "index.html" : requestPath;
     var fileInfo = fileProvider.GetFileInfo(relativePath);
 
@@ -349,6 +444,217 @@ static int? GetNullableInt(JsonElement element, string propertyName)
     return property.TryGetInt32(out var value) ? value : null;
 }
 
+static bool TryGetInterviewer(HttpRequest request, ConcurrentDictionary<string, string> sessions, out string user)
+{
+    user = "";
+    var token = request.Headers["X-Interview-Token"].FirstOrDefault() ?? "";
+    if (!string.IsNullOrWhiteSpace(token) && sessions.TryGetValue(token, out var savedUser))
+    {
+        user = savedUser;
+        return true;
+    }
+
+    return false;
+}
+
+static object ToPublicQuestion(ExamQuestion question) => new
+{
+    question.Id,
+    question.Area,
+    question.Type,
+    question.Title,
+    question.Prompt,
+    question.Points,
+    question.Options
+};
+
+static object ToResultQuestion(ExamQuestion question, bool includeExpected)
+{
+    if (!includeExpected)
+    {
+        return ToPublicQuestion(question);
+    }
+
+    return new
+    {
+        question.Id,
+        question.Area,
+        question.Type,
+        question.Title,
+        question.Prompt,
+        question.Points,
+        question.Options,
+        question.Expected
+    };
+}
+
+static object? EvaluateExam(JsonElement request, bool includeExpected)
+{
+    var id = GetString(request, "id");
+    if (string.IsNullOrWhiteSpace(id))
+    {
+        return null;
+    }
+
+    var questionIds = GetQuestionIds(request).Take(5).ToList();
+    if (questionIds.Count == 0)
+    {
+        return null;
+    }
+
+    var answers = request.TryGetProperty("answers", out var answersElement) && answersElement.ValueKind == JsonValueKind.Object
+        ? answersElement
+        : default;
+
+    var selectedQuestions = questionIds
+        .Select(idValue => AppData.Questions.FirstOrDefault(question => question.Id == idValue))
+        .Where(question => question is not null)
+        .Cast<ExamQuestion>()
+        .ToList();
+
+    var evaluated = selectedQuestions.Select(question =>
+    {
+        var answer = GetString(answers, question.Id);
+        return question.Type == "closed"
+            ? EvaluateClosed(question, answer, includeExpected)
+            : EvaluateOpen(question, answer, includeExpected);
+    }).ToList();
+    var totalPoints = selectedQuestions.Sum(question => question.Points);
+    var earnedPoints = evaluated.Sum(item => (int)item.GetType().GetProperty("earned")!.GetValue(item)!);
+    var score = totalPoints == 0 ? 0 : (int)Math.Round((double)earnedPoints / totalPoints * 100);
+    var answerDictionary = new Dictionary<string, string>();
+    if (answers.ValueKind == JsonValueKind.Object)
+    {
+        foreach (var property in answers.EnumerateObject())
+        {
+            answerDictionary[property.Name] = property.Value.ValueKind == JsonValueKind.String
+                ? property.Value.GetString() ?? ""
+                : property.Value.ToString();
+        }
+    }
+
+    return new
+    {
+        id,
+        candidateName = GetString(request, "candidateName"),
+        score,
+        automaticScore = score,
+        manualScore = (int?)null,
+        manualNote = "",
+        earnedPoints,
+        totalPoints,
+        evaluated,
+        answers = answerDictionary,
+        startedAt = GetString(request, "startedAt"),
+        finishedAt = GetString(request, "finishedAt")
+    };
+}
+
+static IEnumerable<string> GetQuestionIds(JsonElement request)
+{
+    if (request.TryGetProperty("questionIds", out var questionIds) && questionIds.ValueKind == JsonValueKind.Array)
+    {
+        foreach (var item in questionIds.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+            {
+                yield return item.GetString() ?? "";
+            }
+        }
+    }
+}
+
+static object EvaluateClosed(ExamQuestion question, string answer, bool includeExpected)
+{
+    var isCorrect = answer == question.CorrectAnswer;
+    var feedback = isCorrect
+        ? "La opcion seleccionada es correcta."
+        : "La opcion seleccionada no fue correcta.";
+
+    return new
+    {
+        question = ToResultQuestion(question, includeExpected),
+        answer,
+        earned = isCorrect ? question.Points : 0,
+        stateLabel = isCorrect ? "Correcta" : "Incorrecta",
+        stateClass = isCorrect ? "correct" : "wrong",
+        feedback
+    };
+}
+
+static object EvaluateOpen(ExamQuestion question, string answer, bool includeExpected)
+{
+    var normalizedAnswer = NormalizeText(answer);
+    var foundKeywords = question.Keywords
+        .Where(keyword => normalizedAnswer.Contains(NormalizeText(keyword)))
+        .ToList();
+    var keywordRatio = question.Keywords.Count == 0 ? 0 : (double)foundKeywords.Count / question.Keywords.Count;
+    var similarity = GetTextSimilarity(answer, question.Expected);
+    var ratio = Math.Max(keywordRatio, similarity);
+    var earned = (int)Math.Round(question.Points * ratio);
+    var missing = question.Keywords.Where(keyword => !foundKeywords.Contains(keyword)).ToList();
+
+    var stateLabel = "Incorrecta";
+    var stateClass = "wrong";
+    var feedback = $"Faltaron elementos clave: {string.Join(", ", missing)}.";
+
+    if (ratio >= 0.8)
+    {
+        stateLabel = "Correcta";
+        stateClass = "correct";
+        feedback = "La respuesta se acerca correctamente a la respuesta esperada.";
+    }
+    else if (ratio >= 0.45)
+    {
+        stateLabel = "Parcial";
+        stateClass = "partial";
+        feedback = $"La respuesta se acerca, pero faltan puntos importantes: {string.Join(", ", missing)}.";
+    }
+
+    return new
+    {
+        question = ToResultQuestion(question, includeExpected),
+        answer,
+        foundKeywords,
+        earned,
+        stateLabel,
+        stateClass,
+        feedback
+    };
+}
+
+static string NormalizeText(string value)
+{
+    var normalized = value.ToLowerInvariant().Normalize(NormalizationForm.FormD);
+    var builder = new StringBuilder();
+
+    foreach (var character in normalized)
+    {
+        var category = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(character);
+        if (category == System.Globalization.UnicodeCategory.NonSpacingMark)
+        {
+            continue;
+        }
+
+        builder.Append(char.IsLetterOrDigit(character) || char.IsWhiteSpace(character) || "#.+".Contains(character) ? character : ' ');
+    }
+
+    return string.Join(" ", builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+}
+
+static double GetTextSimilarity(string answer, string expected)
+{
+    var answerWords = NormalizeText(answer).Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(word => word.Length > 3).ToHashSet();
+    var expectedWords = NormalizeText(expected).Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(word => word.Length > 3).ToHashSet();
+
+    if (answerWords.Count == 0 || expectedWords.Count == 0)
+    {
+        return 0;
+    }
+
+    return expectedWords.Count(word => answerWords.Contains(word)) / (double)expectedWords.Count;
+}
+
 static void SaveAnswerRows(SqliteConnection connection, string resultId, JsonElement result, string resultModifiedBy, string resultModifiedAt)
 {
     if (!result.TryGetProperty("evaluated", out var evaluated) || evaluated.ValueKind != JsonValueKind.Array)
@@ -477,4 +783,94 @@ static void MigrateOldResultsTable(SqliteConnection connection)
         DROP TABLE exam_results;
         """;
     migrateCommand.ExecuteNonQuery();
+}
+
+record ExamOption(string Key, string Text);
+
+record ExamQuestion(
+    string Id,
+    string Area,
+    string Type,
+    string Title,
+    string Prompt,
+    int Points,
+    List<ExamOption> Options,
+    string CorrectAnswer,
+    string Expected,
+    List<string> Keywords
+);
+
+static class AppData
+{
+public static readonly Dictionary<string, string> Interviewers = new(StringComparer.OrdinalIgnoreCase)
+{
+    ["ariel"] = "12345",
+    ["hector"] = "12345",
+    ["ilian"] = "12345",
+    ["alejandro"] = "12345",
+};
+
+public static readonly List<ExamQuestion> Questions =
+[
+    new("soft-html", "Desarrollo de Software", "closed", "Que significa HTML", "Que significa HTML?", 20,
+        [new("A", "Hyper Text Markup Language"), new("B", "High Transfer Machine Language"), new("C", "Hyper Tool Multi Language"), new("D", "Home Text Markup Language")],
+        "A", "Hyper Text Markup Language", []),
+    new("soft-language", "Desarrollo de Software", "closed", "Lenguaje de programacion", "Cual de los siguientes es un lenguaje de programacion?", 20,
+        [new("A", "CSS"), new("B", "JavaScript"), new("C", "HTML"), new("D", "XML")],
+        "B", "JavaScript", []),
+    new("soft-db", "Desarrollo de Software", "closed", "Base de datos relacional", "Que base de datos es relacional?", 20,
+        [new("A", "MongoDB"), new("B", "Firebase"), new("C", "MySQL"), new("D", "Redis")],
+        "C", "MySQL", []),
+    new("soft-git", "Desarrollo de Software", "closed", "Guardar cambios en Git", "Que comando se utiliza para guardar cambios en Git?", 20,
+        [new("A", "git push"), new("B", "git commit"), new("C", "git clone"), new("D", "git pull")],
+        "B", "git commit", []),
+    new("soft-loop", "Desarrollo de Software", "closed", "Repetir instrucciones", "Que estructura se utiliza para repetir instrucciones?", 20,
+        [new("A", "if"), new("B", "switch"), new("C", "for"), new("D", "case")],
+        "C", "for", []),
+    new("soft-poo", "Desarrollo de Software", "open", "Programacion Orientada a Objetos", "Que es la Programacion Orientada a Objetos (POO)?", 20,
+        [], "", "Paradigma basado en clases y objetos que utiliza conceptos como encapsulamiento, herencia, polimorfismo y abstraccion.",
+        ["paradigma", "clases", "objetos", "encapsulamiento", "herencia", "polimorfismo", "abstraccion"]),
+    new("soft-front-back", "Desarrollo de Software", "open", "Frontend y Backend", "Explique la diferencia entre Frontend y Backend.", 20,
+        [], "", "Frontend: Parte visual con la que interactua el usuario. Backend: Logica de negocio, bases de datos y procesamiento del sistema.",
+        ["frontend", "visual", "usuario", "backend", "logica", "base de datos", "procesamiento"]),
+    new("soft-api", "Desarrollo de Software", "open", "API", "Que es una API y para que sirve?", 20,
+        [], "", "Permite la comunicacion entre sistemas o aplicaciones mediante solicitudes y respuestas.",
+        ["comunicacion", "sistemas", "aplicaciones", "solicitudes", "respuestas"]),
+    new("soft-performance", "Desarrollo de Software", "open", "Aplicacion lenta", "Que haria si una aplicacion se vuelve lenta?", 20,
+        [], "", "Analizar rendimiento, revisar consultas a bases de datos, optimizar codigo, reducir cargas innecesarias y monitorear recursos.",
+        ["rendimiento", "consultas", "base de datos", "optimizar", "codigo", "cargas", "monitorear", "recursos"]),
+    new("soft-web-flow", "Desarrollo de Software", "open", "Flujo de pagina web", "Explique el flujo desde que un usuario entra a una pagina web hasta que ve la informacion.", 20,
+        [], "", "El navegador envia una peticion al servidor, este procesa la solicitud, consulta la base de datos si es necesario y devuelve una respuesta para mostrarse en pantalla.",
+        ["navegador", "peticion", "servidor", "procesa", "solicitud", "base de datos", "respuesta", "pantalla"]),
+    new("mobile-android-language", "Desarrollo Mobile", "closed", "Lenguaje principal Android", "Cual es el lenguaje principal para Android actualmente?", 20,
+        [new("A", "Swift"), new("B", "Kotlin"), new("C", "PHP"), new("D", "Python")],
+        "B", "Kotlin", []),
+    new("mobile-ios-language", "Desarrollo Mobile", "closed", "Lenguaje principal iOS", "Cual es el lenguaje principal para iOS?", 20,
+        [new("A", "Java"), new("B", "Kotlin"), new("C", "Swift"), new("D", "C#")],
+        "C", "Swift", []),
+    new("mobile-xcode", "Desarrollo Mobile", "closed", "Herramienta iOS", "Que herramienta se utiliza principalmente para desarrollar aplicaciones iOS?", 20,
+        [new("A", "Android Studio"), new("B", "Visual Studio"), new("C", "Xcode"), new("D", "Eclipse")],
+        "C", "Xcode", []),
+    new("mobile-apk", "Desarrollo Mobile", "closed", "Formato Android", "Que formato utiliza Android para instalar aplicaciones?", 20,
+        [new("A", ".ipa"), new("B", ".apk"), new("C", ".exe"), new("D", ".dmg")],
+        "B", ".apk", []),
+    new("mobile-cross-platform", "Desarrollo Mobile", "closed", "Una sola base de codigo", "Que framework permite desarrollar una aplicacion para Android e iOS con una sola base de codigo?", 20,
+        [new("A", "Laravel"), new("B", "React Native"), new("C", "Spring Boot"), new("D", "Django")],
+        "B", "React Native", []),
+    new("mobile-native-multi", "Desarrollo Mobile", "open", "Nativo y multiplataforma", "Explique la diferencia entre desarrollo nativo y multiplataforma.", 20,
+        [], "", "Nativo: Codigo especifico para Android o iOS. Multiplataforma: Un solo codigo para ambas plataformas.",
+        ["nativo", "codigo especifico", "android", "ios", "multiplataforma", "un solo codigo", "ambas plataformas"]),
+    new("mobile-activity", "Desarrollo Mobile", "open", "Activity en Android", "Que es una Activity en Android?", 20,
+        [], "", "Es una pantalla o interfaz con la que interactua el usuario dentro de una aplicacion.",
+        ["pantalla", "interfaz", "interactua", "usuario", "aplicacion"]),
+    new("mobile-lifecycle", "Desarrollo Mobile", "open", "Ciclo de vida movil", "Que es el ciclo de vida de una aplicacion movil?", 20,
+        [], "", "Son los estados por los que pasa una aplicacion: creacion, inicio, pausa, reanudacion y destruccion.",
+        ["estados", "creacion", "inicio", "pausa", "reanudacion", "destruccion"]),
+    new("mobile-rest", "Desarrollo Mobile", "open", "Consumir API REST", "Como consumiria una API REST desde una aplicacion movil?", 20,
+        [], "", "Realizando solicitudes HTTP (GET, POST, PUT, DELETE), procesando la respuesta y mostrando los datos al usuario.",
+        ["solicitudes", "http", "get", "post", "put", "delete", "respuesta", "datos", "usuario"]),
+    new("mobile-performance", "Desarrollo Mobile", "open", "Rendimiento movil", "Que haria para mejorar el rendimiento de una aplicacion movil?", 20,
+        [], "", "Optimizar imagenes, reducir llamadas innecesarias al servidor, usar cache, mejorar consultas y controlar el consumo de memoria.",
+        ["optimizar", "imagenes", "llamadas", "servidor", "cache", "consultas", "memoria"]),
+];
 }

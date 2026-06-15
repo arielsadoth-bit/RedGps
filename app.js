@@ -1,275 +1,4 @@
-const questions = [
-  {
-    id: "soft-html",
-    area: "Desarrollo de Software",
-    type: "closed",
-    title: "Que significa HTML",
-    prompt: "Que significa HTML?",
-    points: 20,
-    options: [
-      { key: "A", text: "Hyper Text Markup Language" },
-      { key: "B", text: "High Transfer Machine Language" },
-      { key: "C", text: "Hyper Tool Multi Language" },
-      { key: "D", text: "Home Text Markup Language" },
-    ],
-    correctAnswer: "A",
-    expected: "Hyper Text Markup Language",
-  },
-  {
-    id: "soft-language",
-    area: "Desarrollo de Software",
-    type: "closed",
-    title: "Lenguaje de programacion",
-    prompt: "Cual de los siguientes es un lenguaje de programacion?",
-    points: 20,
-    options: [
-      { key: "A", text: "CSS" },
-      { key: "B", text: "JavaScript" },
-      { key: "C", text: "HTML" },
-      { key: "D", text: "XML" },
-    ],
-    correctAnswer: "B",
-    expected: "JavaScript",
-  },
-  {
-    id: "soft-db",
-    area: "Desarrollo de Software",
-    type: "closed",
-    title: "Base de datos relacional",
-    prompt: "Que base de datos es relacional?",
-    points: 20,
-    options: [
-      { key: "A", text: "MongoDB" },
-      { key: "B", text: "Firebase" },
-      { key: "C", text: "MySQL" },
-      { key: "D", text: "Redis" },
-    ],
-    correctAnswer: "C",
-    expected: "MySQL",
-  },
-  {
-    id: "soft-git",
-    area: "Desarrollo de Software",
-    type: "closed",
-    title: "Guardar cambios en Git",
-    prompt: "Que comando se utiliza para guardar cambios en Git?",
-    points: 20,
-    options: [
-      { key: "A", text: "git push" },
-      { key: "B", text: "git commit" },
-      { key: "C", text: "git clone" },
-      { key: "D", text: "git pull" },
-    ],
-    correctAnswer: "B",
-    expected: "git commit",
-  },
-  {
-    id: "soft-loop",
-    area: "Desarrollo de Software",
-    type: "closed",
-    title: "Repetir instrucciones",
-    prompt: "Que estructura se utiliza para repetir instrucciones?",
-    points: 20,
-    options: [
-      { key: "A", text: "if" },
-      { key: "B", text: "switch" },
-      { key: "C", text: "for" },
-      { key: "D", text: "case" },
-    ],
-    correctAnswer: "C",
-    expected: "for",
-  },
-  {
-    id: "soft-poo",
-    area: "Desarrollo de Software",
-    type: "open",
-    title: "Programacion Orientada a Objetos",
-    prompt: "Que es la Programacion Orientada a Objetos (POO)?",
-    points: 20,
-    expected:
-      "Paradigma basado en clases y objetos que utiliza conceptos como encapsulamiento, herencia, polimorfismo y abstraccion.",
-    keywords: ["paradigma", "clases", "objetos", "encapsulamiento", "herencia", "polimorfismo", "abstraccion"],
-  },
-  {
-    id: "soft-front-back",
-    area: "Desarrollo de Software",
-    type: "open",
-    title: "Frontend y Backend",
-    prompt: "Explique la diferencia entre Frontend y Backend.",
-    points: 20,
-    expected:
-      "Frontend: Parte visual con la que interactua el usuario. Backend: Logica de negocio, bases de datos y procesamiento del sistema.",
-    keywords: ["frontend", "visual", "usuario", "backend", "logica", "base de datos", "procesamiento"],
-  },
-  {
-    id: "soft-api",
-    area: "Desarrollo de Software",
-    type: "open",
-    title: "API",
-    prompt: "Que es una API y para que sirve?",
-    points: 20,
-    expected:
-      "Permite la comunicacion entre sistemas o aplicaciones mediante solicitudes y respuestas.",
-    keywords: ["comunicacion", "sistemas", "aplicaciones", "solicitudes", "respuestas"],
-  },
-  {
-    id: "soft-performance",
-    area: "Desarrollo de Software",
-    type: "open",
-    title: "Aplicacion lenta",
-    prompt: "Que haria si una aplicacion se vuelve lenta?",
-    points: 20,
-    expected:
-      "Analizar rendimiento, revisar consultas a bases de datos, optimizar codigo, reducir cargas innecesarias y monitorear recursos.",
-    keywords: ["rendimiento", "consultas", "base de datos", "optimizar", "codigo", "cargas", "monitorear", "recursos"],
-  },
-  {
-    id: "soft-web-flow",
-    area: "Desarrollo de Software",
-    type: "open",
-    title: "Flujo de pagina web",
-    prompt: "Explique el flujo desde que un usuario entra a una pagina web hasta que ve la informacion.",
-    points: 20,
-    expected:
-      "El navegador envia una peticion al servidor, este procesa la solicitud, consulta la base de datos si es necesario y devuelve una respuesta para mostrarse en pantalla.",
-    keywords: ["navegador", "peticion", "servidor", "procesa", "solicitud", "base de datos", "respuesta", "pantalla"],
-  },
-  {
-    id: "mobile-android-language",
-    area: "Desarrollo Mobile",
-    type: "closed",
-    title: "Lenguaje principal Android",
-    prompt: "Cual es el lenguaje principal para Android actualmente?",
-    points: 20,
-    options: [
-      { key: "A", text: "Swift" },
-      { key: "B", text: "Kotlin" },
-      { key: "C", text: "PHP" },
-      { key: "D", text: "Python" },
-    ],
-    correctAnswer: "B",
-    expected: "Kotlin",
-  },
-  {
-    id: "mobile-ios-language",
-    area: "Desarrollo Mobile",
-    type: "closed",
-    title: "Lenguaje principal iOS",
-    prompt: "Cual es el lenguaje principal para iOS?",
-    points: 20,
-    options: [
-      { key: "A", text: "Java" },
-      { key: "B", text: "Kotlin" },
-      { key: "C", text: "Swift" },
-      { key: "D", text: "C#" },
-    ],
-    correctAnswer: "C",
-    expected: "Swift",
-  },
-  {
-    id: "mobile-xcode",
-    area: "Desarrollo Mobile",
-    type: "closed",
-    title: "Herramienta iOS",
-    prompt: "Que herramienta se utiliza principalmente para desarrollar aplicaciones iOS?",
-    points: 20,
-    options: [
-      { key: "A", text: "Android Studio" },
-      { key: "B", text: "Visual Studio" },
-      { key: "C", text: "Xcode" },
-      { key: "D", text: "Eclipse" },
-    ],
-    correctAnswer: "C",
-    expected: "Xcode",
-  },
-  {
-    id: "mobile-apk",
-    area: "Desarrollo Mobile",
-    type: "closed",
-    title: "Formato Android",
-    prompt: "Que formato utiliza Android para instalar aplicaciones?",
-    points: 20,
-    options: [
-      { key: "A", text: ".ipa" },
-      { key: "B", text: ".apk" },
-      { key: "C", text: ".exe" },
-      { key: "D", text: ".dmg" },
-    ],
-    correctAnswer: "B",
-    expected: ".apk",
-  },
-  {
-    id: "mobile-cross-platform",
-    area: "Desarrollo Mobile",
-    type: "closed",
-    title: "Una sola base de codigo",
-    prompt: "Que framework permite desarrollar una aplicacion para Android e iOS con una sola base de codigo?",
-    points: 20,
-    options: [
-      { key: "A", text: "Laravel" },
-      { key: "B", text: "React Native" },
-      { key: "C", text: "Spring Boot" },
-      { key: "D", text: "Django" },
-    ],
-    correctAnswer: "B",
-    expected: "React Native",
-  },
-  {
-    id: "mobile-native-multi",
-    area: "Desarrollo Mobile",
-    type: "open",
-    title: "Nativo y multiplataforma",
-    prompt: "Explique la diferencia entre desarrollo nativo y multiplataforma.",
-    points: 20,
-    expected:
-      "Nativo: Codigo especifico para Android o iOS. Multiplataforma: Un solo codigo para ambas plataformas.",
-    keywords: ["nativo", "codigo especifico", "android", "ios", "multiplataforma", "un solo codigo", "ambas plataformas"],
-  },
-  {
-    id: "mobile-activity",
-    area: "Desarrollo Mobile",
-    type: "open",
-    title: "Activity en Android",
-    prompt: "Que es una Activity en Android?",
-    points: 20,
-    expected:
-      "Es una pantalla o interfaz con la que interactua el usuario dentro de una aplicacion.",
-    keywords: ["pantalla", "interfaz", "interactua", "usuario", "aplicacion"],
-  },
-  {
-    id: "mobile-lifecycle",
-    area: "Desarrollo Mobile",
-    type: "open",
-    title: "Ciclo de vida movil",
-    prompt: "Que es el ciclo de vida de una aplicacion movil?",
-    points: 20,
-    expected:
-      "Son los estados por los que pasa una aplicacion: creacion, inicio, pausa, reanudacion y destruccion.",
-    keywords: ["estados", "creacion", "inicio", "pausa", "reanudacion", "destruccion"],
-  },
-  {
-    id: "mobile-rest",
-    area: "Desarrollo Mobile",
-    type: "open",
-    title: "Consumir API REST",
-    prompt: "Como consumiria una API REST desde una aplicacion movil?",
-    points: 20,
-    expected:
-      "Realizando solicitudes HTTP (GET, POST, PUT, DELETE), procesando la respuesta y mostrando los datos al usuario.",
-    keywords: ["solicitudes", "http", "get", "post", "put", "delete", "respuesta", "datos", "usuario"],
-  },
-  {
-    id: "mobile-performance",
-    area: "Desarrollo Mobile",
-    type: "open",
-    title: "Rendimiento movil",
-    prompt: "Que haria para mejorar el rendimiento de una aplicacion movil?",
-    points: 20,
-    expected:
-      "Optimizar imagenes, reducir llamadas innecesarias al servidor, usar cache, mejorar consultas y controlar el consumo de memoria.",
-    keywords: ["optimizar", "imagenes", "llamadas", "servidor", "cache", "consultas", "memoria"],
-  },
-];
+﻿let questions = [];
 
 const state = {
   activeExam: null,
@@ -299,14 +28,23 @@ const loginError = document.querySelector("#loginError");
 const logoutButton = document.querySelector("#logoutButton");
 const urlParams = new URLSearchParams(location.search);
 const isCandidateLink = urlParams.has("exam");
-const INTERVIEWER_USERS = {
-  ariel: "12345",
-  hector: "12345",
-  ilian: "12345",
-  alejandro: "12345",
-};
 const SESSION_KEY = "redgpsInterviewerSession";
 const USER_KEY = "redgpsInterviewerUser";
+const TOKEN_KEY = "redgpsInterviewToken";
+
+async function loadQuestions() {
+  if (!location.protocol.startsWith("http")) {
+    return;
+  }
+
+  const response = await fetchWithTimeout(`${location.origin}/api/questions`, {}, 9000);
+  questions = await response.json();
+}
+
+function getAuthHeaders() {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  return token ? { "X-Interview-Token": token } : {};
+}
 
 function renderQuestionBank() {
   questionBank.innerHTML = questions
@@ -651,7 +389,7 @@ function updateTimerLabel() {
   timer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function finishExam() {
+async function finishExam() {
   if (!state.activeExam) {
     alert("Primero genera un examen.");
     return;
@@ -669,20 +407,38 @@ function finishExam() {
     clearInterval(state.timerId);
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
-    state.lastResult = evaluateAnswers();
+    state.lastResult = await evaluateAnswersOnServer(candidateName);
     localStorage.setItem(getFinishedKey(), JSON.stringify(state.lastResult));
     localStorage.removeItem(getDraftKey());
     saveResultLocally(state.lastResult);
     renderResults();
     showView("resultsView");
-    saveResultOnServer(state.lastResult).then(() => {
-      renderSavedAnswers();
-      markServerSaveStatus("Resultado guardado para el entrevistador.");
-    });
+    markServerSaveStatus("Resultado guardado para el entrevistador.");
   } catch (error) {
     console.error(error);
     alert("No se pudo finalizar el examen. Revisa que las preguntas hayan cargado correctamente.");
   }
+}
+
+async function evaluateAnswersOnServer(candidateName) {
+  const response = await fetchWithTimeout(`${location.origin}/api/evaluate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: state.activeExam.id,
+      candidateName,
+      questionIds: state.activeExam.questions.map((question) => question.id),
+      answers: state.answers,
+      startedAt: state.activeExam.createdAt,
+      finishedAt: new Date().toISOString(),
+    }),
+  }, 9000);
+
+  if (!response.ok) {
+    throw new Error("No se pudo evaluar el examen.");
+  }
+
+  return response.json();
 }
 
 function evaluateAnswers() {
@@ -798,7 +554,7 @@ async function saveResultOnServer(result) {
     try {
       await fetchWithTimeout(`${location.origin}/api/results`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(result),
         keepalive: true,
       }, 9000);
@@ -903,7 +659,10 @@ function renderResultCard(item) {
   const earned = getEffectiveEarned(item);
   const stateLabel = getEffectiveStateLabel(item);
   const stateClass = getEffectiveStateClass(item);
-  const expectedAnswer = isCandidateLink ? "" : `<p><strong>Esperado:</strong> ${item.question.expected}</p>`;
+  const expectedAnswer =
+    isCandidateLink || !item.question.expected
+      ? ""
+      : `<p><strong>Esperado:</strong> ${item.question.expected}</p>`;
   const manualDetail =
     !isCandidateLink && item.manualEarned !== undefined && item.manualEarned !== null
       ? `<p class="review-note">Ajuste manual: ${item.manualEarned}/${item.question.points} pts${item.manualNote ? ` | ${escapeHtml(item.manualNote)}` : ""}${item.modifiedBy ? ` | Modifico: ${escapeHtml(item.modifiedBy)}` : ""}</p>`
@@ -1160,8 +919,19 @@ function recalculateResultScore(result) {
   };
 }
 
-function renderAnswerKey() {
-  answerKeyList.innerHTML = questions
+async function renderAnswerKey() {
+  try {
+    const response = await fetchWithTimeout(`${location.origin}/api/answer-key`, {
+      headers: getAuthHeaders(),
+    }, 9000);
+
+    if (!response.ok) {
+      answerKeyList.innerHTML = "<p>Inicia sesion para ver las respuestas correctas.</p>";
+      return;
+    }
+
+    const answerKey = await response.json();
+    answerKeyList.innerHTML = answerKey
     .map((question) => {
       const correctAnswer =
         question.type === "closed"
@@ -1183,12 +953,17 @@ function renderAnswerKey() {
       `;
     })
     .join("");
+  } catch {
+    answerKeyList.innerHTML = "<p>No se pudieron cargar las respuestas correctas.</p>";
+  }
 }
 
 async function getServerHistory() {
   if (location.protocol.startsWith("http")) {
     try {
-      const response = await fetchWithTimeout(`${location.origin}/api/results`, {}, 9000);
+      const response = await fetchWithTimeout(`${location.origin}/api/results`, {
+        headers: getAuthHeaders(),
+      }, 9000);
       if (response.ok) {
         const data = await response.json();
         return Array.isArray(data) ? data : [data];
@@ -1225,7 +1000,7 @@ function escapeHtml(value) {
 }
 
 document.querySelectorAll(".nav-button").forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     showView(button.dataset.view);
     if (button.dataset.view === "candidateView") {
       renderExam();
@@ -1238,7 +1013,7 @@ document.querySelectorAll(".nav-button").forEach((button) => {
       renderSavedAnswers();
     }
     if (button.dataset.view === "answerKeyView") {
-      renderAnswerKey();
+      await renderAnswerKey();
     }
   });
 });
@@ -1279,23 +1054,34 @@ document.querySelector("#clearHistoryButton").addEventListener("click", () => {
   localStorage.removeItem("lastResult");
   state.lastResult = null;
   if (location.protocol.startsWith("http")) {
-    fetch("/api/results", { method: "DELETE" });
+    fetch("/api/results", { method: "DELETE", headers: getAuthHeaders() });
   }
   renderResults();
   renderSavedAnswers();
 });
 
-loginForm.addEventListener("submit", (event) => {
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const user = loginUser.value.trim();
 
-  if (INTERVIEWER_USERS[user] === loginPassword.value) {
+  const response = await fetchWithTimeout(`${location.origin}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user, password: loginPassword.value }),
+  }, 9000);
+
+  if (response.ok) {
+    const session = await response.json();
     sessionStorage.setItem(SESSION_KEY, "true");
-    sessionStorage.setItem(USER_KEY, user);
+    sessionStorage.setItem(USER_KEY, session.user);
+    sessionStorage.setItem(TOKEN_KEY, session.token);
     loginUser.value = "";
     loginPassword.value = "";
     loginError.classList.add("hidden");
     loginScreen.classList.add("hidden");
+    await renderResults();
+    await renderSavedAnswers();
+    await renderAnswerKey();
     return;
   }
 
@@ -1306,6 +1092,7 @@ loginForm.addEventListener("submit", (event) => {
 logoutButton.addEventListener("click", () => {
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
   loginScreen.classList.remove("hidden");
   loginUser.focus();
 });
@@ -1316,7 +1103,7 @@ function protectInterviewerPanel() {
     return;
   }
 
-  if (sessionStorage.getItem(SESSION_KEY) === "true") {
+  if (sessionStorage.getItem(SESSION_KEY) === "true" && sessionStorage.getItem(TOKEN_KEY)) {
     loginScreen.classList.add("hidden");
     return;
   }
@@ -1330,10 +1117,11 @@ function getCurrentInterviewerUser() {
 }
 
 async function initializeApp() {
+  await loadQuestions();
   renderQuestionBank();
   renderResults();
   renderSavedAnswers();
-  renderAnswerKey();
+  await renderAnswerKey();
   protectInterviewerPanel();
 
   if (isCandidateLink) {
@@ -1351,3 +1139,5 @@ async function initializeApp() {
 }
 
 initializeApp();
+
+
