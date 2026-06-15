@@ -1,9 +1,9 @@
 bin/
 obj/
+.git/
 
 *.log
 cloudflared*.log
-cloudflared*.out
 URL_PUBLICA.txt
 URL_FIJA.txt
 
@@ -11,5 +11,4 @@ data/*.db
 data/*.db-*
 data/*.csv
 
-.vs/
-.vscode/
+tools/
