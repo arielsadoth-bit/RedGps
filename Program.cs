@@ -466,7 +466,8 @@ static object ToPublicQuestion(ExamQuestion question) => new
     question.Title,
     question.Prompt,
     question.Points,
-    question.Options
+    question.Options,
+    question.Runner
 };
 
 static object ToResultQuestion(ExamQuestion question, bool includeExpected)
@@ -485,7 +486,8 @@ static object ToResultQuestion(ExamQuestion question, bool includeExpected)
         question.Prompt,
         question.Points,
         question.Options,
-        question.Expected
+        question.Expected,
+        question.Runner
     };
 }
 
@@ -798,8 +800,13 @@ record ExamQuestion(
     List<ExamOption> Options,
     string CorrectAnswer,
     string Expected,
-    List<string> Keywords
+    List<string> Keywords,
+    CodeRunner? Runner = null
 );
+
+record CodeRunner(string FunctionName, List<CodeTest> Tests);
+
+record CodeTest(string Name, object[] Args, object Expected);
 
 static class AppData
 {
@@ -843,12 +850,24 @@ public static readonly List<ExamQuestion> Questions =
     new("soft-web-flow", "Desarrollo de Software", "open", "Flujo de pagina web", "Explique el flujo desde que un usuario entra a una pagina web hasta que ve la informacion.", 20,
         [], "", "El navegador envia una peticion al servidor, este procesa la solicitud, consulta la base de datos si es necesario y devuelve una respuesta para mostrarse en pantalla.",
         ["navegador", "peticion", "servidor", "procesa", "solicitud", "base de datos", "respuesta", "pantalla"]),
-    new("soft-code-palindrome", "Desarrollo de Software", "code", "Problema practico: palindromo", "Escriba una funcion que reciba un texto y devuelva true si es palindromo. Debe ignorar espacios, mayusculas y acentos. Ejemplo: 'Anita lava la tina' debe regresar true.", 20,
+    new("soft-code-palindrome", "Desarrollo de Software", "code", "Problema practico: palindromo", "Escriba una funcion llamada esPalindromo(texto) que devuelva true si el texto es palindromo. Debe ignorar espacios, mayusculas y acentos. Ejemplo: 'Anita lava la tina' debe regresar true.", 20,
         [], "", "Normalizar el texto, convertir a minusculas, quitar espacios o caracteres no necesarios, invertir la cadena o comparar extremos y devolver un booleano.",
-        ["function", "return", "tolowercase", "normalize", "replace", "reverse", "split", "join", "true", "normalizar", "minusculas", "espacios", "invertir", "comparar"]),
-    new("soft-code-api-list", "Desarrollo de Software", "code", "Problema practico: consumir API", "Escriba una funcion asincrona que consulte una API REST de usuarios, valide errores y regrese solo los usuarios activos.", 20,
-        [], "", "Usar async/await, hacer solicitud HTTP, validar respuesta o errores, convertir JSON y filtrar usuarios activos antes de regresar el resultado.",
-        ["async", "await", "http", "fetch", "response", "ok", "throw", "error", "json", "filter", "active", "return", "errores", "filtrar", "activos"]),
+        ["function", "return", "tolowercase", "normalize", "replace", "reverse", "split", "join", "true", "normalizar", "minusculas", "espacios", "invertir", "comparar"],
+        new("esPalindromo",
+        [
+            new("frase con espacios", [ "Anita lava la tina" ], true),
+            new("palabra simple", [ "Reconocer" ], true),
+            new("texto no palindromo", [ "RedGPS" ], false),
+        ])),
+    new("soft-code-api-list", "Desarrollo de Software", "code", "Problema practico: filtrar API", "Escriba una funcion llamada filtrarUsuariosActivos(usuarios) que reciba una lista de usuarios y regrese solo los usuarios con active: true.", 20,
+        [], "", "Recorrer o filtrar la lista de usuarios, validar la propiedad active y regresar solo los usuarios activos.",
+        ["function", "return", "filter", "active", "usuarios", "filtrar", "activos"],
+        new("filtrarUsuariosActivos",
+        [
+            new("mezcla activos e inactivos", [ new object[] { new { id = 1, active = true }, new { id = 2, active = false }, new { id = 3, active = true } } ], new object[] { new { id = 1, active = true }, new { id = 3, active = true } }),
+            new("sin activos", [ new object[] { new { id = 4, active = false } } ], Array.Empty<object>()),
+            new("lista vacia", [ Array.Empty<object>() ], Array.Empty<object>()),
+        ])),
     new("mobile-android-language", "Desarrollo Mobile", "closed", "Lenguaje principal Android", "Cual es el lenguaje principal para Android actualmente?", 20,
         [new("A", "Swift"), new("B", "Kotlin"), new("C", "PHP"), new("D", "Python")],
         "B", "Kotlin", []),
@@ -879,11 +898,23 @@ public static readonly List<ExamQuestion> Questions =
     new("mobile-performance", "Desarrollo Mobile", "open", "Rendimiento movil", "Que haria para mejorar el rendimiento de una aplicacion movil?", 20,
         [], "", "Optimizar imagenes, reducir llamadas innecesarias al servidor, usar cache, mejorar consultas y controlar el consumo de memoria.",
         ["optimizar", "imagenes", "llamadas", "servidor", "cache", "consultas", "memoria"]),
-    new("mobile-code-login", "Desarrollo Mobile", "code", "Problema practico: validacion login movil", "Escriba la logica para validar un formulario de login movil: correo requerido con formato valido, contrasena minima de 8 caracteres y mostrar mensajes de error sin llamar a la API si hay errores.", 20,
-        [], "", "Validar campos antes de consumir API, revisar correo con formato valido, validar longitud minima de contrasena, mostrar errores al usuario y evitar llamada al servidor cuando hay errores.",
-        ["validar", "correo", "email", "formato", "regex", "contrasena", "password", "length", "8", "errores", "usuario", "api", "return", "evitar"]),
-    new("mobile-code-cache", "Desarrollo Mobile", "code", "Problema practico: cache de datos", "Proponga codigo o pseudocodigo para cargar una lista desde una API en una app movil usando cache: mostrar datos guardados primero, actualizar desde servidor y manejar error sin dejar pantalla vacia.", 20,
-        [], "", "Leer cache local primero, mostrar datos guardados, consultar API, actualizar cache, refrescar pantalla y manejar errores conservando datos anteriores.",
-        ["cache", "local", "storage", "mostrar", "api", "fetch", "actualizar", "guardar", "save", "error", "catch", "datos", "pantalla"]),
+    new("mobile-code-login", "Desarrollo Mobile", "code", "Problema practico: validacion login movil", "Escriba una funcion llamada validarLogin(correo, contrasena) que devuelva true si el correo tiene formato valido y la contrasena tiene minimo 8 caracteres.", 20,
+        [], "", "Validar correo con formato valido, validar longitud minima de contrasena y devolver un booleano antes de llamar a una API.",
+        ["function", "return", "correo", "email", "formato", "regex", "contrasena", "password", "length", "8", "true", "false"],
+        new("validarLogin",
+        [
+            new("datos validos", [ "ariel@redgps.com", "12345678" ], true),
+            new("correo invalido", [ "ariel-redgps.com", "12345678" ], false),
+            new("contrasena corta", [ "ariel@redgps.com", "123" ], false),
+        ])),
+    new("mobile-code-cache", "Desarrollo Mobile", "code", "Problema practico: cache de datos", "Escriba una funcion llamada resolverDatos(cache, respuestaApi, hayError) que devuelva respuestaApi si no hay error y tiene datos; si hay error o no hay datos, debe devolver cache.", 20,
+        [], "", "Usar datos de API cuando esten disponibles, conservar cache local cuando haya error o respuesta vacia y evitar pantalla vacia.",
+        ["function", "return", "cache", "api", "error", "datos", "length", "pantalla"],
+        new("resolverDatos",
+        [
+            new("api correcta", [ new object[] { "guardado" }, new object[] { "nuevo" }, false ], new object[] { "nuevo" }),
+            new("api con error", [ new object[] { "guardado" }, new object[] { "nuevo" }, true ], new object[] { "guardado" }),
+            new("api vacia", [ new object[] { "guardado" }, Array.Empty<object>(), false ], new object[] { "guardado" }),
+        ])),
 ];
 }

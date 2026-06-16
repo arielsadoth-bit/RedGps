@@ -379,6 +379,68 @@ textarea {
   color: #9ca3af;
 }
 
+.code-runner-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.code-runner-bar span {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.code-test-output {
+  display: grid;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.test-summary,
+.test-line {
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.test-summary {
+  background: #111827;
+  color: #fff;
+}
+
+.test-line {
+  display: grid;
+  gap: 4px;
+  background: #f1f3f5;
+  color: var(--ink);
+}
+
+.test-line span {
+  color: inherit;
+  font-weight: 600;
+}
+
+.test-line.passed {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.test-line.failed {
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.test-line.pending {
+  background: #fff7ed;
+  color: #b54708;
+}
+
 .question-bank,
 .exam-form,
 .result-list {

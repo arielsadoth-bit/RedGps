@@ -268,6 +268,16 @@ function renderAnswerField(question, index) {
   }
 
   if (question.type === "code") {
+    const runner = question.runner
+      ? `
+        <div class="code-runner-bar">
+          <span>Funcion esperada: <strong>${question.runner.functionName}</strong></span>
+          <button class="secondary-button run-code-button" type="button" data-question-id="${question.id}">Ejecutar pruebas</button>
+        </div>
+        <div class="code-test-output" id="test-output-${question.id}"></div>
+      `
+      : "";
+
     return `
       <article class="answer-card code-answer-card">
         <label for="answer-${question.id}">
@@ -275,6 +285,7 @@ function renderAnswerField(question, index) {
           <span>${question.area} | ${getQuestionTypeLabel(question)}</span>
         </label>
         <textarea class="code-editor" id="answer-${question.id}" name="${question.id}" spellcheck="false" placeholder="Escribe aqui tu solucion. Puedes usar JavaScript, pseudocodigo claro o el lenguaje que domines."></textarea>
+        ${runner}
       </article>
     `;
   }
@@ -350,7 +361,103 @@ function bindDraftSaving() {
     field.addEventListener("input", saveDraftAnswers);
     field.addEventListener("change", saveDraftAnswers);
   });
+  examForm.querySelectorAll(".run-code-button").forEach((button) => {
+    button.addEventListener("click", () => runCodeTests(button.dataset.questionId));
+  });
   candidateNameInput.addEventListener("input", saveDraftAnswers);
+}
+
+async function runCodeTests(questionId) {
+  const question = state.activeExam.questions.find((item) => item.id === questionId);
+  const output = document.querySelector(`#test-output-${CSS.escape(questionId)}`);
+  const editor = document.querySelector(`#answer-${CSS.escape(questionId)}`);
+
+  if (!question?.runner || !output || !editor) {
+    return;
+  }
+
+  output.innerHTML = `<div class="test-line pending">Ejecutando pruebas...</div>`;
+
+  try {
+    const results = await executeCodeRunner(editor.value, question.runner);
+    const passed = results.filter((result) => result.passed).length;
+    output.innerHTML = `
+      <div class="test-summary">${passed}/${results.length} pruebas pasadas</div>
+      ${results
+        .map(
+          (result) => `
+            <div class="test-line ${result.passed ? "passed" : "failed"}">
+              <strong>${result.passed ? "OK" : "Fallo"}</strong> ${escapeHtml(result.name)}
+              ${result.passed ? "" : `<span>Esperado: ${escapeHtml(JSON.stringify(result.expected))} | Recibido: ${escapeHtml(JSON.stringify(result.actual))}</span>`}
+            </div>
+          `
+        )
+        .join("")}
+    `;
+  } catch (error) {
+    output.innerHTML = `<div class="test-line failed"><strong>Error</strong> ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function executeCodeRunner(code, runner) {
+  return new Promise((resolve, reject) => {
+    const workerSource = `
+      const deepEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+      self.onmessage = async (event) => {
+        const { code, runner } = event.data;
+        try {
+          const factory = new Function(code + "\\nreturn typeof " + runner.functionName + " === 'function' ? " + runner.functionName + " : null;");
+          const fn = factory();
+
+          if (!fn) {
+            throw new Error("No se encontro la funcion " + runner.functionName + ".");
+          }
+
+          const results = [];
+          for (const test of runner.tests) {
+            const actual = await fn(...test.args);
+            results.push({
+              name: test.name,
+              expected: test.expected,
+              actual,
+              passed: deepEqual(actual, test.expected),
+            });
+          }
+
+          self.postMessage({ ok: true, results });
+        } catch (error) {
+          self.postMessage({ ok: false, error: error.message || String(error) });
+        }
+      };
+    `;
+    const blob = new Blob([workerSource], { type: "text/javascript" });
+    const worker = new Worker(URL.createObjectURL(blob));
+    const timeout = setTimeout(() => {
+      worker.terminate();
+      reject(new Error("El codigo tardo demasiado. Revisa ciclos infinitos."));
+    }, 2500);
+
+    worker.onmessage = (event) => {
+      clearTimeout(timeout);
+      worker.terminate();
+
+      if (event.data.ok) {
+        resolve(event.data.results);
+        return;
+      }
+
+      reject(new Error(event.data.error));
+    };
+
+    worker.onerror = (event) => {
+      clearTimeout(timeout);
+      worker.terminate();
+      reject(new Error(event.message));
+    };
+
+    worker.postMessage({ code, runner });
+  });
 }
 
 function restoreCandidateName() {
