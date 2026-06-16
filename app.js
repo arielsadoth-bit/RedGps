@@ -58,7 +58,7 @@ function renderQuestionBank() {
               <p>${question.prompt}</p>
               <div class="tag-row">
                 <span class="tag">${question.area}</span>
-                <span class="tag">${question.type === "closed" ? "Cerrada" : "Abierta"}</span>
+                <span class="tag">${getQuestionTypeLabel(question)}</span>
                 <span class="tag">${question.points} pts</span>
               </div>
             </div>
@@ -101,6 +101,11 @@ function createExam() {
     return;
   }
 
+  if (!selectedQuestions.some((question) => question.type === "code")) {
+    alert("Selecciona al menos una pregunta practica para generar un examen teorico-practico.");
+    return;
+  }
+
   if (["localhost", "127.0.0.1"].includes(location.hostname)) {
     alert("Para enviar el examen a otra persona, abre abrir-publico.bat y genera el examen desde la URL https://...trycloudflare.com. Desde localhost solo funciona en tu computadora.");
     return;
@@ -110,7 +115,7 @@ function createExam() {
     id: createId(),
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
-    questions: pickRandomQuestions(selectedQuestions, 5),
+    questions: pickExamQuestions(selectedQuestions, 5),
   };
 
   localStorage.setItem("activeExam", JSON.stringify(state.activeExam));
@@ -135,6 +140,23 @@ function pickRandomQuestions(source, count) {
   }
 
   return shuffled.slice(0, count);
+}
+
+function pickExamQuestions(source, count) {
+  const practicalQuestions = source.filter((question) => question.type === "code");
+  const selectedPractical = pickRandomQuestions(practicalQuestions, 1);
+  const remainingPool = source.filter((question) => !selectedPractical.includes(question));
+  return [...selectedPractical, ...pickRandomQuestions(remainingPool, count - selectedPractical.length)];
+}
+
+function getQuestionTypeLabel(question) {
+  const labels = {
+    closed: "Teorica cerrada",
+    open: "Teorica abierta",
+    code: "Practica",
+  };
+
+  return labels[question.type] || "Pregunta";
 }
 
 function createId() {
@@ -228,7 +250,7 @@ function renderAnswerField(question, index) {
   if (question.type === "closed") {
     return `
       <article class="answer-card">
-        <label>${index + 1}. ${question.prompt}<span>${question.area} | Pregunta cerrada</span></label>
+        <label>${index + 1}. ${question.prompt}<span>${question.area} | ${getQuestionTypeLabel(question)}</span></label>
         <div class="option-list">
           ${question.options
             .map(
@@ -245,11 +267,23 @@ function renderAnswerField(question, index) {
     `;
   }
 
+  if (question.type === "code") {
+    return `
+      <article class="answer-card code-answer-card">
+        <label for="answer-${question.id}">
+          ${index + 1}. ${question.prompt}
+          <span>${question.area} | ${getQuestionTypeLabel(question)}</span>
+        </label>
+        <textarea class="code-editor" id="answer-${question.id}" name="${question.id}" spellcheck="false" placeholder="Escribe aqui tu solucion. Puedes usar JavaScript, pseudocodigo claro o el lenguaje que domines."></textarea>
+      </article>
+    `;
+  }
+
   return `
     <article class="answer-card">
       <label for="answer-${question.id}">
         ${index + 1}. ${question.prompt}
-        <span>${question.area} | Pregunta abierta</span>
+        <span>${question.area} | ${getQuestionTypeLabel(question)}</span>
       </label>
       <textarea id="answer-${question.id}" name="${question.id}" placeholder="Escribe aqui tu respuesta"></textarea>
     </article>
@@ -943,7 +977,7 @@ async function renderAnswerKey() {
           <h3>${question.title}</h3>
           <div class="tag-row">
             <span class="tag">${question.area}</span>
-            <span class="tag">${question.type === "closed" ? "Cerrada" : "Abierta"}</span>
+            <span class="tag">${getQuestionTypeLabel(question)}</span>
             <span class="tag">${question.points} pts</span>
           </div>
           <p><strong>Pregunta:</strong> ${question.prompt}</p>

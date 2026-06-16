@@ -360,6 +360,25 @@ textarea {
   line-height: 1.5;
 }
 
+.code-answer-card {
+  border-left: 4px solid #111827;
+  padding-left: 16px;
+}
+
+.code-editor {
+  min-height: 260px;
+  background: #050607;
+  color: #f8fafc;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.code-editor::placeholder {
+  color: #9ca3af;
+}
+
 .question-bank,
 .exam-form,
 .result-list {
