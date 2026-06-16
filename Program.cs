@@ -11,7 +11,10 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 var root = app.Environment.ContentRootPath;
-var dataDirectory = Path.Combine(root, "data");
+var configuredDataDirectory = Environment.GetEnvironmentVariable("DATA_DIR");
+var dataDirectory = string.IsNullOrWhiteSpace(configuredDataDirectory)
+    ? Path.Combine(root, "data")
+    : configuredDataDirectory;
 var databasePath = Path.Combine(dataDirectory, "redgps_exam.db");
 var sessions = new ConcurrentDictionary<string, string>();
 
