@@ -7,4 +7,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.6" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="index.html;app.js;styles.css" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="assets\**\*" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

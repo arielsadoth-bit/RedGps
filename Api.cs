@@ -21,6 +21,11 @@ var sessions = new ConcurrentDictionary<string, string>();
 Directory.CreateDirectory(dataDirectory);
 InitializeDatabase(databasePath);
 
+app.UseDefaultFiles(new DefaultFilesOptions
+{
+    FileProvider = new PhysicalFileProvider(root),
+});
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(root),
