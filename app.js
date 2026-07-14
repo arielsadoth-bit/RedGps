@@ -760,8 +760,13 @@ function getHistory() {
 }
 
 async function renderResults() {
-  const savedResult = localStorage.getItem("lastResult");
-  state.lastResult = state.lastResult || (savedResult ? JSON.parse(savedResult) : null);
+  if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
+    state.lastResult = null;
+    scoreLabel.textContent = "0/100";
+    resultSummary.textContent = "Inicia sesion para cargar los resultados guardados en la base de datos.";
+    resultList.innerHTML = "";
+    return;
+  }
 
   if (!isCandidateLink && location.protocol.startsWith("http")) {
     const history = (await getServerHistory()).filter((result) => result && result.id && result.evaluated);
@@ -769,7 +774,12 @@ async function renderResults() {
     if (history.length) {
       state.lastResult = history[0];
       localStorage.setItem("lastResult", JSON.stringify(state.lastResult));
+    } else {
+      state.lastResult = null;
     }
+  } else {
+    const savedResult = localStorage.getItem("lastResult");
+    state.lastResult = state.lastResult || (savedResult ? JSON.parse(savedResult) : null);
   }
 
   if (!state.lastResult) {
@@ -910,6 +920,12 @@ function getQuestionTitle(item) {
 }
 
 async function renderSavedAnswers() {
+  if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
+    answersSummary.textContent = "Inicia sesion para cargar los examenes guardados en la base de datos.";
+    answersList.innerHTML = "";
+    return;
+  }
+
   const history = (await getServerHistory()).filter((result) => result && result.id && result.evaluated);
 
   if (!history.length) {
@@ -1175,12 +1191,31 @@ async function getServerHistory() {
         const data = await response.json();
         return Array.isArray(data) ? data : [data];
       }
+      if (response.status === 401 || response.status === 403) {
+        expireInterviewerSession();
+        return [];
+      }
     } catch {
       console.warn("No se pudo leer el historial del servidor local.");
     }
+
+    return [];
   }
 
   return getHistory();
+}
+
+function expireInterviewerSession() {
+  if (isCandidateLink) {
+    return;
+  }
+
+  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  loginScreen.classList.remove("hidden");
+  loginError.textContent = "Tu sesion expiro. Inicia sesion otra vez para ver la base de datos.";
+  loginError.classList.remove("hidden");
 }
 
 async function fetchWithTimeout(url, options = {}, timeout = 3500) {
@@ -1284,6 +1319,7 @@ loginForm.addEventListener("submit", async (event) => {
     sessionStorage.setItem(TOKEN_KEY, session.token);
     loginUser.value = "";
     loginPassword.value = "";
+    loginError.textContent = "Usuario o contrasena incorrectos.";
     loginError.classList.add("hidden");
     loginScreen.classList.add("hidden");
     await renderResults();
@@ -1292,6 +1328,7 @@ loginForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  loginError.textContent = "Usuario o contrasena incorrectos.";
   loginError.classList.remove("hidden");
   loginPassword.select();
 });
@@ -1310,13 +1347,17 @@ function protectInterviewerPanel() {
     return;
   }
 
-  if (sessionStorage.getItem(SESSION_KEY) === "true" && sessionStorage.getItem(TOKEN_KEY)) {
+  if (hasInterviewerSession()) {
     loginScreen.classList.add("hidden");
     return;
   }
 
   loginScreen.classList.remove("hidden");
   loginUser.focus();
+}
+
+function hasInterviewerSession() {
+  return sessionStorage.getItem(SESSION_KEY) === "true" && Boolean(sessionStorage.getItem(TOKEN_KEY));
 }
 
 function getCurrentInterviewerUser() {
@@ -1326,9 +1367,6 @@ function getCurrentInterviewerUser() {
 async function initializeApp() {
   await loadQuestions();
   renderQuestionBank();
-  renderResults();
-  renderSavedAnswers();
-  await renderAnswerKey();
   protectInterviewerPanel();
 
   if (isCandidateLink) {
@@ -1340,6 +1378,12 @@ async function initializeApp() {
       startTimer();
     }
     return;
+  }
+
+  if (hasInterviewerSession()) {
+    await renderResults();
+    await renderSavedAnswers();
+    await renderAnswerKey();
   }
 
   renderExam();
