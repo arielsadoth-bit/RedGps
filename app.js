@@ -7,6 +7,7 @@ const state = {
   remainingSeconds: 0,
   lastResult: null,
   candidateAccessDenied: false,
+  selectedHistoryId: null,
 };
 
 const questionBank = document.querySelector("#questionBank");
@@ -800,19 +801,21 @@ function renderResultCard(item) {
   const earned = getEffectiveEarned(item);
   const stateLabel = getEffectiveStateLabel(item);
   const stateClass = getEffectiveStateClass(item);
+  const points = getQuestionPoints(item);
+  const title = getQuestionTitle(item);
   const expectedAnswer =
     isCandidateLink || !item.question.expected
       ? ""
       : `<p><strong>Esperado:</strong> ${item.question.expected}</p>`;
   const manualDetail =
     !isCandidateLink && item.manualEarned !== undefined && item.manualEarned !== null
-      ? `<p class="review-note">Ajuste manual: ${item.manualEarned}/${item.question.points} pts${item.manualNote ? ` | ${escapeHtml(item.manualNote)}` : ""}${item.modifiedBy ? ` | Modifico: ${escapeHtml(item.modifiedBy)}` : ""}</p>`
+      ? `<p class="review-note">Ajuste manual: ${item.manualEarned}/${points} pts${item.manualNote ? ` | ${escapeHtml(item.manualNote)}` : ""}${item.modifiedBy ? ` | Modifico: ${escapeHtml(item.modifiedBy)}` : ""}</p>`
       : "";
 
   return `
     <article class="result-card ${stateClass}">
-      <h3>${item.question.title}</h3>
-      <p class="result-state">${stateLabel}: ${earned}/${item.question.points} pts</p>
+      <h3>${escapeHtml(title)}</h3>
+      <p class="result-state">${stateLabel}: ${earned}/${points} pts</p>
       <p>${item.feedback}</p>
       ${expectedAnswer}
       ${manualDetail}
@@ -822,6 +825,7 @@ function renderResultCard(item) {
 }
 
 function renderReviewResultCard(result, item, index) {
+  const points = getQuestionPoints(item);
   const baseCard = renderResultCard(item).replace(
     "<article",
     `<article data-question-index="${index}"`
@@ -832,7 +836,7 @@ function renderReviewResultCard(result, item, index) {
         <div class="question-review-grid">
           <label class="field">
             Puntaje de esta respuesta
-            <input class="question-score-input" type="number" min="0" max="${item.question.points}" value="${effectiveEarned}" />
+            <input class="question-score-input" type="number" min="0" max="${points}" value="${effectiveEarned}" />
           </label>
           <label class="field">
             Motivo del ajuste
@@ -863,7 +867,7 @@ function getEffectiveStateLabel(item) {
   }
 
   const earned = getEffectiveEarned(item);
-  if (earned >= item.question.points) {
+  if (earned >= getQuestionPoints(item)) {
     return "Correcta ajustada";
   }
   if (earned > 0) {
@@ -878,7 +882,7 @@ function getEffectiveStateClass(item) {
   }
 
   const earned = getEffectiveEarned(item);
-  if (earned >= item.question.points) {
+  if (earned >= getQuestionPoints(item)) {
     return "correct";
   }
   if (earned > 0) {
@@ -896,6 +900,15 @@ function formatAnswer(item) {
   return item.answer || "Sin respuesta";
 }
 
+function getQuestionPoints(item) {
+  const points = Number(item?.question?.points);
+  return Number.isFinite(points) && points > 0 ? points : Number(item?.points || 0);
+}
+
+function getQuestionTitle(item) {
+  return item?.question?.title || item?.question?.prompt || item?.title || "Pregunta sin titulo";
+}
+
 async function renderSavedAnswers() {
   const history = (await getServerHistory()).filter((result) => result && result.id && result.evaluated);
 
@@ -906,38 +919,90 @@ async function renderSavedAnswers() {
   }
 
   answersSummary.textContent = `Hay ${history.length} examen(es) guardado(s) en este navegador.`;
-  const currentUser = getCurrentInterviewerUser();
-  answersList.innerHTML = history
-    .map(
-      (result) => `
-        <article class="history-card" data-result-id="${result.id}">
-          <h3>${result.candidateName || "Candidato sin nombre"} | ${getDisplayScore(result)}/100</h3>
-          <p>Calificacion automatica: ${result.automaticScore ?? result.score}/100</p>
-          <p>Finalizado: ${new Date(result.finishedAt).toLocaleString("es-MX")}</p>
-          <div class="manual-score-panel">
-            <div class="manual-score-grid">
-              <label class="field">
-                Persona que modifica
-                <input class="reviewer-name-input" value="${escapeHtml(currentUser)}" readonly />
-              </label>
-              <label class="field">
-                Calificacion final
-                <input class="manual-score-input" type="number" min="0" max="100" value="${getDisplayScore(result)}" />
-              </label>
-              <label class="field">
-                Nota del entrevistador
-                <input class="manual-note-input" value="${escapeHtml(result.manualNote || "")}" placeholder="Motivo del ajuste" />
-              </label>
-              <button class="primary-button save-manual-score-button" type="button">Guardar ajuste</button>
-            </div>
-            <span class="manual-save-status"></span>
-          </div>
-          ${result.evaluated.map((item, index) => renderReviewResultCard(result, item, index)).join("")}
-        </article>
-      `
-    )
-    .join("");
+  if (!state.selectedHistoryId || !history.some((result) => result.id === state.selectedHistoryId)) {
+    state.selectedHistoryId = history[0].id;
+  }
+
+  const selectedResult = history.find((result) => result.id === state.selectedHistoryId);
+  answersList.innerHTML = `
+    <div class="answers-browser">
+      <div class="answer-candidate-list" aria-label="Examenes contestados">
+        ${history.map((result) => renderCandidateSummary(result, result.id === state.selectedHistoryId)).join("")}
+      </div>
+      <div class="answer-detail">
+        ${selectedResult ? renderSavedAnswerDetail(selectedResult) : ""}
+      </div>
+    </div>
+  `;
+  bindCandidateSummaryControls(history);
   bindManualScoreControls(history);
+}
+
+function renderCandidateSummary(result, isSelected) {
+  const candidateName = result.candidateName || "Candidato sin nombre";
+  const finishedAt = result.finishedAt ? new Date(result.finishedAt).toLocaleString("es-MX") : "Sin fecha";
+  const automaticScore = result.automaticScore ?? result.score ?? 0;
+  const displayScore = getDisplayScore(result);
+  const adjustedLabel = result.manualScore !== null && result.manualScore !== undefined ? "Ajustada" : "Automatica";
+
+  return `
+    <button class="candidate-summary-card ${isSelected ? "active" : ""}" type="button" data-result-id="${result.id}">
+      <span>
+        <strong>${escapeHtml(candidateName)}</strong>
+        <small>${finishedAt}</small>
+      </span>
+      <span class="summary-score">${displayScore}/100</span>
+      <span class="summary-meta">${adjustedLabel} | Auto ${automaticScore}/100</span>
+    </button>
+  `;
+}
+
+function renderSavedAnswerDetail(result) {
+  const currentUser = getCurrentInterviewerUser();
+  const candidateName = result.candidateName || "Candidato sin nombre";
+  const finishedAt = result.finishedAt ? new Date(result.finishedAt).toLocaleString("es-MX") : "Sin fecha";
+
+  return `
+    <article class="history-card" data-result-id="${result.id}">
+      <div class="history-detail-heading">
+        <div>
+          <p class="eyebrow">Examen seleccionado</p>
+          <h3>${escapeHtml(candidateName)} | ${getDisplayScore(result)}/100</h3>
+        </div>
+        <span class="status-pill">${result.evaluated.length} respuestas</span>
+      </div>
+      <p>Calificacion automatica: ${result.automaticScore ?? result.score}/100</p>
+      <p>Finalizado: ${finishedAt}</p>
+      <div class="manual-score-panel">
+        <div class="manual-score-grid">
+          <label class="field">
+            Persona que modifica
+            <input class="reviewer-name-input" value="${escapeHtml(currentUser)}" readonly />
+          </label>
+          <label class="field">
+            Calificacion final
+            <input class="manual-score-input" type="number" min="0" max="100" value="${getDisplayScore(result)}" />
+          </label>
+          <label class="field">
+            Nota del entrevistador
+            <input class="manual-note-input" value="${escapeHtml(result.manualNote || "")}" placeholder="Motivo del ajuste" />
+          </label>
+          <button class="primary-button save-manual-score-button" type="button">Guardar ajuste</button>
+        </div>
+        <span class="manual-save-status"></span>
+      </div>
+      ${result.evaluated.map((item, index) => renderReviewResultCard(result, item, index)).join("")}
+    </article>
+  `;
+}
+
+function bindCandidateSummaryControls() {
+  answersList.querySelectorAll(".candidate-summary-card").forEach((button) => {
+    button.addEventListener("click", async () => {
+      state.selectedHistoryId = button.dataset.resultId;
+      await renderSavedAnswers();
+    });
+  });
 }
 
 function getDisplayScore(result) {
@@ -1009,8 +1074,9 @@ function bindManualScoreControls(history) {
           return;
         }
 
-        if (!Number.isFinite(manualEarned) || manualEarned < 0 || manualEarned > item.question.points) {
-          questionStatus.textContent = `El puntaje debe estar entre 0 y ${item.question.points}.`;
+        const maxQuestionPoints = getQuestionPoints(item);
+        if (!Number.isFinite(manualEarned) || manualEarned < 0 || manualEarned > maxQuestionPoints) {
+          questionStatus.textContent = `El puntaje debe estar entre 0 y ${maxQuestionPoints}.`;
           return;
         }
 
@@ -1047,7 +1113,7 @@ function bindManualScoreControls(history) {
 }
 
 function recalculateResultScore(result) {
-  const totalPoints = result.totalPoints || result.evaluated.reduce((sum, item) => sum + item.question.points, 0);
+  const totalPoints = result.totalPoints || result.evaluated.reduce((sum, item) => sum + getQuestionPoints(item), 0);
   const earnedPoints = result.evaluated.reduce((sum, item) => sum + getEffectiveEarned(item), 0);
   const score = Math.round((earnedPoints / totalPoints) * 100);
 

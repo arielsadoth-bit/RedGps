@@ -652,6 +652,94 @@ textarea {
   gap: 14px;
 }
 
+.answers-browser {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.answer-candidate-list {
+  display: grid;
+  gap: 10px;
+  position: sticky;
+  top: 18px;
+}
+
+.candidate-summary-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.candidate-summary-card:hover,
+.candidate-summary-card.active {
+  border-color: rgba(245, 124, 0, 0.55);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.candidate-summary-card.active {
+  background: #fff7ed;
+}
+
+.candidate-summary-card strong,
+.candidate-summary-card small,
+.candidate-summary-card .summary-meta {
+  display: block;
+}
+
+.candidate-summary-card strong {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.candidate-summary-card small,
+.candidate-summary-card .summary-meta {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.candidate-summary-card small {
+  margin-top: 5px;
+  font-size: 0.78rem;
+}
+
+.candidate-summary-card .summary-score {
+  color: var(--accent-dark);
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.candidate-summary-card .summary-meta {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+}
+
+.answer-detail {
+  min-width: 0;
+}
+
+.history-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .history-card .result-card {
   box-shadow: none;
 }
@@ -771,5 +859,18 @@ code {
 
   .question-review-grid {
     grid-template-columns: 1fr;
+  }
+
+  .answers-browser {
+    grid-template-columns: 1fr;
+  }
+
+  .answer-candidate-list {
+    position: static;
+  }
+
+  .history-detail-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
