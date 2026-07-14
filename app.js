@@ -959,42 +959,64 @@ async function renderSavedAnswers() {
     return;
   }
 
-  answersSummary.textContent = `Hay ${history.length} examen(es) guardado(s) en este navegador.`;
-  if (!state.selectedHistoryId || !history.some((result) => result.id === state.selectedHistoryId)) {
-    state.selectedHistoryId = history[0].id;
-  }
-
-  const selectedResult = history.find((result) => result.id === state.selectedHistoryId);
+  answersSummary.textContent = `Hay ${history.length} examen(es) guardado(s) en la base de datos. Selecciona uno para revisarlo.`;
+  const selectedResult = state.selectedHistoryId
+    ? history.find((result) => result.id === state.selectedHistoryId)
+    : null;
   answersList.innerHTML = `
-    <div class="answers-browser">
-      <div class="answer-candidate-list" aria-label="Examenes contestados">
-        ${history.map((result) => renderCandidateSummary(result, result.id === state.selectedHistoryId)).join("")}
-      </div>
-      <div class="answer-detail">
-        ${selectedResult ? renderSavedAnswerDetail(selectedResult) : ""}
-      </div>
+    <div class="answers-table-wrap">
+      <table class="answers-table">
+        <thead>
+          <tr>
+            <th>Candidato</th>
+            <th>Calificacion</th>
+            <th>Automatica</th>
+            <th>Finalizado</th>
+            <th>Respuestas</th>
+            <th>Accion</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${history.map((result) => renderCandidateRow(result, result.id === state.selectedHistoryId)).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="answer-detail">
+      ${selectedResult ? renderSavedAnswerDetail(selectedResult) : renderEmptyAnswerDetail()}
     </div>
   `;
-  bindCandidateSummaryControls(history);
+  bindCandidateTableControls();
   bindManualScoreControls(history);
 }
 
-function renderCandidateSummary(result, isSelected) {
+function renderCandidateRow(result, isSelected) {
   const candidateName = result.candidateName || "Candidato sin nombre";
   const finishedAt = result.finishedAt ? new Date(result.finishedAt).toLocaleString("es-MX") : "Sin fecha";
   const automaticScore = result.automaticScore ?? result.score ?? 0;
   const displayScore = getDisplayScore(result);
-  const adjustedLabel = result.manualScore !== null && result.manualScore !== undefined ? "Ajustada" : "Automatica";
+  const adjustedLabel = result.manualScore !== null && result.manualScore !== undefined ? "Ajustada" : "Sin ajuste";
+  const answerCount = Array.isArray(result.evaluated) ? result.evaluated.length : 0;
 
   return `
-    <button class="candidate-summary-card ${isSelected ? "active" : ""}" type="button" data-result-id="${result.id}">
-      <span>
+    <tr class="${isSelected ? "selected" : ""}">
+      <td>
         <strong>${escapeHtml(candidateName)}</strong>
-        <small>${finishedAt}</small>
-      </span>
-      <span class="summary-score">${displayScore}/100</span>
-      <span class="summary-meta">${adjustedLabel} | Auto ${automaticScore}/100</span>
-    </button>
+        <small>${escapeHtml(result.id)}</small>
+      </td>
+      <td><span class="table-score">${displayScore}/100</span><small>${adjustedLabel}</small></td>
+      <td>${automaticScore}/100</td>
+      <td>${finishedAt}</td>
+      <td>${answerCount}</td>
+      <td><button class="secondary-button view-answer-button" type="button" data-result-id="${result.id}">Ver</button></td>
+    </tr>
+  `;
+}
+
+function renderEmptyAnswerDetail() {
+  return `
+    <div class="empty-detail">
+      Selecciona un examen de la tabla y presiona Ver para revisar las respuestas.
+    </div>
   `;
 }
 
@@ -1037,8 +1059,8 @@ function renderSavedAnswerDetail(result) {
   `;
 }
 
-function bindCandidateSummaryControls() {
-  answersList.querySelectorAll(".candidate-summary-card").forEach((button) => {
+function bindCandidateTableControls() {
+  answersList.querySelectorAll(".view-answer-button").forEach((button) => {
     button.addEventListener("click", async () => {
       state.selectedHistoryId = button.dataset.resultId;
       await renderSavedAnswers();
