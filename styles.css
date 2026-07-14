@@ -654,40 +654,68 @@ textarea {
 
 .answers-table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
-  box-shadow: var(--shadow);
+  background: #f3f5f7;
+  padding: 10px;
 }
 
 .answers-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 10px;
   min-width: 780px;
 }
 
 .answers-table th,
 .answers-table td {
-  border-bottom: 1px solid var(--line);
-  padding: 14px 16px;
+  padding: 16px 18px;
   text-align: left;
   vertical-align: middle;
 }
 
 .answers-table th {
-  background: #f8fafc;
+  background: transparent;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.answers-table tr:last-child td {
-  border-bottom: 0;
+.answers-table tbody td {
+  background: #fff;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.answers-table tbody td:first-child {
+  border-left: 1px solid var(--line);
+  border-radius: 8px 0 0 8px;
+}
+
+.answers-table tbody td:last-child {
+  border-right: 1px solid var(--line);
+  border-radius: 0 8px 8px 0;
+  text-align: right;
+}
+
+.answers-table tbody tr {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.answers-table tbody tr:hover {
+  transform: translateY(-1px);
+}
+
+.answers-table tbody tr:hover td {
+  border-color: rgba(245, 124, 0, 0.35);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
 }
 
 .answers-table tr.selected td {
   background: #fff7ed;
+  border-color: rgba(245, 124, 0, 0.55);
 }
 
 .answers-table td strong,
@@ -704,7 +732,14 @@ textarea {
 
 .table-score {
   color: var(--accent-dark);
+  font-size: 1.04rem;
   font-weight: 900;
+}
+
+.view-answer-button {
+  min-width: 76px;
+  min-height: 40px;
+  border-radius: 6px;
 }
 
 .answer-detail {
