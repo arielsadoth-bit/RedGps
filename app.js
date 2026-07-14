@@ -813,10 +813,11 @@ function renderResultCard(item) {
   const stateClass = getEffectiveStateClass(item);
   const points = getQuestionPoints(item);
   const title = getQuestionTitle(item);
+  const expected = getQuestionExpected(item);
   const expectedAnswer =
-    isCandidateLink || !item.question.expected
+    isCandidateLink || !expected
       ? ""
-      : `<p><strong>Esperado:</strong> ${item.question.expected}</p>`;
+      : `<p><strong>Esperado:</strong> ${expected}</p>`;
   const manualDetail =
     !isCandidateLink && item.manualEarned !== undefined && item.manualEarned !== null
       ? `<p class="review-note">Ajuste manual: ${item.manualEarned}/${points} pts${item.manualNote ? ` | ${escapeHtml(item.manualNote)}` : ""}${item.modifiedBy ? ` | Modifico: ${escapeHtml(item.modifiedBy)}` : ""}</p>`
@@ -902,21 +903,45 @@ function getEffectiveStateClass(item) {
 }
 
 function formatAnswer(item) {
-  if (item.question.type === "closed") {
-    const option = item.question.options.find((choice) => choice.key === item.answer);
-    return item.answer ? `${item.answer}) ${option ? option.text : ""}` : "Sin respuesta";
+  if (getQuestionType(item) === "closed") {
+    const option = getQuestionOptions(item).find((choice) => choice.key === item.answer || choice.Key === item.answer);
+    const optionText = option ? option.text || option.Text || "" : "";
+    return item.answer ? `${item.answer}) ${optionText}` : "Sin respuesta";
   }
 
   return item.answer || "Sin respuesta";
 }
 
+function getQuestionValue(item, lowerName, upperName) {
+  const question = item?.question || item?.Question || {};
+  return question[lowerName] ?? question[upperName];
+}
+
 function getQuestionPoints(item) {
-  const points = Number(item?.question?.points);
+  const points = Number(getQuestionValue(item, "points", "Points"));
   return Number.isFinite(points) && points > 0 ? points : Number(item?.points || 0);
 }
 
 function getQuestionTitle(item) {
-  return item?.question?.title || item?.question?.prompt || item?.title || "Pregunta sin titulo";
+  return (
+    getQuestionValue(item, "title", "Title") ||
+    getQuestionValue(item, "prompt", "Prompt") ||
+    item?.title ||
+    "Pregunta sin titulo"
+  );
+}
+
+function getQuestionExpected(item) {
+  return getQuestionValue(item, "expected", "Expected") || "";
+}
+
+function getQuestionType(item) {
+  return getQuestionValue(item, "type", "Type") || "";
+}
+
+function getQuestionOptions(item) {
+  const options = getQuestionValue(item, "options", "Options");
+  return Array.isArray(options) ? options : [];
 }
 
 async function renderSavedAnswers() {
