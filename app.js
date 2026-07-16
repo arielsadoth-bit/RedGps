@@ -8,6 +8,7 @@ const state = {
   lastResult: null,
   candidateAccessDenied: false,
   selectedHistoryId: null,
+  answerSearchTerm: "",
 };
 
 const questionBank = document.querySelector("#questionBank");
@@ -959,11 +960,27 @@ async function renderSavedAnswers() {
     return;
   }
 
+  const searchTerm = state.answerSearchTerm.trim();
+  const filteredHistory = searchTerm
+    ? history.filter((result) => {
+        const candidateName = result.candidateName || "Candidato sin nombre";
+        return normalizeText(`${candidateName} ${result.id}`).includes(normalizeText(searchTerm));
+      })
+    : history;
+
   answersSummary.textContent = `Hay ${history.length} examen(es) guardado(s) en la base de datos. Selecciona uno para revisarlo.`;
   const selectedResult = state.selectedHistoryId
     ? history.find((result) => result.id === state.selectedHistoryId)
     : null;
   answersList.innerHTML = `
+    <div class="answers-tools">
+      <label class="field search-field">
+        Buscar candidato
+        <input id="answerSearchInput" value="${escapeHtml(state.answerSearchTerm)}" placeholder="Nombre del candidato" autocomplete="off" />
+      </label>
+      <button class="ghost-button ${state.answerSearchTerm ? "" : "hidden"}" id="clearAnswerSearchButton" type="button">Limpiar</button>
+      <span class="answers-count">${filteredHistory.length} de ${history.length} examen(es)</span>
+    </div>
     <div class="answers-table-wrap">
       <table class="answers-table">
         <thead>
@@ -977,7 +994,9 @@ async function renderSavedAnswers() {
           </tr>
         </thead>
         <tbody>
-          ${history.map((result) => renderCandidateRow(result, result.id === state.selectedHistoryId)).join("")}
+          ${filteredHistory.length
+            ? filteredHistory.map((result) => renderCandidateRow(result, result.id === state.selectedHistoryId)).join("")
+            : renderNoSearchResultsRow(searchTerm)}
         </tbody>
       </table>
     </div>
@@ -985,8 +1004,19 @@ async function renderSavedAnswers() {
       ${selectedResult ? renderSavedAnswerDetail(selectedResult) : renderEmptyAnswerDetail()}
     </div>
   `;
+  bindAnswerSearchControls();
   bindCandidateTableControls();
   bindManualScoreControls(history);
+}
+
+function renderNoSearchResultsRow(searchTerm) {
+  return `
+    <tr>
+      <td class="empty-table-cell" colspan="6">
+        No se encontraron examenes para "${escapeHtml(searchTerm)}".
+      </td>
+    </tr>
+  `;
 }
 
 function renderCandidateRow(result, isSelected) {
@@ -1010,6 +1040,33 @@ function renderCandidateRow(result, isSelected) {
       <td><button class="secondary-button view-answer-button" type="button" data-result-id="${result.id}">Ver</button></td>
     </tr>
   `;
+}
+
+function bindAnswerSearchControls() {
+  const searchInput = document.querySelector("#answerSearchInput");
+  const clearButton = document.querySelector("#clearAnswerSearchButton");
+
+  if (!searchInput) {
+    return;
+  }
+
+  searchInput.addEventListener("input", async () => {
+    state.answerSearchTerm = searchInput.value;
+    await renderSavedAnswers();
+    const nextInput = document.querySelector("#answerSearchInput");
+    if (nextInput) {
+      nextInput.focus();
+      nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+    }
+  });
+
+  if (clearButton) {
+    clearButton.addEventListener("click", async () => {
+      state.answerSearchTerm = "";
+      await renderSavedAnswers();
+      document.querySelector("#answerSearchInput")?.focus();
+    });
+  }
 }
 
 function renderEmptyAnswerDetail() {
