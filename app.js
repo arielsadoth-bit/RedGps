@@ -990,7 +990,7 @@ async function renderSavedAnswers() {
             <th>Automatica</th>
             <th>Finalizado</th>
             <th>Respuestas</th>
-            <th>Accion</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -1037,7 +1037,12 @@ function renderCandidateRow(result, isSelected) {
       <td>${automaticScore}/100</td>
       <td>${finishedAt}</td>
       <td>${answerCount}</td>
-      <td><button class="secondary-button view-answer-button" type="button" data-result-id="${result.id}">Ver</button></td>
+      <td>
+        <div class="table-actions">
+          <button class="secondary-button view-answer-button" type="button" data-result-id="${result.id}">Ver</button>
+          <button class="danger-button delete-answer-button" type="button" data-result-id="${result.id}" data-candidate-name="${escapeHtml(candidateName)}">Borrar</button>
+        </div>
+      </td>
     </tr>
   `;
 }
@@ -1066,6 +1071,30 @@ function bindAnswerSearchControls() {
       await renderSavedAnswers();
       document.querySelector("#answerSearchInput")?.focus();
     });
+  }
+}
+
+async function deleteResult(resultId) {
+  const response = await fetchWithTimeout(`${location.origin}/api/results/${encodeURIComponent(resultId)}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  }, 9000);
+
+  if (response.status === 401 || response.status === 403) {
+    expireInterviewerSession();
+    throw new Error("Sesion expirada.");
+  }
+
+  if (!response.ok) {
+    throw new Error("No se pudo borrar el examen.");
+  }
+
+  const history = getHistory().filter((result) => result.id !== resultId);
+  localStorage.setItem("examHistory", JSON.stringify(history));
+  const savedResult = localStorage.getItem("lastResult");
+  if (savedResult && JSON.parse(savedResult).id === resultId) {
+    localStorage.removeItem("lastResult");
+    state.lastResult = null;
   }
 }
 
@@ -1121,6 +1150,34 @@ function bindCandidateTableControls() {
     button.addEventListener("click", async () => {
       state.selectedHistoryId = button.dataset.resultId;
       await renderSavedAnswers();
+    });
+  });
+
+  answersList.querySelectorAll(".delete-answer-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const resultId = button.dataset.resultId;
+      const candidateName = button.dataset.candidateName || "este candidato";
+
+      if (!confirm(`Vas a borrar el examen de ${candidateName}. Esta accion tambien lo quitara de la base de datos. ¿Continuar?`)) {
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Borrando...";
+
+      try {
+        await deleteResult(resultId);
+        if (state.selectedHistoryId === resultId) {
+          state.selectedHistoryId = null;
+        }
+        await renderSavedAnswers();
+        await renderResults();
+      } catch (error) {
+        console.error(error);
+        alert("No se pudo borrar el examen. Intenta de nuevo.");
+        button.disabled = false;
+        button.textContent = "Borrar";
+      }
     });
   });
 }

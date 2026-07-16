@@ -772,10 +772,33 @@ textarea {
   font-weight: 900;
 }
 
-.view-answer-button {
+.table-actions {
+  display: inline-flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.view-answer-button,
+.delete-answer-button {
   min-width: 76px;
   min-height: 40px;
   border-radius: 6px;
+}
+
+.danger-button {
+  border: 1px solid rgba(180, 35, 24, 0.24);
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.danger-button:hover {
+  border-color: rgba(180, 35, 24, 0.5);
+  background: #fee4e2;
+}
+
+.danger-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .answer-detail {

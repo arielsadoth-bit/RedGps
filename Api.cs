@@ -246,6 +246,49 @@ app.MapDelete("/api/results", (HttpRequest request) =>
     return Results.Ok(new { ok = true });
 });
 
+app.MapDelete("/api/results/{id}", (string id, HttpRequest request) =>
+{
+    if (!TryGetInterviewer(request, sessions, out _))
+    {
+        return Results.Unauthorized();
+    }
+
+    if (string.IsNullOrWhiteSpace(id))
+    {
+        return Results.BadRequest(new { error = "El id del examen no es valido." });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    using var transaction = connection.BeginTransaction();
+
+    using (var answersCommand = connection.CreateCommand())
+    {
+        answersCommand.Transaction = transaction;
+        answersCommand.CommandText = "DELETE FROM respuestas_examenes WHERE id_resultado = $id";
+        answersCommand.Parameters.AddWithValue("$id", id);
+        answersCommand.ExecuteNonQuery();
+    }
+
+    using (var linksCommand = connection.CreateCommand())
+    {
+        linksCommand.Transaction = transaction;
+        linksCommand.CommandText = "DELETE FROM enlaces_examenes WHERE id_examen = $id";
+        linksCommand.Parameters.AddWithValue("$id", id);
+        linksCommand.ExecuteNonQuery();
+    }
+
+    using var resultCommand = connection.CreateCommand();
+    resultCommand.Transaction = transaction;
+    resultCommand.CommandText = "DELETE FROM resultados_examenes WHERE id = $id";
+    resultCommand.Parameters.AddWithValue("$id", id);
+    var deleted = resultCommand.ExecuteNonQuery();
+    transaction.Commit();
+
+    return deleted > 0
+        ? Results.Ok(new { ok = true })
+        : Results.NotFound(new { error = "No se encontro ese examen." });
+});
+
 app.MapFallback(async context =>
 {
     var allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
