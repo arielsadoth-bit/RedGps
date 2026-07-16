@@ -1118,7 +1118,10 @@ function renderSavedAnswerDetail(result) {
           <p class="eyebrow">Examen seleccionado</p>
           <h3>${escapeHtml(candidateName)} | ${getDisplayScore(result)}/100</h3>
         </div>
-        <span class="status-pill">${result.evaluated.length} respuestas</span>
+        <div class="detail-heading-actions">
+          <span class="status-pill">${result.evaluated.length} respuestas</span>
+          <button class="ghost-button close-answer-detail-button" type="button">Cerrar</button>
+        </div>
       </div>
       <p>Calificacion automatica: ${result.automaticScore ?? result.score}/100</p>
       <p>Finalizado: ${finishedAt}</p>
@@ -1146,6 +1149,14 @@ function renderSavedAnswerDetail(result) {
 }
 
 function bindCandidateTableControls() {
+  const closeDetailButton = answersList.querySelector(".close-answer-detail-button");
+  if (closeDetailButton) {
+    closeDetailButton.addEventListener("click", async () => {
+      state.selectedHistoryId = null;
+      await renderSavedAnswers();
+    });
+  }
+
   answersList.querySelectorAll(".view-answer-button").forEach((button) => {
     button.addEventListener("click", async () => {
       state.selectedHistoryId = button.dataset.resultId;

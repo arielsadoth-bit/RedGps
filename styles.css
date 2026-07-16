@@ -822,6 +822,16 @@ textarea {
   gap: 12px;
 }
 
+.detail-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.close-answer-detail-button {
+  min-height: 42px;
+}
+
 .history-card .result-card {
   box-shadow: none;
 }
@@ -952,6 +962,11 @@ code {
   }
 
   .history-detail-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detail-heading-actions {
     align-items: stretch;
     flex-direction: column;
   }
