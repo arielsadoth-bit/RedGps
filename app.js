@@ -9,6 +9,9 @@ const state = {
   candidateAccessDenied: false,
   selectedHistoryId: null,
   answerSearchTerm: "",
+  isFinishingExam: false,
+  securityFinishTriggered: false,
+  securityFinishReason: "",
 };
 
 const questionBank = document.querySelector("#questionBank");
@@ -577,52 +580,122 @@ function updateTimerLabel() {
   timer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-async function finishExam() {
+function shouldAutoFinishForSecurity() {
+  return (
+    isCandidateLink &&
+    state.activeExam &&
+    !state.candidateAccessDenied &&
+    !state.securityFinishTriggered &&
+    !state.isFinishingExam &&
+    !getFinishedResult()
+  );
+}
+
+function triggerSecurityFinish(reason) {
+  if (!shouldAutoFinishForSecurity()) {
+    return;
+  }
+
+  state.securityFinishTriggered = true;
+  state.securityFinishReason = reason;
+  finishExam({ forced: true });
+}
+
+function bindCandidateSecurityRules() {
+  if (!isCandidateLink) {
+    return;
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      triggerSecurityFinish("El candidato cambio de pestana, minimizo o salio de la pagina.");
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    triggerSecurityFinish("El candidato cerro o abandono la pagina del examen.");
+  });
+
+  window.addEventListener("blur", () => {
+    setTimeout(() => {
+      if (!document.hasFocus()) {
+        triggerSecurityFinish("El candidato salio del foco de la ventana del examen.");
+      }
+    }, 500);
+  });
+}
+
+async function finishExam(options = {}) {
+  const forced = Boolean(options.forced);
+
+  if (state.isFinishingExam) {
+    return;
+  }
+
   if (!state.activeExam) {
-    alert("Primero genera un examen.");
+    if (!forced) {
+      alert("Primero genera un examen.");
+    }
     return;
   }
 
   try {
-    const candidateName = candidateNameInput.value.trim();
+    state.isFinishingExam = true;
+    const candidateName = candidateNameInput.value.trim() || (forced ? "Candidato sin nombre" : "");
     const candidateEmail = candidateEmailInput.value.trim().toLowerCase();
 
-    if (!candidateName) {
+    if (!forced && !candidateName) {
       alert("Escribe tu nombre completo antes de finalizar el examen.");
       candidateNameInput.focus();
       return;
     }
 
-    if (!isValidEmail(candidateEmail)) {
+    if (!forced && !isValidEmail(candidateEmail)) {
       alert("Escribe tu correo antes de finalizar el examen.");
       candidateEmailInput.focus();
       return;
     }
 
     clearInterval(state.timerId);
+    document.querySelector("#finishExamButton").disabled = true;
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
-    state.lastResult = await evaluateAnswersOnServer(candidateName, candidateEmail);
+    state.lastResult = await evaluateAnswersOnServer(
+      candidateName,
+      isValidEmail(candidateEmail) ? candidateEmail : "",
+      forced
+    );
     localStorage.setItem(getFinishedKey(), JSON.stringify(state.lastResult));
     localStorage.removeItem(getDraftKey());
     saveResultLocally(state.lastResult);
     renderResults();
     showView("resultsView");
-    markServerSaveStatus("Resultado guardado para el entrevistador.");
+    markServerSaveStatus(
+      forced
+        ? "El examen se finalizo automaticamente porque saliste de la pantalla del examen."
+        : "Resultado guardado para el entrevistador."
+    );
   } catch (error) {
     console.error(error);
-    alert("No se pudo finalizar el examen. Revisa que las preguntas hayan cargado correctamente.");
+    if (!forced) {
+      alert("No se pudo finalizar el examen. Revisa que las preguntas hayan cargado correctamente.");
+      document.querySelector("#finishExamButton").disabled = false;
+    }
+  } finally {
+    state.isFinishingExam = false;
   }
 }
 
-async function evaluateAnswersOnServer(candidateName, candidateEmail) {
+async function evaluateAnswersOnServer(candidateName, candidateEmail, keepalive = false) {
   const response = await fetchWithTimeout(`${location.origin}/api/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    keepalive,
     body: JSON.stringify({
       id: state.activeExam.id,
       candidateName,
       candidateEmail,
+      securityReason: state.securityFinishReason,
       questionIds: state.activeExam.questions.map((question) => question.id),
       answers: state.answers,
       startedAt: state.activeExam.createdAt,
@@ -650,6 +723,7 @@ function evaluateAnswers() {
     id: state.activeExam.id,
     candidateName: candidateNameInput.value.trim(),
     candidateEmail: candidateEmailInput.value.trim().toLowerCase(),
+    securityReason: state.securityFinishReason,
     score,
     automaticScore: score,
     manualScore: null,
@@ -853,6 +927,9 @@ async function renderResults() {
   resultSummary.textContent = isCandidateLink
     ? `Obtuviste ${state.lastResult.earnedPoints} de ${state.lastResult.totalPoints} puntos. Estamos guardando tu resultado para el entrevistador.`
     : `${displayName} obtuvo ${state.lastResult.earnedPoints} de ${state.lastResult.totalPoints} puntos. Calificacion automatica: ${state.lastResult.automaticScore ?? state.lastResult.score}/100.${manualLabel}`;
+  if (!isCandidateLink && state.lastResult.securityReason) {
+    resultSummary.textContent += ` Finalizacion automatica: ${state.lastResult.securityReason}`;
+  }
   resultList.innerHTML = state.lastResult.evaluated.map(renderResultCard).join("");
 }
 
@@ -1305,6 +1382,7 @@ function renderSavedAnswerDetail(result) {
       </div>
       <p>Calificacion automatica: ${result.automaticScore ?? result.score}/100</p>
       <p>Finalizado: ${finishedAt}</p>
+      ${result.securityReason ? `<p class="security-note">Finalizacion automatica: ${escapeHtml(result.securityReason)}</p>` : ""}
       <div class="manual-score-panel">
         <div class="manual-score-grid">
           <label class="field">
@@ -1749,6 +1827,7 @@ async function initializeApp() {
     if (allowed) {
       renderExam();
       startTimer();
+      bindCandidateSecurityRules();
     }
     return;
   }

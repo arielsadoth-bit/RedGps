@@ -745,6 +745,7 @@ static object? EvaluateExam(JsonElement request, bool includeExpected)
         totalPoints,
         evaluated,
         answers = answerDictionary,
+        securityReason = GetString(request, "securityReason"),
         startedAt = GetString(request, "startedAt"),
         finishedAt = GetString(request, "finishedAt")
     };

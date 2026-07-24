@@ -980,6 +980,14 @@ textarea {
   font-weight: 800;
 }
 
+.security-note {
+  border-left: 4px solid #b42318;
+  background: #fff1f0;
+  color: #b42318;
+  padding: 10px 12px;
+  font-weight: 900;
+}
+
 .result-state {
   font-weight: 900;
 }
