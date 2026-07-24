@@ -12,6 +12,9 @@ const state = {
 };
 
 const questionBank = document.querySelector("#questionBank");
+const examNameInput = document.querySelector("#examName");
+const candidateEmailInput = document.querySelector("#candidateEmail");
+const questionCountInput = document.querySelector("#questionCount");
 const examForm = document.querySelector("#examForm");
 const resultList = document.querySelector("#resultList");
 const resultSummary = document.querySelector("#resultSummary");
@@ -21,6 +24,8 @@ const timer = document.querySelector("#timer");
 const candidateNameInput = document.querySelector("#candidateName");
 const answersSummary = document.querySelector("#answersSummary");
 const answersList = document.querySelector("#answersList");
+const createdExamsSummary = document.querySelector("#createdExamsSummary");
+const createdExamsList = document.querySelector("#createdExamsList");
 const answerKeyList = document.querySelector("#answerKeyList");
 const loginScreen = document.querySelector("#loginScreen");
 const loginForm = document.querySelector("#loginForm");
@@ -81,6 +86,7 @@ function showView(viewId) {
 
   const labels = {
     interviewerView: "Entrevistador",
+    createdExamsView: "Examenes",
     candidateView: "Candidato",
     resultsView: "Resultados",
     answersView: "Respuestas",
@@ -95,29 +101,42 @@ function getSelectedQuestions() {
     .filter(Boolean);
 }
 
-function createExam() {
+async function createExam() {
   const selectedQuestions = getSelectedQuestions();
+  const questionCount = Number(questionCountInput.value);
+  const examName = examNameInput.value.trim();
+  const candidateEmail = candidateEmailInput.value.trim().toLowerCase();
 
-  if (selectedQuestions.length < 5) {
-    alert("Selecciona al menos 5 preguntas para generar el examen aleatorio.");
+  if (!examName) {
+    alert("Escribe el nombre del examen.");
+    examNameInput.focus();
     return;
   }
 
-  if (!selectedQuestions.some((question) => question.type === "code")) {
-    alert("Selecciona al menos una pregunta practica para generar un examen teorico-practico.");
+  if (!isValidEmail(candidateEmail)) {
+    alert("Escribe el correo del candidato para guardar el registro del enlace.");
+    candidateEmailInput.focus();
     return;
   }
 
-  if (["localhost", "127.0.0.1"].includes(location.hostname)) {
-    alert("Para enviar el examen a otra persona, abre abrir-publico.bat y genera el examen desde la URL https://...trycloudflare.com. Desde localhost solo funciona en tu computadora.");
+  if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 20) {
+    alert("La cantidad de preguntas debe estar entre 1 y 20.");
+    questionCountInput.focus();
+    return;
+  }
+
+  if (selectedQuestions.length < questionCount) {
+    alert(`Selecciona al menos ${questionCount} pregunta(s) para generar el examen.`);
     return;
   }
 
   state.activeExam = {
     id: createId(),
+    name: examName,
+    candidateEmail,
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
-    questions: pickExamQuestions(selectedQuestions, 5),
+    questions: pickExamQuestions(selectedQuestions, questionCount),
   };
 
   localStorage.setItem("activeExam", JSON.stringify(state.activeExam));
@@ -125,12 +144,36 @@ function createExam() {
   const link = `${getExamBaseUrl()}${location.pathname}?exam=${state.activeExam.id}&time=${state.activeExam.timeLimit}&q=${questionIds}`;
   document.querySelector("#examLink").value = link;
   document.querySelector("#examLinkBox").classList.remove("hidden");
+  await saveCreatedExam({
+    id: state.activeExam.id,
+    examName,
+    candidateEmail,
+    questionCount,
+    linkCount: 1,
+    link,
+    timeLimit: state.activeExam.timeLimit,
+    questionIds: state.activeExam.questions.map((question) => question.id),
+    createdAt: state.activeExam.createdAt,
+  });
+  await renderCreatedExams();
   renderExam();
-  alert("Examen generado con link publico listo para enviar.");
+  alert(getExamCreatedMessage());
 }
 
 function getExamBaseUrl() {
   return location.origin;
+}
+
+function getExamCreatedMessage() {
+  if (["localhost", "127.0.0.1"].includes(location.hostname)) {
+    return "Examen generado. Este link de localhost funciona en esta computadora. Para abrirlo en un celular de la misma red, entra al sistema usando la IP de esta computadora y genera el examen desde ahi.";
+  }
+
+  return "Examen generado con link listo para enviar.";
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function pickRandomQuestions(source, count) {
@@ -146,7 +189,11 @@ function pickRandomQuestions(source, count) {
 
 function pickExamQuestions(source, count) {
   const practicalQuestions = source.filter((question) => question.type === "code");
-  const selectedPractical = pickRandomQuestions(practicalQuestions, 1);
+  const selectedPractical = practicalQuestions.length ? pickRandomQuestions(practicalQuestions, 1) : [];
+  if (count === 1) {
+    return selectedPractical.length ? selectedPractical : pickRandomQuestions(source, 1);
+  }
+
   const remainingPool = source.filter((question) => !selectedPractical.includes(question));
   return [...selectedPractical, ...pickRandomQuestions(remainingPool, count - selectedPractical.length)];
 }
@@ -1000,13 +1047,143 @@ async function renderSavedAnswers() {
         </tbody>
       </table>
     </div>
-    <div class="answer-detail">
-      ${selectedResult ? renderSavedAnswerDetail(selectedResult) : renderEmptyAnswerDetail()}
-    </div>
+    ${selectedResult ? `<div class="answer-detail">${renderSavedAnswerDetail(selectedResult)}</div>` : ""}
   `;
   bindAnswerSearchControls();
   bindCandidateTableControls();
   bindManualScoreControls(history);
+}
+
+async function saveCreatedExam(exam) {
+  const localHistory = getCreatedExamHistory();
+  const updatedHistory = [exam, ...localHistory.filter((item) => item.id !== exam.id)].slice(0, 200);
+  localStorage.setItem("createdExamHistory", JSON.stringify(updatedHistory));
+
+  if (!location.protocol.startsWith("http") || !hasInterviewerSession()) {
+    return;
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${location.origin}/api/exams`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(exam),
+    }, 9000);
+
+    if (response.status === 401 || response.status === 403) {
+      expireInterviewerSession();
+    }
+  } catch {
+    console.warn("No se pudo guardar el examen creado en el servidor.");
+  }
+}
+
+function getCreatedExamHistory() {
+  const savedHistory = localStorage.getItem("createdExamHistory");
+  return savedHistory ? JSON.parse(savedHistory) : [];
+}
+
+async function getServerCreatedExams() {
+  if (location.protocol.startsWith("http") && hasInterviewerSession()) {
+    try {
+      const response = await fetchWithTimeout(`${location.origin}/api/exams`, {
+        headers: getAuthHeaders(),
+      }, 9000);
+
+      if (response.ok) {
+        const data = await response.json();
+        return Array.isArray(data) ? data : [data];
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        expireInterviewerSession();
+      }
+    } catch {
+      console.warn("No se pudieron cargar los examenes creados del servidor.");
+    }
+
+    return [];
+  }
+
+  return getCreatedExamHistory();
+}
+
+async function renderCreatedExams() {
+  if (!createdExamsSummary || !createdExamsList) {
+    return;
+  }
+
+  if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
+    createdExamsSummary.textContent = "Inicia sesion para cargar los examenes creados.";
+    createdExamsList.innerHTML = "";
+    return;
+  }
+
+  const exams = await getServerCreatedExams();
+  if (!exams.length) {
+    createdExamsSummary.textContent = "Aun no hay examenes creados.";
+    createdExamsList.innerHTML = "";
+    return;
+  }
+
+  createdExamsSummary.textContent = `Hay ${exams.length} examen(es) creado(s) con enlace registrado.`;
+  createdExamsList.innerHTML = `
+    <div class="created-exams-table-wrap">
+      <table class="created-exams-table">
+        <thead>
+          <tr>
+            <th>Nombre del examen</th>
+            <th>Num preguntas</th>
+            <th>Num links generados</th>
+            <th>Correo candidato</th>
+            <th>Link unico de acceso</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${exams.map(renderCreatedExamRow).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+  bindCreatedExamControls();
+}
+
+function renderCreatedExamRow(exam) {
+  const createdAt = exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha";
+  return `
+    <tr>
+      <td>
+        <strong>${escapeHtml(exam.examName || "Evaluacion tecnica")}</strong>
+        <small>${createdAt}</small>
+      </td>
+      <td>${Number(exam.questionCount || 0)}</td>
+      <td>${Number(exam.linkCount || 1)}</td>
+      <td>${escapeHtml(exam.candidateEmail || "Sin correo")}</td>
+      <td>
+        <div class="created-link-cell">
+          <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
+          <button class="ghost-button copy-created-link-button" type="button" data-link="${escapeHtml(exam.link || "")}">Copiar</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function bindCreatedExamControls() {
+  createdExamsList?.querySelectorAll(".copy-created-link-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const link = button.dataset.link || "";
+      if (!link) {
+        return;
+      }
+
+      await copyText(link);
+      button.textContent = "Copiado";
+      setTimeout(() => {
+        button.textContent = "Copiar";
+      }, 1400);
+    });
+  });
 }
 
 function renderNoSearchResultsRow(searchTerm) {
@@ -1096,14 +1273,6 @@ async function deleteResult(resultId) {
     localStorage.removeItem("lastResult");
     state.lastResult = null;
   }
-}
-
-function renderEmptyAnswerDetail() {
-  return `
-    <div class="empty-detail">
-      Selecciona un examen de la tabla y presiona Ver para revisar las respuestas.
-    </div>
-  `;
 }
 
 function renderSavedAnswerDetail(result) {
@@ -1404,6 +1573,22 @@ async function fetchWithTimeout(url, options = {}, timeout = 3500) {
   }
 }
 
+async function copyText(value) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const temporaryInput = document.createElement("input");
+  temporaryInput.value = value;
+  temporaryInput.style.position = "fixed";
+  temporaryInput.style.opacity = "0";
+  document.body.appendChild(temporaryInput);
+  temporaryInput.select();
+  document.execCommand("copy");
+  temporaryInput.remove();
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -1426,13 +1611,22 @@ document.querySelectorAll(".nav-button").forEach((button) => {
     if (button.dataset.view === "answersView") {
       renderSavedAnswers();
     }
+    if (button.dataset.view === "createdExamsView") {
+      await renderCreatedExams();
+    }
     if (button.dataset.view === "answerKeyView") {
       await renderAnswerKey();
     }
   });
 });
 
-document.querySelector("#createExamButton").addEventListener("click", createExam);
+document.querySelector("#createExamButton").addEventListener("click", () => {
+  createExam();
+});
+
+document.querySelector("#newExamShortcutButton")?.addEventListener("click", () => {
+  showView("interviewerView");
+});
 
 document.querySelector("#selectAllButton").addEventListener("click", () => {
   document.querySelectorAll("#questionBank input").forEach((input) => {
@@ -1444,12 +1638,7 @@ document.querySelector("#copyLinkButton").addEventListener("click", async () => 
   const examLink = document.querySelector("#examLink");
 
   try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(examLink.value);
-    } else {
-      examLink.select();
-      document.execCommand("copy");
-    }
+    await copyText(examLink.value);
 
     document.querySelector("#copyLinkButton").textContent = "Copiado";
     setTimeout(() => {
@@ -1491,16 +1680,17 @@ loginForm.addEventListener("submit", async (event) => {
     sessionStorage.setItem(TOKEN_KEY, session.token);
     loginUser.value = "";
     loginPassword.value = "";
-    loginError.textContent = "Usuario o contrasena incorrectos.";
+    loginError.textContent = "Correo o contrasena incorrectos.";
     loginError.classList.add("hidden");
     loginScreen.classList.add("hidden");
     await renderResults();
+    await renderCreatedExams();
     await renderSavedAnswers();
     await renderAnswerKey();
     return;
   }
 
-  loginError.textContent = "Usuario o contrasena incorrectos.";
+  loginError.textContent = "Correo o contrasena incorrectos.";
   loginError.classList.remove("hidden");
   loginPassword.select();
 });
@@ -1554,6 +1744,7 @@ async function initializeApp() {
 
   if (hasInterviewerSession()) {
     await renderResults();
+    await renderCreatedExams();
     await renderSavedAnswers();
     await renderAnswerKey();
   }

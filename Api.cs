@@ -98,6 +98,48 @@ app.MapGet("/api/results", (HttpRequest request) =>
     return Results.Json(results);
 });
 
+app.MapGet("/api/exams", (HttpRequest request) =>
+{
+    if (!TryGetInterviewer(request, sessions, out _))
+    {
+        return Results.Unauthorized();
+    }
+
+    using var connection = OpenConnection(databasePath);
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT datos_json
+        FROM examenes_creados
+        ORDER BY creado_en DESC
+        LIMIT 200
+        """;
+
+    using var reader = command.ExecuteReader();
+    var exams = new List<JsonElement>();
+
+    while (reader.Read())
+    {
+        using var document = JsonDocument.Parse(reader.GetString(0));
+        exams.Add(document.RootElement.Clone());
+    }
+
+    return Results.Json(exams);
+});
+
+app.MapPost("/api/exams", async (HttpRequest request) =>
+{
+    if (!TryGetInterviewer(request, sessions, out var interviewer))
+    {
+        return Results.Unauthorized();
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    using var connection = OpenConnection(databasePath);
+    SaveCreatedExam(connection, document.RootElement, interviewer);
+
+    return Results.Ok(new { ok = true });
+});
+
 app.MapPost("/api/exam-access/{examId}", async (string examId, HttpRequest request) =>
 {
     using var document = await JsonDocument.ParseAsync(request.Body);
@@ -225,6 +267,51 @@ static void SaveResult(SqliteConnection connection, JsonElement rootElement)
     command.Parameters.AddWithValue("$payload", payload);
     command.ExecuteNonQuery();
     SaveAnswerRows(connection, id, rootElement, modifiedBy, modifiedAt);
+}
+
+static void SaveCreatedExam(SqliteConnection connection, JsonElement rootElement, string interviewer)
+{
+    var id = GetString(rootElement, "id");
+    if (string.IsNullOrWhiteSpace(id))
+    {
+        throw new InvalidOperationException("El examen no tiene id.");
+    }
+
+    var examName = GetString(rootElement, "examName");
+    var candidateEmail = GetString(rootElement, "candidateEmail");
+    var questionCount = GetInt(rootElement, "questionCount");
+    var timeLimit = GetInt(rootElement, "timeLimit");
+    var link = GetString(rootElement, "link");
+    var createdAt = GetString(rootElement, "createdAt");
+    var payload = JsonSerializer.Serialize(rootElement);
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        INSERT INTO examenes_creados
+            (id, nombre_examen, cantidad_preguntas, cantidad_links, correo_candidato, link_acceso, tiempo_minutos, creado_por, creado_en, datos_json)
+        VALUES
+            ($id, $examName, $questionCount, 1, $candidateEmail, $link, $timeLimit, $createdBy, $createdAt, $payload)
+        ON CONFLICT(id) DO UPDATE SET
+            nombre_examen = excluded.nombre_examen,
+            cantidad_preguntas = excluded.cantidad_preguntas,
+            cantidad_links = excluded.cantidad_links,
+            correo_candidato = excluded.correo_candidato,
+            link_acceso = excluded.link_acceso,
+            tiempo_minutos = excluded.tiempo_minutos,
+            creado_por = excluded.creado_por,
+            creado_en = excluded.creado_en,
+            datos_json = excluded.datos_json
+        """;
+    command.Parameters.AddWithValue("$id", id);
+    command.Parameters.AddWithValue("$examName", examName);
+    command.Parameters.AddWithValue("$questionCount", questionCount);
+    command.Parameters.AddWithValue("$candidateEmail", candidateEmail);
+    command.Parameters.AddWithValue("$link", link);
+    command.Parameters.AddWithValue("$timeLimit", timeLimit);
+    command.Parameters.AddWithValue("$createdBy", interviewer);
+    command.Parameters.AddWithValue("$createdAt", createdAt);
+    command.Parameters.AddWithValue("$payload", payload);
+    command.ExecuteNonQuery();
 }
 
 app.MapDelete("/api/results", (HttpRequest request) =>
@@ -385,11 +472,27 @@ static void InitializeDatabase(string databasePath)
             tomado_en TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS examenes_creados (
+            id TEXT PRIMARY KEY,
+            nombre_examen TEXT NOT NULL DEFAULT '',
+            cantidad_preguntas INTEGER NOT NULL DEFAULT 0,
+            cantidad_links INTEGER NOT NULL DEFAULT 1,
+            correo_candidato TEXT NOT NULL DEFAULT '',
+            link_acceso TEXT NOT NULL DEFAULT '',
+            tiempo_minutos INTEGER NOT NULL DEFAULT 0,
+            creado_por TEXT NOT NULL DEFAULT '',
+            creado_en TEXT NOT NULL DEFAULT '',
+            datos_json TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_resultados_examenes_finalizado_en
         ON resultados_examenes(finalizado_en DESC);
 
         CREATE INDEX IF NOT EXISTS idx_respuestas_examenes_resultado
         ON respuestas_examenes(id_resultado);
+
+        CREATE INDEX IF NOT EXISTS idx_examenes_creados_creado_en
+        ON examenes_creados(creado_en DESC);
 
         DROP VIEW IF EXISTS vista_resultados;
         CREATE VIEW vista_resultados AS
@@ -435,6 +538,20 @@ static void InitializeDatabase(string databasePath)
             id_examen,
             tomado_en
         FROM enlaces_examenes;
+
+        DROP VIEW IF EXISTS vista_examenes_creados;
+        CREATE VIEW vista_examenes_creados AS
+        SELECT
+            id AS id_examen,
+            nombre_examen,
+            cantidad_preguntas,
+            cantidad_links,
+            correo_candidato,
+            link_acceso,
+            tiempo_minutos,
+            creado_por,
+            creado_en
+        FROM examenes_creados;
         """;
     command.ExecuteNonQuery();
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
@@ -550,7 +667,7 @@ static object? EvaluateExam(JsonElement request, bool includeExpected)
         return null;
     }
 
-    var questionIds = GetQuestionIds(request).Take(5).ToList();
+    var questionIds = GetQuestionIds(request).Take(20).ToList();
     if (questionIds.Count == 0)
     {
         return null;
@@ -863,10 +980,10 @@ static class AppData
 {
 public static readonly Dictionary<string, string> Interviewers = new(StringComparer.OrdinalIgnoreCase)
 {
-    ["ariel"] = "12345",
-    ["hector"] = "12345",
-    ["ilian"] = "12345",
-    ["alejandro"] = "12345",
+    ["ariel@redgps.com"] = "12345",
+    ["hector@redgps.com"] = "12345",
+    ["ilian@redgps.com"] = "12345",
+    ["alejandro@redgps.com"] = "12345",
 };
 
 public static readonly List<ExamQuestion> Questions =

@@ -13,14 +13,14 @@
         <p class="eyebrow">Acceso entrevistador</p>
         <h2>Centro de Evaluacion</h2>
         <label class="field">
-          Usuario
-          <input id="loginUser" type="text" autocomplete="username" placeholder="Ingresa el usuario" />
+          Correo autorizado
+          <input id="loginUser" type="email" autocomplete="username" placeholder="correo@redgps.com" />
         </label>
         <label class="field">
           Contrasena
           <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Ingresa la contrasena" />
         </label>
-        <p class="login-error hidden" id="loginError">Usuario o contrasena incorrectos.</p>
+        <p class="login-error hidden" id="loginError">Correo o contrasena incorrectos.</p>
         <button class="primary-button" type="submit">Entrar</button>
       </form>
     </section>
@@ -48,6 +48,7 @@
             <strong>Assessment</strong>
           </div>
           <button class="nav-button active" data-view="interviewerView">Crear examen</button>
+          <button class="nav-button" data-view="createdExamsView">Examenes creados</button>
           <button class="nav-button" data-view="candidateView">Responder examen</button>
           <button class="nav-button" data-view="answersView">Respuestas</button>
           <button class="nav-button" data-view="answerKeyView">Correctas</button>
@@ -60,15 +61,29 @@
                 <p class="eyebrow">Banco de preguntas</p>
                 <h2>Arma una evaluacion para el puesto</h2>
               </div>
-              <label class="field small-field">
-                Tiempo
-                <select id="timeLimit">
-                  <option value="10">10 min</option>
-                  <option value="20" selected>20 min</option>
-                  <option value="30">30 min</option>
-                  <option value="45">45 min</option>
-                </select>
-              </label>
+              <div class="exam-config-grid">
+                <label class="field">
+                  Nombre del examen
+                  <input id="examName" value="Evaluacion tecnica RedGPS" placeholder="Ej. Evaluacion Full Stack" />
+                </label>
+                <label class="field">
+                  Correo del candidato
+                  <input id="candidateEmail" type="email" placeholder="candidato@correo.com" autocomplete="email" />
+                </label>
+                <label class="field">
+                  Preguntas
+                  <input id="questionCount" type="number" min="1" max="20" value="5" />
+                </label>
+                <label class="field">
+                  Tiempo
+                  <select id="timeLimit">
+                    <option value="10">10 min</option>
+                    <option value="20" selected>20 min</option>
+                    <option value="30">30 min</option>
+                    <option value="45">45 min</option>
+                  </select>
+                </label>
+              </div>
             </div>
 
             <div class="question-bank" id="questionBank"></div>
@@ -83,6 +98,41 @@
               <div class="copy-row">
                 <input id="examLink" readonly />
                 <button id="copyLinkButton">Copiar</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="view" id="createdExamsView">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Evaluaciones activas</p>
+                <h2>Examenes creados</h2>
+              </div>
+              <button class="primary-button" id="newExamShortcutButton" type="button">Crear nuevo examen</button>
+            </div>
+
+            <div class="result-summary" id="createdExamsSummary">
+              Aun no hay examenes creados.
+            </div>
+            <div class="result-list" id="createdExamsList"></div>
+            <div class="change-status-panel">
+              <h3>Estado de cambios solicitados</h3>
+              <div class="change-status-grid">
+                <article>
+                  <strong>1. Cantidad de preguntas por examen</strong>
+                  <p>Seleccion de 1 a 20 preguntas aleatorias por evaluacion.</p>
+                  <span>Estado: Implementado</span>
+                </article>
+                <article>
+                  <strong>3. Modificacion del inicio de sesion</strong>
+                  <p>Acceso solo con correos autorizados de RedGPS.</p>
+                  <span>Estado: Implementado</span>
+                </article>
+                <article>
+                  <strong>6. Registro de enlaces y correos enviados</strong>
+                  <p>Tabla con enlaces generados y correo del candidato.</p>
+                  <span>Estado: Implementado</span>
+                </article>
               </div>
             </div>
           </section>
@@ -156,6 +206,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260716-close-detail"></script>
+    <script src="app.js?v=20260724-created-exams"></script>
   </body>
 </html>
