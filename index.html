@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Tecnico</title>
-    <link rel="stylesheet" href="styles.css?v=20260716-close-detail" />
+    <link rel="stylesheet" href="styles.css?v=20260724-candidate-email" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -65,10 +65,6 @@
                 <label class="field">
                   Nombre del examen
                   <input id="examName" value="Evaluacion tecnica RedGPS" placeholder="Ej. Evaluacion Full Stack" />
-                </label>
-                <label class="field">
-                  Correo del candidato
-                  <input id="candidateEmail" type="email" placeholder="candidato@correo.com" autocomplete="email" />
                 </label>
                 <label class="field">
                   Preguntas
@@ -151,6 +147,11 @@
               <input id="candidateName" placeholder="Escribe tu nombre completo" autocomplete="name" />
             </label>
 
+            <label class="field candidate-name-field">
+              Correo del candidato
+              <input id="candidateEmail" type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
+            </label>
+
             <form id="examForm" class="exam-form"></form>
 
             <div class="actions-row">
@@ -206,6 +207,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260724-created-exams"></script>
+    <script src="app.js?v=20260724-candidate-email"></script>
   </body>
 </html>

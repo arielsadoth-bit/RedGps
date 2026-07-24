@@ -227,6 +227,7 @@ static void SaveResult(SqliteConnection connection, JsonElement rootElement)
     var earnedPoints = GetInt(rootElement, "earnedPoints");
     var totalPoints = GetInt(rootElement, "totalPoints");
     var candidateName = GetString(rootElement, "candidateName");
+    var candidateEmail = GetString(rootElement, "candidateEmail");
     var manualNote = GetString(rootElement, "manualNote");
     var modifiedBy = GetFirstString(rootElement, "modifiedBy", "modificadoPor");
     var modifiedAt = GetFirstString(rootElement, "modifiedAt", "modificadoEn", "reviewedAt");
@@ -237,11 +238,12 @@ static void SaveResult(SqliteConnection connection, JsonElement rootElement)
     using var command = connection.CreateCommand();
     command.CommandText = """
         INSERT INTO resultados_examenes
-            (id, nombre_candidato, calificacion, calificacion_manual, puntos_obtenidos, puntos_totales, iniciado_en, finalizado_en, nota_manual, modificado_por, modificado_en, datos_json)
+            (id, nombre_candidato, correo_candidato, calificacion, calificacion_manual, puntos_obtenidos, puntos_totales, iniciado_en, finalizado_en, nota_manual, modificado_por, modificado_en, datos_json)
         VALUES
-            ($id, $candidateName, $score, $manualScore, $earnedPoints, $totalPoints, $startedAt, $finishedAt, $manualNote, $modifiedBy, $modifiedAt, $payload)
+            ($id, $candidateName, $candidateEmail, $score, $manualScore, $earnedPoints, $totalPoints, $startedAt, $finishedAt, $manualNote, $modifiedBy, $modifiedAt, $payload)
         ON CONFLICT(id) DO UPDATE SET
             nombre_candidato = excluded.nombre_candidato,
+            correo_candidato = excluded.correo_candidato,
             calificacion = excluded.calificacion,
             calificacion_manual = excluded.calificacion_manual,
             puntos_obtenidos = excluded.puntos_obtenidos,
@@ -255,6 +257,7 @@ static void SaveResult(SqliteConnection connection, JsonElement rootElement)
         """;
     command.Parameters.AddWithValue("$id", id);
     command.Parameters.AddWithValue("$candidateName", candidateName);
+    command.Parameters.AddWithValue("$candidateEmail", candidateEmail);
     command.Parameters.AddWithValue("$score", score);
     command.Parameters.AddWithValue("$manualScore", manualScore is null ? DBNull.Value : manualScore);
     command.Parameters.AddWithValue("$earnedPoints", earnedPoints);
@@ -266,7 +269,28 @@ static void SaveResult(SqliteConnection connection, JsonElement rootElement)
     command.Parameters.AddWithValue("$modifiedAt", modifiedAt);
     command.Parameters.AddWithValue("$payload", payload);
     command.ExecuteNonQuery();
+    UpdateCreatedExamCandidateEmail(connection, id, candidateEmail);
     SaveAnswerRows(connection, id, rootElement, modifiedBy, modifiedAt);
+}
+
+static void UpdateCreatedExamCandidateEmail(SqliteConnection connection, string resultId, string candidateEmail)
+{
+    if (string.IsNullOrWhiteSpace(candidateEmail))
+    {
+        return;
+    }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        UPDATE examenes_creados
+        SET
+            correo_candidato = $candidateEmail,
+            datos_json = json_set(datos_json, '$.candidateEmail', $candidateEmail)
+        WHERE id = $id
+        """;
+    command.Parameters.AddWithValue("$id", resultId);
+    command.Parameters.AddWithValue("$candidateEmail", candidateEmail);
+    command.ExecuteNonQuery();
 }
 
 static void SaveCreatedExam(SqliteConnection connection, JsonElement rootElement, string interviewer)
@@ -434,6 +458,7 @@ static void InitializeDatabase(string databasePath)
         CREATE TABLE IF NOT EXISTS resultados_examenes (
             id TEXT PRIMARY KEY,
             nombre_candidato TEXT NOT NULL DEFAULT '',
+            correo_candidato TEXT NOT NULL DEFAULT '',
             calificacion INTEGER NOT NULL,
             calificacion_manual INTEGER,
             puntos_obtenidos INTEGER NOT NULL,
@@ -499,6 +524,7 @@ static void InitializeDatabase(string databasePath)
         SELECT
             id AS id_examen,
             nombre_candidato,
+            correo_candidato,
             calificacion,
             COALESCE(calificacion_manual, calificacion) AS calificacion_final,
             puntos_obtenidos,
@@ -515,6 +541,7 @@ static void InitializeDatabase(string databasePath)
         SELECT
             r.id_resultado AS id_examen,
             e.nombre_candidato,
+            e.correo_candidato,
             r.numero_pregunta,
             r.area,
             r.tipo_pregunta,
@@ -556,6 +583,7 @@ static void InitializeDatabase(string databasePath)
     command.ExecuteNonQuery();
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "modificado_en", "TEXT NOT NULL DEFAULT ''");
+    EnsureColumn(connection, "resultados_examenes", "correo_candidato", "TEXT NOT NULL DEFAULT ''");
     MigrateOldResultsTable(connection);
     BackfillAnswerRows(connection);
 }
@@ -708,6 +736,7 @@ static object? EvaluateExam(JsonElement request, bool includeExpected)
     {
         id,
         candidateName = GetString(request, "candidateName"),
+        candidateEmail = GetString(request, "candidateEmail"),
         score,
         automaticScore = score,
         manualScore = (int?)null,
@@ -936,10 +965,11 @@ static void MigrateOldResultsTable(SqliteConnection connection)
     using var migrateCommand = connection.CreateCommand();
     migrateCommand.CommandText = """
         INSERT OR REPLACE INTO resultados_examenes
-            (id, nombre_candidato, calificacion, calificacion_manual, puntos_obtenidos, puntos_totales, iniciado_en, finalizado_en, nota_manual, modificado_por, modificado_en, datos_json)
+            (id, nombre_candidato, correo_candidato, calificacion, calificacion_manual, puntos_obtenidos, puntos_totales, iniciado_en, finalizado_en, nota_manual, modificado_por, modificado_en, datos_json)
         SELECT
             id,
             COALESCE(candidate_name, ''),
+            '',
             score,
             manual_score,
             earned_points,

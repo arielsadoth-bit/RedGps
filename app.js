@@ -105,17 +105,10 @@ async function createExam() {
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
   const examName = examNameInput.value.trim();
-  const candidateEmail = candidateEmailInput.value.trim().toLowerCase();
 
   if (!examName) {
     alert("Escribe el nombre del examen.");
     examNameInput.focus();
-    return;
-  }
-
-  if (!isValidEmail(candidateEmail)) {
-    alert("Escribe el correo del candidato para guardar el registro del enlace.");
-    candidateEmailInput.focus();
     return;
   }
 
@@ -133,7 +126,6 @@ async function createExam() {
   state.activeExam = {
     id: createId(),
     name: examName,
-    candidateEmail,
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
     questions: pickExamQuestions(selectedQuestions, questionCount),
@@ -147,7 +139,7 @@ async function createExam() {
   await saveCreatedExam({
     id: state.activeExam.id,
     examName,
-    candidateEmail,
+    candidateEmail: "",
     questionCount,
     linkCount: 1,
     link,
@@ -251,6 +243,7 @@ function showExamBlockedMessage() {
   clearInterval(state.timerId);
   timer.textContent = "Bloqueado";
   candidateNameInput.disabled = true;
+  candidateEmailInput.disabled = true;
   document.querySelector("#finishExamButton").disabled = true;
   examForm.innerHTML = `
     <article class="result-card wrong">
@@ -366,6 +359,7 @@ function saveDraftAnswers() {
   const formData = new FormData(examForm);
   const answers = Object.fromEntries(formData.entries());
   answers.__candidateName = candidateNameInput.value.trim();
+  answers.__candidateEmail = candidateEmailInput.value.trim();
   localStorage.setItem(getDraftKey(), JSON.stringify(answers));
 }
 
@@ -383,7 +377,7 @@ function restoreDraftAnswers() {
   const answers = JSON.parse(savedDraft);
 
   Object.entries(answers).forEach(([questionId, answer]) => {
-    if (questionId === "__candidateName") {
+    if (questionId === "__candidateName" || questionId === "__candidateEmail") {
       return;
     }
 
@@ -414,6 +408,7 @@ function bindDraftSaving() {
     button.addEventListener("click", () => runCodeTests(button.dataset.questionId));
   });
   candidateNameInput.addEventListener("input", saveDraftAnswers);
+  candidateEmailInput.addEventListener("input", saveDraftAnswers);
 }
 
 async function runCodeTests(questionId) {
@@ -511,8 +506,11 @@ function executeCodeRunner(code, runner) {
 
 function restoreCandidateName() {
   const savedDraft = localStorage.getItem(getDraftKey());
-  const savedName = savedDraft ? JSON.parse(savedDraft).__candidateName : "";
+  const parsedDraft = savedDraft ? JSON.parse(savedDraft) : {};
+  const savedName = parsedDraft.__candidateName || "";
+  const savedEmail = parsedDraft.__candidateEmail || "";
   candidateNameInput.value = savedName || "";
+  candidateEmailInput.value = savedEmail || "";
 }
 
 function startTimer() {
@@ -587,6 +585,7 @@ async function finishExam() {
 
   try {
     const candidateName = candidateNameInput.value.trim();
+    const candidateEmail = candidateEmailInput.value.trim().toLowerCase();
 
     if (!candidateName) {
       alert("Escribe tu nombre completo antes de finalizar el examen.");
@@ -594,10 +593,16 @@ async function finishExam() {
       return;
     }
 
+    if (!isValidEmail(candidateEmail)) {
+      alert("Escribe tu correo antes de finalizar el examen.");
+      candidateEmailInput.focus();
+      return;
+    }
+
     clearInterval(state.timerId);
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
-    state.lastResult = await evaluateAnswersOnServer(candidateName);
+    state.lastResult = await evaluateAnswersOnServer(candidateName, candidateEmail);
     localStorage.setItem(getFinishedKey(), JSON.stringify(state.lastResult));
     localStorage.removeItem(getDraftKey());
     saveResultLocally(state.lastResult);
@@ -610,13 +615,14 @@ async function finishExam() {
   }
 }
 
-async function evaluateAnswersOnServer(candidateName) {
+async function evaluateAnswersOnServer(candidateName, candidateEmail) {
   const response = await fetchWithTimeout(`${location.origin}/api/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: state.activeExam.id,
       candidateName,
+      candidateEmail,
       questionIds: state.activeExam.questions.map((question) => question.id),
       answers: state.answers,
       startedAt: state.activeExam.createdAt,
@@ -643,6 +649,7 @@ function evaluateAnswers() {
   return {
     id: state.activeExam.id,
     candidateName: candidateNameInput.value.trim(),
+    candidateEmail: candidateEmailInput.value.trim().toLowerCase(),
     score,
     automaticScore: score,
     manualScore: null,
@@ -1135,7 +1142,7 @@ async function renderCreatedExams() {
             <th>Nombre del examen</th>
             <th>Num preguntas</th>
             <th>Num links generados</th>
-            <th>Correo candidato</th>
+            <th>Correo capturado</th>
             <th>Link unico de acceso</th>
           </tr>
         </thead>
@@ -1198,6 +1205,7 @@ function renderNoSearchResultsRow(searchTerm) {
 
 function renderCandidateRow(result, isSelected) {
   const candidateName = result.candidateName || "Candidato sin nombre";
+  const candidateEmail = result.candidateEmail || "Sin correo";
   const finishedAt = result.finishedAt ? new Date(result.finishedAt).toLocaleString("es-MX") : "Sin fecha";
   const automaticScore = result.automaticScore ?? result.score ?? 0;
   const displayScore = getDisplayScore(result);
@@ -1208,6 +1216,7 @@ function renderCandidateRow(result, isSelected) {
     <tr class="${isSelected ? "selected" : ""}">
       <td>
         <strong>${escapeHtml(candidateName)}</strong>
+        <small>${escapeHtml(candidateEmail)}</small>
         <small>${escapeHtml(result.id)}</small>
       </td>
       <td><span class="table-score">${displayScore}/100</span><small>${adjustedLabel}</small></td>
@@ -1278,6 +1287,7 @@ async function deleteResult(resultId) {
 function renderSavedAnswerDetail(result) {
   const currentUser = getCurrentInterviewerUser();
   const candidateName = result.candidateName || "Candidato sin nombre";
+  const candidateEmail = result.candidateEmail || "Sin correo";
   const finishedAt = result.finishedAt ? new Date(result.finishedAt).toLocaleString("es-MX") : "Sin fecha";
 
   return `
@@ -1286,6 +1296,7 @@ function renderSavedAnswerDetail(result) {
         <div>
           <p class="eyebrow">Examen seleccionado</p>
           <h3>${escapeHtml(candidateName)} | ${getDisplayScore(result)}/100</h3>
+          <p class="review-note">${escapeHtml(candidateEmail)}</p>
         </div>
         <div class="detail-heading-actions">
           <span class="status-pill">${result.evaluated.length} respuestas</span>

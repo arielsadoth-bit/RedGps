@@ -333,7 +333,7 @@ h3 {
 
 .exam-config-grid {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(190px, 1fr) 110px 120px;
+  grid-template-columns: minmax(220px, 1fr) 110px 120px;
   gap: 12px;
   align-items: end;
   width: 100%;
