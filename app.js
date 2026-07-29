@@ -69,6 +69,7 @@ function renderQuestionBank() {
               <div class="tag-row">
                 <span class="tag">${question.area}</span>
                 <span class="tag">${getQuestionTypeLabel(question)}</span>
+                ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(question.runner))}</span>` : ""}
                 <span class="tag">${question.points} pts</span>
               </div>
             </div>
@@ -313,10 +314,11 @@ function renderAnswerField(question, index) {
   }
 
   if (question.type === "code") {
+    const language = getRunnerLanguage(question.runner);
     const runner = question.runner
       ? `
         <div class="code-runner-bar">
-          <span>Funcion esperada: <strong>${question.runner.functionName}</strong></span>
+          <span>Lenguaje: <strong>${language}</strong> | Funcion esperada: <strong>${question.runner.functionName}</strong></span>
           <button class="secondary-button run-code-button" type="button" data-question-id="${question.id}">Ejecutar pruebas</button>
         </div>
         <div class="code-test-output" id="test-output-${question.id}"></div>
@@ -327,9 +329,9 @@ function renderAnswerField(question, index) {
       <article class="answer-card code-answer-card">
         <label for="answer-${question.id}">
           ${index + 1}. ${question.prompt}
-          <span>${question.area} | ${getQuestionTypeLabel(question)}</span>
+          <span>${question.area} | ${getQuestionTypeLabel(question)} | Lenguaje: ${language}</span>
         </label>
-        <textarea class="code-editor" id="answer-${question.id}" name="${question.id}" spellcheck="false" placeholder="Escribe aqui tu solucion. Puedes usar JavaScript, pseudocodigo claro o el lenguaje que domines."></textarea>
+        <textarea class="code-editor" id="answer-${question.id}" name="${question.id}" spellcheck="false" placeholder="Escribe aqui tu solucion en ${language}."></textarea>
         ${runner}
       </article>
     `;
@@ -423,10 +425,20 @@ async function runCodeTests(questionId) {
     return;
   }
 
+  await runCodeTestsForAnswer(question, editor.value, output);
+}
+
+async function runCodeTestsForAnswer(question, code, output) {
+  const runner = getQuestionRunner(question) || question?.runner;
+
+  if (!runner || !output) {
+    return;
+  }
+
   output.innerHTML = `<div class="test-line pending">Ejecutando pruebas...</div>`;
 
   try {
-    const results = await executeCodeRunner(editor.value, question.runner);
+    const results = await executeCodeRunner(code, runner);
     const passed = results.filter((result) => result.passed).length;
     output.innerHTML = `
       <div class="test-summary">${passed}/${results.length} pruebas pasadas</div>
@@ -447,6 +459,15 @@ async function runCodeTests(questionId) {
 }
 
 function executeCodeRunner(code, runner) {
+  const normalizedRunner = {
+    functionName: runner.functionName || runner.FunctionName,
+    tests: (runner.tests || runner.Tests || []).map((test) => ({
+      name: test.name || test.Name || "Prueba",
+      args: test.args || test.Args || [],
+      expected: test.expected ?? test.Expected,
+    })),
+  };
+
   return new Promise((resolve, reject) => {
     const workerSource = `
       const deepEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -503,7 +524,7 @@ function executeCodeRunner(code, runner) {
       reject(new Error(event.message));
     };
 
-    worker.postMessage({ code, runner });
+    worker.postMessage({ code, runner: normalizedRunner });
   });
 }
 
@@ -974,7 +995,19 @@ function renderReviewResultCard(result, item, index) {
     `<article data-question-index="${index}"`
   );
   const effectiveEarned = getEffectiveEarned(item);
+  const runner = getQuestionRunner(item);
+  const codeReviewRunner =
+    getQuestionType(item) === "code" && runner
+      ? `
+        <div class="code-runner-bar review-code-runner">
+          <span>Lenguaje: <strong>${escapeHtml(getRunnerLanguage(runner))}</strong> | Funcion esperada: <strong>${escapeHtml(runner.functionName || runner.FunctionName || "")}</strong></span>
+          <button class="secondary-button review-run-code-button" type="button">Ejecutar pruebas</button>
+        </div>
+        <div class="code-test-output review-code-output"></div>
+      `
+      : "";
   const reviewControls = `
+      ${codeReviewRunner}
       <div class="question-review-panel">
         <div class="question-review-grid">
           <label class="field">
@@ -1071,6 +1104,14 @@ function getQuestionType(item) {
   return getQuestionValue(item, "type", "Type") || "";
 }
 
+function getQuestionRunner(item) {
+  return item?.runner || item?.Runner || getQuestionValue(item, "runner", "Runner") || null;
+}
+
+function getRunnerLanguage(runner) {
+  return runner?.language || runner?.Language || "JavaScript";
+}
+
 function getQuestionOptions(item) {
   const options = getQuestionValue(item, "options", "Options");
   return Array.isArray(options) ? options : [];
@@ -1131,7 +1172,7 @@ async function renderSavedAnswers() {
         </tbody>
       </table>
     </div>
-    ${selectedResult ? `<div class="answer-detail">${renderSavedAnswerDetail(selectedResult)}</div>` : ""}
+    ${selectedResult ? `<div class="answer-detail-modal" role="dialog" aria-modal="true">${renderSavedAnswerDetail(selectedResult)}</div>` : ""}
   `;
   bindAnswerSearchControls();
   bindCandidateTableControls();
@@ -1407,11 +1448,21 @@ function renderSavedAnswerDetail(result) {
 }
 
 function bindCandidateTableControls() {
+  const detailModal = answersList.querySelector(".answer-detail-modal");
   const closeDetailButton = answersList.querySelector(".close-answer-detail-button");
   if (closeDetailButton) {
     closeDetailButton.addEventListener("click", async () => {
       state.selectedHistoryId = null;
       await renderSavedAnswers();
+    });
+  }
+
+  if (detailModal) {
+    detailModal.addEventListener("click", async (event) => {
+      if (event.target === detailModal) {
+        state.selectedHistoryId = null;
+        await renderSavedAnswers();
+      }
     });
   }
 
@@ -1555,6 +1606,16 @@ function bindManualScoreControls(history) {
         await renderResults();
       });
     });
+
+    card.querySelectorAll(".review-run-code-button").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const resultCard = button.closest(".result-card");
+        const questionIndex = Number(resultCard.dataset.questionIndex);
+        const item = result.evaluated[questionIndex];
+        const output = resultCard.querySelector(".review-code-output");
+        await runCodeTestsForAnswer(item, item.answer || "", output);
+      });
+    });
   });
 }
 
@@ -1597,6 +1658,7 @@ async function renderAnswerKey() {
           <div class="tag-row">
             <span class="tag">${question.area}</span>
             <span class="tag">${getQuestionTypeLabel(question)}</span>
+            ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(getQuestionRunner(question)))}</span>` : ""}
             <span class="tag">${question.points} pts</span>
           </div>
           <p><strong>Pregunta:</strong> ${question.prompt}</p>
@@ -1720,6 +1782,12 @@ document.querySelector("#newExamShortcutButton")?.addEventListener("click", () =
 document.querySelector("#selectAllButton").addEventListener("click", () => {
   document.querySelectorAll("#questionBank input").forEach((input) => {
     input.checked = true;
+  });
+});
+
+document.querySelector("#deselectAllButton").addEventListener("click", () => {
+  document.querySelectorAll("#questionBank input").forEach((input) => {
+    input.checked = false;
   });
 });
 

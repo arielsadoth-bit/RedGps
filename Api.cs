@@ -1003,7 +1003,7 @@ record ExamQuestion(
     CodeRunner? Runner = null
 );
 
-record CodeRunner(string FunctionName, List<CodeTest> Tests);
+record CodeRunner(string FunctionName, string Language, List<CodeTest> Tests);
 
 record CodeTest(string Name, object[] Args, object Expected);
 
@@ -1015,6 +1015,8 @@ public static readonly Dictionary<string, string> Interviewers = new(StringCompa
     ["hector@redgps.com"] = "12345",
     ["ilian@redgps.com"] = "12345",
     ["alejandro@redgps.com"] = "12345",
+    ["juan@redgps.com"] = "12345",
+    ["arielsadoth@gmail.com"] = "12345",
 };
 
 public static readonly List<ExamQuestion> Questions =
@@ -1052,7 +1054,7 @@ public static readonly List<ExamQuestion> Questions =
     new("soft-code-palindrome", "Desarrollo de Software", "code", "Problema practico: palindromo", "Escriba una funcion llamada esPalindromo(texto) que devuelva true si el texto es palindromo. Debe ignorar espacios, mayusculas y acentos. Ejemplo: 'Anita lava la tina' debe regresar true.", 20,
         [], "", "Normalizar el texto, convertir a minusculas, quitar espacios o caracteres no necesarios, invertir la cadena o comparar extremos y devolver un booleano.",
         ["function", "return", "tolowercase", "normalize", "replace", "reverse", "split", "join", "true", "normalizar", "minusculas", "espacios", "invertir", "comparar"],
-        new("esPalindromo",
+        new("esPalindromo", "JavaScript",
         [
             new("frase con espacios", [ "Anita lava la tina" ], true),
             new("palabra simple", [ "Reconocer" ], true),
@@ -1061,7 +1063,7 @@ public static readonly List<ExamQuestion> Questions =
     new("soft-code-api-list", "Desarrollo de Software", "code", "Problema practico: filtrar API", "Escriba una funcion llamada filtrarUsuariosActivos(usuarios) que reciba una lista de usuarios y regrese solo los usuarios con active: true.", 20,
         [], "", "Recorrer o filtrar la lista de usuarios, validar la propiedad active y regresar solo los usuarios activos.",
         ["function", "return", "filter", "active", "usuarios", "filtrar", "activos"],
-        new("filtrarUsuariosActivos",
+        new("filtrarUsuariosActivos", "JavaScript",
         [
             new("mezcla activos e inactivos", [ new object[] { new { id = 1, active = true }, new { id = 2, active = false }, new { id = 3, active = true } } ], new object[] { new { id = 1, active = true }, new { id = 3, active = true } }),
             new("sin activos", [ new object[] { new { id = 4, active = false } } ], Array.Empty<object>()),
@@ -1100,7 +1102,7 @@ public static readonly List<ExamQuestion> Questions =
     new("mobile-code-login", "Desarrollo Mobile", "code", "Problema practico: validacion login movil", "Escriba una funcion llamada validarLogin(correo, contrasena) que devuelva true si el correo tiene formato valido y la contrasena tiene minimo 8 caracteres.", 20,
         [], "", "Validar correo con formato valido, validar longitud minima de contrasena y devolver un booleano antes de llamar a una API.",
         ["function", "return", "correo", "email", "formato", "regex", "contrasena", "password", "length", "8", "true", "false"],
-        new("validarLogin",
+        new("validarLogin", "JavaScript",
         [
             new("datos validos", [ "ariel@redgps.com", "12345678" ], true),
             new("correo invalido", [ "ariel-redgps.com", "12345678" ], false),
@@ -1109,7 +1111,7 @@ public static readonly List<ExamQuestion> Questions =
     new("mobile-code-cache", "Desarrollo Mobile", "code", "Problema practico: cache de datos", "Escriba una funcion llamada resolverDatos(cache, respuestaApi, hayError) que devuelva respuestaApi si no hay error y tiene datos; si hay error o no hay datos, debe devolver cache.", 20,
         [], "", "Usar datos de API cuando esten disponibles, conservar cache local cuando haya error o respuesta vacia y evitar pantalla vacia.",
         ["function", "return", "cache", "api", "error", "datos", "length", "pantalla"],
-        new("resolverDatos",
+        new("resolverDatos", "JavaScript",
         [
             new("api correcta", [ new object[] { "guardado" }, new object[] { "nuevo" }, false ], new object[] { "nuevo" }),
             new("api con error", [ new object[] { "guardado" }, new object[] { "nuevo" }, true ], new object[] { "guardado" }),

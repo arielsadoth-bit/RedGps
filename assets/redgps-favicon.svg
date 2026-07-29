@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RedGPS">
+  <rect width="64" height="64" rx="12" fill="#ffffff"/>
+  <g fill="none" stroke="#050607" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13 17c18 0 34 15 34 34" stroke-width="6"/>
+    <path d="M13 29c12 0 22 10 22 22" stroke-width="6"/>
+  </g>
+</svg>

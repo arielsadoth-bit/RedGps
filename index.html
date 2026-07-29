@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Tecnico</title>
+    <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
     <link rel="stylesheet" href="styles.css?v=20260724-anticheat" />
   </head>
   <body>
@@ -80,14 +81,14 @@
                   </select>
                 </label>
               </div>
+              <div class="actions-row exam-actions-row">
+                <button class="primary-button" id="createExamButton" type="button">Generar examen aleatorio</button>
+                <button class="ghost-button" id="selectAllButton" type="button">Seleccionar todo</button>
+                <button class="ghost-button" id="deselectAllButton" type="button">Deseleccionar todo</button>
+              </div>
             </div>
 
             <div class="question-bank" id="questionBank"></div>
-
-            <div class="actions-row">
-              <button class="primary-button" id="createExamButton">Generar examen aleatorio</button>
-              <button class="ghost-button" id="selectAllButton">Seleccionar todo</button>
-            </div>
 
             <div class="link-box hidden" id="examLinkBox">
               <p>Enlace para enviar al candidato</p>
@@ -111,26 +112,6 @@
               Aun no hay examenes creados.
             </div>
             <div class="result-list" id="createdExamsList"></div>
-            <div class="change-status-panel">
-              <h3>Estado de cambios solicitados</h3>
-              <div class="change-status-grid">
-                <article>
-                  <strong>1. Cantidad de preguntas por examen</strong>
-                  <p>Seleccion de 1 a 20 preguntas aleatorias por evaluacion.</p>
-                  <span>Estado: Implementado</span>
-                </article>
-                <article>
-                  <strong>3. Modificacion del inicio de sesion</strong>
-                  <p>Acceso solo con correos autorizados de RedGPS.</p>
-                  <span>Estado: Implementado</span>
-                </article>
-                <article>
-                  <strong>6. Registro de enlaces y correos enviados</strong>
-                  <p>Tabla con enlaces generados y correo del candidato.</p>
-                  <span>Estado: Implementado</span>
-                </article>
-              </div>
-            </div>
           </section>
 
           <section class="view" id="candidateView">
