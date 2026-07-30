@@ -680,10 +680,15 @@ textarea {
 
 .answers-tools {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(140px, auto) minmax(140px, auto) auto auto;
   gap: 12px;
   align-items: end;
   margin-top: 22px;
+}
+
+.table-filter-tools {
+  margin-top: 0;
+  margin-bottom: 14px;
 }
 
 .search-field input {
@@ -702,6 +707,17 @@ textarea {
   padding: 0 14px;
   font-weight: 900;
   white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .answers-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .answers-tools .ghost-button,
+  .answers-count {
+    width: 100%;
+  }
 }
 
 .answers-table-wrap {

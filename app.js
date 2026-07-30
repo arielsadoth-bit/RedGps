@@ -9,6 +9,18 @@ const state = {
   candidateAccessDenied: false,
   selectedHistoryId: null,
   answerSearchTerm: "",
+  answerFilters: {
+    text: "",
+    email: "",
+    dateFrom: "",
+    dateTo: "",
+  },
+  createdExamFilters: {
+    text: "",
+    email: "",
+    dateFrom: "",
+    dateTo: "",
+  },
   isFinishingExam: false,
   securityFinishTriggered: false,
   securityFinishReason: "",
@@ -1118,6 +1130,74 @@ function getQuestionOptions(item) {
   return Array.isArray(options) ? options : [];
 }
 
+function isWithinDateRange(dateValue, dateFrom, dateTo) {
+  if (!dateFrom && !dateTo) {
+    return true;
+  }
+
+  if (!dateValue) {
+    return false;
+  }
+
+  const timestamp = new Date(dateValue).getTime();
+  if (Number.isNaN(timestamp)) {
+    return false;
+  }
+
+  if (dateFrom) {
+    const fromTimestamp = new Date(`${dateFrom}T00:00:00`).getTime();
+    if (timestamp < fromTimestamp) {
+      return false;
+    }
+  }
+
+  if (dateTo) {
+    const toTimestamp = new Date(`${dateTo}T23:59:59.999`).getTime();
+    if (timestamp > toTimestamp) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function hasActiveFilters(filters) {
+  return Boolean(filters.text || filters.email || filters.dateFrom || filters.dateTo);
+}
+
+function filterSavedResults(history) {
+  const filters = state.answerFilters;
+  const textTerm = normalizeText(filters.text.trim());
+  const emailTerm = normalizeText(filters.email.trim());
+
+  return history.filter((result) => {
+    const candidateName = result.candidateName || "Candidato sin nombre";
+    const candidateEmail = result.candidateEmail || "";
+    const searchableText = normalizeText(`${candidateName} ${candidateEmail} ${result.id}`);
+    const searchableEmail = normalizeText(candidateEmail);
+
+    return (!textTerm || searchableText.includes(textTerm))
+      && (!emailTerm || searchableEmail.includes(emailTerm))
+      && isWithinDateRange(result.finishedAt, filters.dateFrom, filters.dateTo);
+  });
+}
+
+function filterCreatedExams(exams) {
+  const filters = state.createdExamFilters;
+  const textTerm = normalizeText(filters.text.trim());
+  const emailTerm = normalizeText(filters.email.trim());
+
+  return exams.filter((exam) => {
+    const candidateEmail = exam.candidateEmail || "";
+    const searchableText = normalizeText(`${exam.examName || ""} ${exam.id || ""} ${exam.link || ""} ${exam.createdBy || exam.creadoPor || ""}`);
+    const searchableEmail = normalizeText(candidateEmail);
+
+    return (!textTerm || searchableText.includes(textTerm))
+      && (!emailTerm || searchableEmail.includes(emailTerm))
+      && isWithinDateRange(exam.createdAt, filters.dateFrom, filters.dateTo);
+  });
+}
+
 async function renderSavedAnswers() {
   if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
     answersSummary.textContent = "Inicia sesion para cargar los examenes guardados en la base de datos.";
@@ -1133,13 +1213,8 @@ async function renderSavedAnswers() {
     return;
   }
 
-  const searchTerm = state.answerSearchTerm.trim();
-  const filteredHistory = searchTerm
-    ? history.filter((result) => {
-        const candidateName = result.candidateName || "Candidato sin nombre";
-        return normalizeText(`${candidateName} ${result.id}`).includes(normalizeText(searchTerm));
-      })
-    : history;
+  const filteredHistory = filterSavedResults(history);
+  const hasFilters = hasActiveFilters(state.answerFilters);
 
   answersSummary.textContent = `Hay ${history.length} examen(es) guardado(s) en la base de datos. Selecciona uno para revisarlo.`;
   const selectedResult = state.selectedHistoryId
@@ -1149,9 +1224,21 @@ async function renderSavedAnswers() {
     <div class="answers-tools">
       <label class="field search-field">
         Buscar candidato
-        <input id="answerSearchInput" value="${escapeHtml(state.answerSearchTerm)}" placeholder="Nombre del candidato" autocomplete="off" />
+        <input id="answerSearchInput" value="${escapeHtml(state.answerFilters.text)}" placeholder="Nombre, correo o id" autocomplete="off" />
       </label>
-      <button class="ghost-button ${state.answerSearchTerm ? "" : "hidden"}" id="clearAnswerSearchButton" type="button">Limpiar</button>
+      <label class="field search-field">
+        Correo
+        <input id="answerEmailFilter" value="${escapeHtml(state.answerFilters.email)}" placeholder="correo@ejemplo.com" autocomplete="off" />
+      </label>
+      <label class="field search-field">
+        Desde
+        <input id="answerDateFromFilter" type="date" value="${escapeHtml(state.answerFilters.dateFrom)}" />
+      </label>
+      <label class="field search-field">
+        Hasta
+        <input id="answerDateToFilter" type="date" value="${escapeHtml(state.answerFilters.dateTo)}" />
+      </label>
+      <button class="ghost-button ${hasFilters ? "" : "hidden"}" id="clearAnswerSearchButton" type="button">Limpiar filtros</button>
       <span class="answers-count">${filteredHistory.length} de ${history.length} examen(es)</span>
     </div>
     <div class="answers-table-wrap">
@@ -1169,7 +1256,7 @@ async function renderSavedAnswers() {
         <tbody>
           ${filteredHistory.length
             ? filteredHistory.map((result) => renderCandidateRow(result, result.id === state.selectedHistoryId)).join("")
-            : renderNoSearchResultsRow(searchTerm)}
+            : renderNoSearchResultsRow(hasFilters)}
         </tbody>
       </table>
     </div>
@@ -1252,8 +1339,31 @@ async function renderCreatedExams() {
     return;
   }
 
+  const filteredExams = filterCreatedExams(exams);
+  const hasFilters = hasActiveFilters(state.createdExamFilters);
+
   createdExamsSummary.textContent = `Hay ${exams.length} examen(es) creado(s) con enlace registrado.`;
   createdExamsList.innerHTML = `
+    <div class="answers-tools table-filter-tools">
+      <label class="field search-field">
+        Buscar examen
+        <input id="createdExamSearchInput" value="${escapeHtml(state.createdExamFilters.text)}" placeholder="Nombre, enlace o entrevistador" autocomplete="off" />
+      </label>
+      <label class="field search-field">
+        Correo
+        <input id="createdExamEmailFilter" value="${escapeHtml(state.createdExamFilters.email)}" placeholder="correo del candidato" autocomplete="off" />
+      </label>
+      <label class="field search-field">
+        Desde
+        <input id="createdExamDateFromFilter" type="date" value="${escapeHtml(state.createdExamFilters.dateFrom)}" />
+      </label>
+      <label class="field search-field">
+        Hasta
+        <input id="createdExamDateToFilter" type="date" value="${escapeHtml(state.createdExamFilters.dateTo)}" />
+      </label>
+      <button class="ghost-button ${hasFilters ? "" : "hidden"}" id="clearCreatedExamFiltersButton" type="button">Limpiar filtros</button>
+      <span class="answers-count">${filteredExams.length} de ${exams.length} examen(es)</span>
+    </div>
     <div class="created-exams-table-wrap">
       <table class="created-exams-table">
         <thead>
@@ -1267,7 +1377,9 @@ async function renderCreatedExams() {
           </tr>
         </thead>
         <tbody>
-          ${exams.map(renderCreatedExamRow).join("")}
+          ${filteredExams.length
+            ? filteredExams.map(renderCreatedExamRow).join("")
+            : renderNoSearchResultsRow(hasFilters)}
         </tbody>
       </table>
     </div>
@@ -1298,6 +1410,8 @@ function renderCreatedExamRow(exam) {
 }
 
 function bindCreatedExamControls() {
+  bindCreatedExamFilterControls();
+
   createdExamsList?.querySelectorAll(".copy-created-link-button").forEach((button) => {
     button.addEventListener("click", async () => {
       const link = button.dataset.link || "";
@@ -1314,11 +1428,50 @@ function bindCreatedExamControls() {
   });
 }
 
-function renderNoSearchResultsRow(searchTerm) {
+function bindCreatedExamFilterControls() {
+  const filters = [
+    ["#createdExamSearchInput", "text"],
+    ["#createdExamEmailFilter", "email"],
+    ["#createdExamDateFromFilter", "dateFrom"],
+    ["#createdExamDateToFilter", "dateTo"],
+  ];
+
+  filters.forEach(([selector, key]) => {
+    const input = document.querySelector(selector);
+    if (!input) {
+      return;
+    }
+
+    input.addEventListener("input", async () => {
+      state.createdExamFilters[key] = input.value;
+      await renderCreatedExams();
+      const nextInput = document.querySelector(selector);
+      if (nextInput) {
+        nextInput.focus();
+        if (nextInput.type !== "date") {
+          nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+        }
+      }
+    });
+  });
+
+  document.querySelector("#clearCreatedExamFiltersButton")?.addEventListener("click", async () => {
+    state.createdExamFilters = {
+      text: "",
+      email: "",
+      dateFrom: "",
+      dateTo: "",
+    };
+    await renderCreatedExams();
+    document.querySelector("#createdExamSearchInput")?.focus();
+  });
+}
+
+function renderNoSearchResultsRow(hasFilters) {
   return `
     <tr>
       <td class="empty-table-cell" colspan="6">
-        No se encontraron examenes para "${escapeHtml(searchTerm)}".
+        ${hasFilters ? "No se encontraron examenes con esos filtros." : "No hay examenes para mostrar."}
       </td>
     </tr>
   `;
@@ -1355,26 +1508,43 @@ function renderCandidateRow(result, isSelected) {
 }
 
 function bindAnswerSearchControls() {
-  const searchInput = document.querySelector("#answerSearchInput");
+  const filters = [
+    ["#answerSearchInput", "text"],
+    ["#answerEmailFilter", "email"],
+    ["#answerDateFromFilter", "dateFrom"],
+    ["#answerDateToFilter", "dateTo"],
+  ];
   const clearButton = document.querySelector("#clearAnswerSearchButton");
 
-  if (!searchInput) {
-    return;
-  }
-
-  searchInput.addEventListener("input", async () => {
-    state.answerSearchTerm = searchInput.value;
-    await renderSavedAnswers();
-    const nextInput = document.querySelector("#answerSearchInput");
-    if (nextInput) {
-      nextInput.focus();
-      nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+  filters.forEach(([selector, key]) => {
+    const input = document.querySelector(selector);
+    if (!input) {
+      return;
     }
+
+    input.addEventListener("input", async () => {
+      state.answerFilters[key] = input.value;
+      state.answerSearchTerm = state.answerFilters.text;
+      await renderSavedAnswers();
+      const nextInput = document.querySelector(selector);
+      if (nextInput) {
+        nextInput.focus();
+        if (nextInput.type !== "date") {
+          nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+        }
+      }
+    });
   });
 
   if (clearButton) {
     clearButton.addEventListener("click", async () => {
       state.answerSearchTerm = "";
+      state.answerFilters = {
+        text: "",
+        email: "",
+        dateFrom: "",
+        dateTo: "",
+      };
       await renderSavedAnswers();
       document.querySelector("#answerSearchInput")?.focus();
     });
