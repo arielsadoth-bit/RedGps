@@ -819,7 +819,7 @@ textarea {
 
 .answers-table th:nth-child(1),
 .answers-table td:nth-child(1) {
-  width: 29%;
+  width: 28%;
 }
 
 .answers-table th:nth-child(2),
@@ -834,7 +834,7 @@ textarea {
 
 .answers-table th:nth-child(4),
 .answers-table td:nth-child(4) {
-  width: 21%;
+  width: 20%;
 }
 
 .answers-table th:nth-child(5),
@@ -844,7 +844,7 @@ textarea {
 
 .answers-table th:nth-child(6),
 .answers-table td:nth-child(6) {
-  width: 15%;
+  width: 17%;
 }
 
 .answers-table th {
@@ -921,21 +921,25 @@ textarea {
 
 .table-actions {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-end;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .view-answer-button,
 .delete-answer-button {
-  min-width: 64px;
-  min-height: 40px;
-  border-radius: 6px;
-  padding: 0 10px;
+  min-width: 58px;
+  min-height: 34px;
+  border-radius: 5px;
+  padding: 0 12px;
+  font-size: 0.88rem;
+  line-height: 1;
 }
 
 .danger-button {
-  border: 1px solid rgba(180, 35, 24, 0.24);
-  background: #fff1f0;
+  border: 1px solid rgba(180, 35, 24, 0.22);
+  background: #fff7f5;
   color: #b42318;
 }
 
