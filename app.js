@@ -8,7 +8,6 @@ const state = {
   lastResult: null,
   candidateAccessDenied: false,
   selectedHistoryId: null,
-  answerSearchTerm: "",
   answerFilters: {
     text: "",
     email: "",
@@ -1524,7 +1523,6 @@ function bindAnswerSearchControls() {
 
     input.addEventListener("input", async () => {
       state.answerFilters[key] = input.value;
-      state.answerSearchTerm = state.answerFilters.text;
       await renderSavedAnswers();
       const nextInput = document.querySelector(selector);
       if (nextInput) {
@@ -1538,7 +1536,6 @@ function bindAnswerSearchControls() {
 
   if (clearButton) {
     clearButton.addEventListener("click", async () => {
-      state.answerSearchTerm = "";
       state.answerFilters = {
         text: "",
         email: "",
