@@ -20,7 +20,7 @@
         <label class="field">
           Contrasena
           <div class="password-field">
-            <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Ingresa la contrasena" />
+            <input id="loginPassword" type="password" autocomplete="current-password" maxlength="8" placeholder="Ingresa la contrasena" />
             <button id="togglePasswordButton" type="button" aria-label="Mostrar contrasena">Ver</button>
           </div>
         </label>
@@ -222,7 +222,7 @@
                 </label>
                 <label class="field">
                   Contrasena
-                  <input id="newUserPassword" type="password" placeholder="Contrasena inicial" required />
+                  <input id="newUserPassword" type="password" minlength="6" maxlength="8" placeholder="6 a 8 caracteres" required />
                 </label>
                 <label class="field">
                   Rol

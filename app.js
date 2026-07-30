@@ -420,7 +420,7 @@ function renderUserRow(user) {
         </label>
       </td>
       <td>
-        <input class="user-password-input" type="password" placeholder="Opcional" />
+        <input class="user-password-input" type="password" minlength="6" maxlength="8" placeholder="Opcional: 6 a 8" />
       </td>
       <td>
         <button class="secondary-button save-user-button" type="button">Guardar</button>
@@ -453,13 +453,20 @@ function bindUserManagerControls() {
   userManagerList?.querySelectorAll(".save-user-button").forEach((button) => {
     button.addEventListener("click", async () => {
       const row = button.closest("tr");
+      const password = row.querySelector(".user-password-input").value.trim();
+      if (password && !isValidInterviewerPassword(password)) {
+        showUserManagerStatus("La contrasena debe tener entre 6 y 8 caracteres.", true);
+        row.querySelector(".user-password-input").focus();
+        return;
+      }
+
       button.disabled = true;
       button.textContent = "Guardando";
       await saveUserUpdate({
         email: row.dataset.userEmail,
         role: row.querySelector(".user-role-select").value,
         active: row.querySelector(".user-active-check").checked,
-        password: row.querySelector(".user-password-input").value.trim(),
+        password,
       });
       button.disabled = false;
       button.textContent = "Guardar";
@@ -494,10 +501,16 @@ async function createUserFromForm(event) {
 
   const payload = {
     email: newUserEmailInput.value.trim(),
-    password: newUserPasswordInput.value,
+    password: newUserPasswordInput.value.trim(),
     role: newUserRoleInput.value,
     active: true,
   };
+
+  if (!isValidInterviewerPassword(payload.password)) {
+    showUserManagerStatus("La contrasena debe tener entre 6 y 8 caracteres.", true);
+    newUserPasswordInput.focus();
+    return;
+  }
 
   const response = await fetchWithTimeout(`${location.origin}/api/users`, {
     method: "POST",
@@ -515,6 +528,11 @@ async function createUserFromForm(event) {
   newUserRoleInput.value = "entrevistador";
   showUserManagerStatus("Usuario agregado y contrasena protegida.", false);
   await renderUserManager();
+}
+
+function isValidInterviewerPassword(password) {
+  const length = password.trim().length;
+  return length >= 6 && length <= 8;
 }
 
 function showUserManagerStatus(message, isError) {

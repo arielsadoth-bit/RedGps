@@ -129,6 +129,11 @@ app.MapPost("/api/users/update", async (HttpRequest request) =>
         return Results.BadRequest(new { error = "No puedes quitarte tu propio permiso de administrador." });
     }
 
+    if (!string.IsNullOrWhiteSpace(password) && !IsValidInterviewerPassword(password))
+    {
+        return Results.BadRequest(new { error = "La contrasena debe tener entre 6 y 8 caracteres." });
+    }
+
     using var connection = OpenConnection(databasePath);
     UpdateInterviewerUser(connection, email, role, active, password);
     return Results.Ok(new { ok = true });
@@ -1334,12 +1339,18 @@ static (InterviewerUserRequest? User, string Error) BuildInterviewerUserFromRequ
         return (null, "El correo no es valido.");
     }
 
-    if (requirePassword && password.Trim().Length < 4)
+    if (requirePassword && !IsValidInterviewerPassword(password))
     {
-        return (null, "La contrasena debe tener al menos 4 caracteres.");
+        return (null, "La contrasena debe tener entre 6 y 8 caracteres.");
     }
 
     return (new InterviewerUserRequest(email, password, role, active), "");
+}
+
+static bool IsValidInterviewerPassword(string password)
+{
+    var length = password.Trim().Length;
+    return length >= 6 && length <= 8;
 }
 
 static string GetString(JsonElement element, string propertyName)
