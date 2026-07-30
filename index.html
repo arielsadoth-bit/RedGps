@@ -88,7 +88,8 @@
                 <button class="primary-button" id="createExamButton" type="button">Generar examen aleatorio</button>
                 <button class="ghost-button" id="selectAllButton" type="button">Seleccionar todo</button>
                 <button class="ghost-button" id="deselectAllButton" type="button">Deseleccionar todo</button>
-                <button class="ghost-button" id="openQuestionManagerButton" type="button">Preguntas</button>
+                <button class="ghost-button" id="openQuestionManagerButton" type="button">Crear preguntas</button>
+                <button class="ghost-button" id="openUserManagerButton" type="button">Administrar usuarios</button>
               </div>
             </div>
 
@@ -171,7 +172,7 @@
 
               <label class="field">
                 Respuesta esperada
-                <textarea id="questionExpected" placeholder="Respuesta correcta o explicacion esperada" required></textarea>
+                <textarea id="questionExpected" placeholder="Opcional para preguntas cerradas. Obligatoria para abiertas y practicas."></textarea>
               </label>
 
               <label class="field">
@@ -201,6 +202,44 @@
 
             <div class="result-summary hidden" id="questionManagerStatus"></div>
             <div class="result-list" id="questionManagerList"></div>
+          </section>
+          </div>
+
+          <div class="modal-overlay hidden" id="userManagerModal">
+          <section class="question-modal" id="userManagerView" role="dialog" aria-modal="true" aria-labelledby="userManagerTitle">
+            <div class="section-heading modal-heading">
+              <div>
+                <p class="eyebrow">Usuarios y roles</p>
+                <h2 id="userManagerTitle">Administrar usuarios</h2>
+              </div>
+              <button class="ghost-button" id="closeUserManagerButton" type="button">Cerrar</button>
+            </div>
+
+            <form class="question-editor" id="userForm">
+              <div class="user-editor-grid">
+                <label class="field">
+                  Correo
+                  <input id="newUserEmail" type="email" placeholder="usuario@redgps.com" required />
+                </label>
+                <label class="field">
+                  Contrasena
+                  <input id="newUserPassword" type="password" placeholder="Contrasena inicial" required />
+                </label>
+                <label class="field">
+                  Rol
+                  <select id="newUserRole">
+                    <option value="entrevistador">Entrevistador</option>
+                    <option value="admin">Administrador</option>
+                    <option value="revisor">Revisor</option>
+                    <option value="lectura">Lectura</option>
+                  </select>
+                </label>
+                <button class="primary-button" type="submit">Agregar usuario</button>
+              </div>
+            </form>
+
+            <div class="result-summary hidden" id="userManagerStatus"></div>
+            <div class="result-list" id="userManagerList"></div>
           </section>
           </div>
 
@@ -268,9 +307,6 @@
               </div>
             </div>
 
-            <div class="result-summary">
-              Esta guia solo es para el entrevistador. El candidato no la ve cuando entra desde su enlace.
-            </div>
             <div class="result-list" id="answerKeyList"></div>
           </section>
 

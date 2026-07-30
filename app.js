@@ -58,6 +58,15 @@ const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
 const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
 const closeQuestionManagerButton = document.querySelector("#closeQuestionManagerButton");
+const userManagerModal = document.querySelector("#userManagerModal");
+const openUserManagerButton = document.querySelector("#openUserManagerButton");
+const closeUserManagerButton = document.querySelector("#closeUserManagerButton");
+const userForm = document.querySelector("#userForm");
+const newUserEmailInput = document.querySelector("#newUserEmail");
+const newUserPasswordInput = document.querySelector("#newUserPassword");
+const newUserRoleInput = document.querySelector("#newUserRole");
+const userManagerStatus = document.querySelector("#userManagerStatus");
+const userManagerList = document.querySelector("#userManagerList");
 const loginScreen = document.querySelector("#loginScreen");
 const loginForm = document.querySelector("#loginForm");
 const loginUser = document.querySelector("#loginUser");
@@ -176,6 +185,13 @@ function toggleQuestionFormFields() {
 
   if (questionCorrectAnswerInput) {
     questionCorrectAnswerInput.required = type === "closed";
+  }
+
+  if (questionExpectedInput) {
+    questionExpectedInput.required = type !== "closed";
+    questionExpectedInput.placeholder = type === "closed"
+      ? "Opcional. Si lo dejas vacio, se usara el texto del inciso correcto."
+      : "Respuesta correcta o explicacion esperada";
   }
 }
 
@@ -309,6 +325,190 @@ function openQuestionManagerModal() {
 
 function closeQuestionManagerModal() {
   questionManagerModal?.classList.add("hidden");
+}
+
+async function openUserManagerModal() {
+  if (!isAdminUser()) {
+    alert("Solo un administrador puede administrar usuarios.");
+    return;
+  }
+
+  userManagerModal?.classList.remove("hidden");
+  await renderUserManager();
+  newUserEmailInput?.focus();
+}
+
+function closeUserManagerModal() {
+  userManagerModal?.classList.add("hidden");
+}
+
+async function getUsersFromServer() {
+  const response = await fetchWithTimeout(`${location.origin}/api/users`, {
+    headers: getAuthHeaders(),
+  }, 9000);
+
+  if (response.status === 401 || response.status === 403) {
+    expireInterviewerSession();
+    return [];
+  }
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const users = await response.json();
+  return Array.isArray(users) ? users : [];
+}
+
+async function renderUserManager() {
+  if (!userManagerList) {
+    return;
+  }
+
+  const users = await getUsersFromServer();
+  if (!users.length) {
+    userManagerList.innerHTML = "<p>No hay usuarios registrados.</p>";
+    return;
+  }
+
+  userManagerList.innerHTML = `
+    <div class="user-table-wrap">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Correo</th>
+            <th>Rol</th>
+            <th>Acceso</th>
+            <th>Nueva contrasena</th>
+            <th>Accion</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(renderUserRow).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+  bindUserManagerControls();
+}
+
+function renderUserRow(user) {
+  return `
+    <tr data-user-email="${escapeHtml(user.email)}">
+      <td>
+        <strong>${escapeHtml(user.email)}</strong>
+        <small>${user.createdAt ? new Date(user.createdAt).toLocaleString("es-MX") : "Sin fecha"}</small>
+      </td>
+      <td>
+        <select class="user-role-select">
+          ${["admin", "entrevistador", "revisor", "lectura"].map((role) => `
+            <option value="${role}" ${user.role === role ? "selected" : ""}>${getRoleLabel(role)}</option>
+          `).join("")}
+        </select>
+      </td>
+      <td>
+        <label class="inline-check">
+          <input class="user-active-check" type="checkbox" ${user.active ? "checked" : ""} />
+          Activo
+        </label>
+      </td>
+      <td>
+        <input class="user-password-input" type="password" placeholder="Opcional" />
+      </td>
+      <td>
+        <button class="secondary-button save-user-button" type="button">Guardar</button>
+      </td>
+    </tr>
+  `;
+}
+
+function getRoleLabel(role) {
+  const labels = {
+    admin: "Administrador",
+    entrevistador: "Entrevistador",
+    revisor: "Revisor",
+    lectura: "Lectura",
+  };
+
+  return labels[role] || "Entrevistador";
+}
+
+function bindUserManagerControls() {
+  userManagerList?.querySelectorAll(".save-user-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const row = button.closest("tr");
+      button.disabled = true;
+      button.textContent = "Guardando";
+      await saveUserUpdate({
+        email: row.dataset.userEmail,
+        role: row.querySelector(".user-role-select").value,
+        active: row.querySelector(".user-active-check").checked,
+        password: row.querySelector(".user-password-input").value.trim(),
+      });
+      button.disabled = false;
+      button.textContent = "Guardar";
+    });
+  });
+}
+
+async function saveUserUpdate(payload) {
+  const response = await fetchWithTimeout(`${location.origin}/api/users/update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(payload),
+  }, 9000);
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    showUserManagerStatus(data.error || "No se pudo guardar el usuario.", true);
+    return;
+  }
+
+  showUserManagerStatus("Usuario actualizado.", false);
+  await renderUserManager();
+}
+
+async function createUserFromForm(event) {
+  event.preventDefault();
+
+  if (!isAdminUser()) {
+    showUserManagerStatus("Solo un administrador puede crear usuarios.", true);
+    return;
+  }
+
+  const payload = {
+    email: newUserEmailInput.value.trim(),
+    password: newUserPasswordInput.value,
+    role: newUserRoleInput.value,
+    active: true,
+  };
+
+  const response = await fetchWithTimeout(`${location.origin}/api/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(payload),
+  }, 9000);
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    showUserManagerStatus(data.error || "No se pudo agregar el usuario.", true);
+    return;
+  }
+
+  userForm.reset();
+  newUserRoleInput.value = "entrevistador";
+  showUserManagerStatus("Usuario agregado y contrasena protegida.", false);
+  await renderUserManager();
+}
+
+function showUserManagerStatus(message, isError) {
+  if (!userManagerStatus) {
+    return;
+  }
+
+  userManagerStatus.textContent = message;
+  userManagerStatus.classList.remove("hidden");
+  userManagerStatus.classList.toggle("error-summary", Boolean(isError));
 }
 
 function showView(viewId) {
@@ -1444,6 +1644,7 @@ function filterCreatedExams(exams) {
 
 async function renderSavedAnswers() {
   if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
+    answersSummary.classList.remove("hidden");
     answersSummary.textContent = "Inicia sesion para cargar los examenes guardados en la base de datos.";
     answersList.innerHTML = "";
     return;
@@ -1452,6 +1653,7 @@ async function renderSavedAnswers() {
   const history = (await getServerHistory()).filter((result) => result && result.id && result.evaluated);
 
   if (!history.length) {
+    answersSummary.classList.remove("hidden");
     answersSummary.textContent = "Aun no hay examenes guardados.";
     answersList.innerHTML = "";
     return;
@@ -1460,7 +1662,8 @@ async function renderSavedAnswers() {
   const filteredHistory = filterSavedResults(history);
   const hasFilters = hasActiveFilters(state.answerFilters);
 
-  answersSummary.textContent = `Hay ${history.length} examen(es) guardado(s) en la base de datos. Selecciona uno para revisarlo.`;
+  answersSummary.textContent = "";
+  answersSummary.classList.add("hidden");
   const selectedResult = state.selectedHistoryId
     ? history.find((result) => result.id === state.selectedHistoryId)
     : null;
@@ -2230,8 +2433,16 @@ questionManagerModal?.addEventListener("click", (event) => {
     closeQuestionManagerModal();
   }
 });
+openUserManagerButton?.addEventListener("click", openUserManagerModal);
+closeUserManagerButton?.addEventListener("click", closeUserManagerModal);
+userManagerModal?.addEventListener("click", (event) => {
+  if (event.target === userManagerModal) {
+    closeUserManagerModal();
+  }
+});
 questionTypeInput?.addEventListener("change", toggleQuestionFormFields);
 questionForm?.addEventListener("submit", saveQuestionFromForm);
+userForm?.addEventListener("submit", createUserFromForm);
 
 togglePasswordButton?.addEventListener("click", () => {
   const isPasswordHidden = loginPassword.type === "password";
@@ -2345,9 +2556,11 @@ function isAdminUser() {
 
 function applyRoleVisibility() {
   openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
+  openUserManagerButton?.classList.toggle("hidden", !isAdminUser());
 
   if (!isAdminUser()) {
     closeQuestionManagerModal();
+    closeUserManagerModal();
   }
 }
 

@@ -76,6 +76,64 @@ app.MapPost("/api/questions", async (HttpRequest request) =>
     return Results.Json(ToPublicQuestion(question));
 });
 
+app.MapGet("/api/users", (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede ver usuarios." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var connection = OpenConnection(databasePath);
+    return Results.Json(LoadInterviewerUsers(connection));
+});
+
+app.MapPost("/api/users", async (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede crear usuarios." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var (user, error) = BuildInterviewerUserFromRequest(document.RootElement, requirePassword: true);
+    if (user is null)
+    {
+        return Results.BadRequest(new { error });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    SaveInterviewerUser(connection, user.Email, user.Password, user.Role, user.Active);
+    return Results.Ok(new { ok = true });
+});
+
+app.MapPost("/api/users/update", async (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out var session, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede modificar usuarios." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var email = GetString(document.RootElement, "email").Trim().ToLowerInvariant();
+    var role = NormalizeRole(GetString(document.RootElement, "role"));
+    var active = GetBool(document.RootElement, "active", true);
+    var password = GetString(document.RootElement, "password");
+
+    if (!IsValidEmailAddress(email))
+    {
+        return Results.BadRequest(new { error = "El correo no es valido." });
+    }
+
+    if (string.Equals(email, session.User, StringComparison.OrdinalIgnoreCase) && (!active || role != "admin"))
+    {
+        return Results.BadRequest(new { error = "No puedes quitarte tu propio permiso de administrador." });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    UpdateInterviewerUser(connection, email, role, active, password);
+    return Results.Ok(new { ok = true });
+});
+
 app.MapGet("/api/answer-key", (HttpRequest request) =>
 {
     if (!TryGetInterviewer(request, sessions, out _))
@@ -1188,6 +1246,102 @@ static void UpdateUserPasswordHash(SqliteConnection connection, string user, str
     command.ExecuteNonQuery();
 }
 
+static List<object> LoadInterviewerUsers(SqliteConnection connection)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT correo, rol, activo, creado_en
+        FROM usuarios_entrevistadores
+        ORDER BY rol, correo
+        """;
+
+    using var reader = command.ExecuteReader();
+    var users = new List<object>();
+    while (reader.Read())
+    {
+        users.Add(new
+        {
+            email = GetDbString(reader, 0),
+            role = NormalizeRole(GetDbString(reader, 1)),
+            active = reader.GetInt32(2) == 1,
+            createdAt = GetDbString(reader, 3)
+        });
+    }
+
+    return users;
+}
+
+static void SaveInterviewerUser(SqliteConnection connection, string email, string password, string role, bool active)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        INSERT INTO usuarios_entrevistadores
+            (correo, contrasena, rol, activo, creado_en)
+        VALUES
+            ($email, $password, $role, $active, $createdAt)
+        ON CONFLICT(correo) DO UPDATE SET
+            contrasena = excluded.contrasena,
+            rol = excluded.rol,
+            activo = excluded.activo
+        """;
+    command.Parameters.AddWithValue("$email", email.ToLowerInvariant());
+    command.Parameters.AddWithValue("$password", HashPassword(password));
+    command.Parameters.AddWithValue("$role", NormalizeRole(role));
+    command.Parameters.AddWithValue("$active", active ? 1 : 0);
+    command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
+    command.ExecuteNonQuery();
+}
+
+static void UpdateInterviewerUser(SqliteConnection connection, string email, string role, bool active, string password)
+{
+    using var command = connection.CreateCommand();
+    if (string.IsNullOrWhiteSpace(password))
+    {
+        command.CommandText = """
+            UPDATE usuarios_entrevistadores
+            SET rol = $role,
+                activo = $active
+            WHERE lower(correo) = $email
+            """;
+    }
+    else
+    {
+        command.CommandText = """
+            UPDATE usuarios_entrevistadores
+            SET rol = $role,
+                activo = $active,
+                contrasena = $password
+            WHERE lower(correo) = $email
+            """;
+        command.Parameters.AddWithValue("$password", HashPassword(password));
+    }
+
+    command.Parameters.AddWithValue("$email", email.ToLowerInvariant());
+    command.Parameters.AddWithValue("$role", NormalizeRole(role));
+    command.Parameters.AddWithValue("$active", active ? 1 : 0);
+    command.ExecuteNonQuery();
+}
+
+static (InterviewerUserRequest? User, string Error) BuildInterviewerUserFromRequest(JsonElement root, bool requirePassword)
+{
+    var email = GetString(root, "email").Trim().ToLowerInvariant();
+    var password = GetString(root, "password");
+    var role = NormalizeRole(GetString(root, "role"));
+    var active = GetBool(root, "active", true);
+
+    if (!IsValidEmailAddress(email))
+    {
+        return (null, "El correo no es valido.");
+    }
+
+    if (requirePassword && password.Trim().Length < 4)
+    {
+        return (null, "La contrasena debe tener al menos 4 caracteres.");
+    }
+
+    return (new InterviewerUserRequest(email, password, role, active), "");
+}
+
 static string GetString(JsonElement element, string propertyName)
 {
     if (element.ValueKind != JsonValueKind.Object)
@@ -1198,6 +1352,24 @@ static string GetString(JsonElement element, string propertyName)
     return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
         ? property.GetString() ?? ""
         : "";
+}
+
+static bool GetBool(JsonElement element, string propertyName, bool defaultValue)
+{
+    if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(propertyName, out var property))
+    {
+        return defaultValue;
+    }
+
+    return property.ValueKind switch
+    {
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Number when property.TryGetInt32(out var number) => number == 1,
+        JsonValueKind.String => property.GetString()?.Equals("true", StringComparison.OrdinalIgnoreCase) == true ||
+                                property.GetString() == "1",
+        _ => defaultValue
+    };
 }
 
 static string GetFirstString(JsonElement element, params string[] propertyNames)
@@ -1777,6 +1949,8 @@ record CodeRunner(string FunctionName, string Language, List<CodeTest> Tests);
 record CodeTest(string Name, object[] Args, object Expected);
 
 record InterviewSession(string User, string Role);
+
+record InterviewerUserRequest(string Email, string Password, string Role, bool Active);
 
 static class AppData
 {

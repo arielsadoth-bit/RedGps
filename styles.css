@@ -310,13 +310,14 @@ h3 {
 .workspace::before {
   content: "";
   position: absolute;
-  right: -90px;
-  bottom: -30px;
-  width: min(620px, 78vw);
+  right: 22px;
+  bottom: 24px;
+  width: min(760px, 82%);
   aspect-ratio: 1200 / 320;
   background: url("assets/redgps-logo.svg") center / contain no-repeat;
-  opacity: 0.055;
+  opacity: 0.11;
   pointer-events: none;
+  z-index: 0;
 }
 
 .view {
@@ -576,6 +577,13 @@ textarea {
   align-items: end;
 }
 
+.user-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) minmax(150px, 190px) auto;
+  gap: 14px;
+  align-items: end;
+}
+
 .question-type-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);
@@ -621,6 +629,69 @@ textarea {
   margin-top: 6px;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.user-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.user-table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: separate;
+  border-spacing: 0 10px;
+}
+
+.user-table th {
+  padding: 10px 14px;
+  color: var(--muted);
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.user-table td {
+  background: #fff;
+  padding: 14px;
+  vertical-align: middle;
+}
+
+.user-table td:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.user-table td:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.user-table td strong,
+.user-table td small {
+  display: block;
+}
+
+.user-table td small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.inline-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
 }
 
 .error-summary {
@@ -1285,6 +1356,7 @@ code {
   }
 
   .question-editor-grid,
+  .user-editor-grid,
   .question-type-fields {
     grid-template-columns: 1fr;
   }
