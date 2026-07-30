@@ -1059,7 +1059,7 @@ textarea {
 }
 
 .answers-table-wrap {
-  overflow-x: visible;
+  overflow-x: auto;
   border-radius: 8px;
   background: #f3f5f7;
   padding: 10px;
@@ -1161,7 +1161,7 @@ textarea {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0 10px;
-  min-width: 0;
+  min-width: 920px;
   table-layout: fixed;
 }
 
@@ -1174,7 +1174,7 @@ textarea {
 
 .answers-table th:nth-child(1),
 .answers-table td:nth-child(1) {
-  width: 28%;
+  width: 26%;
 }
 
 .answers-table th:nth-child(2),
@@ -1189,17 +1189,17 @@ textarea {
 
 .answers-table th:nth-child(4),
 .answers-table td:nth-child(4) {
-  width: 20%;
+  width: 19%;
 }
 
 .answers-table th:nth-child(5),
 .answers-table td:nth-child(5) {
-  width: 8%;
+  width: 12%;
 }
 
 .answers-table th:nth-child(6),
 .answers-table td:nth-child(6) {
-  width: 17%;
+  width: 16%;
 }
 
 .answers-table th {
@@ -1208,6 +1208,7 @@ textarea {
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .answers-table tbody td {
