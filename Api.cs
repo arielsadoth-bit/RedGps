@@ -17,7 +17,7 @@ var dataDirectory = string.IsNullOrWhiteSpace(configuredDataDirectory)
     ? Path.Combine(root, "data")
     : configuredDataDirectory;
 var databasePath = Path.Combine(dataDirectory, "redgps_exam.db");
-var sessions = new ConcurrentDictionary<string, string>();
+var sessions = new ConcurrentDictionary<string, InterviewSession>();
 
 Directory.CreateDirectory(dataDirectory);
 InitializeDatabase(databasePath);
@@ -44,15 +44,36 @@ app.MapPost("/api/login", async (HttpRequest request) =>
         return Results.Unauthorized();
     }
 
+    var role = GetInterviewerRole(connection, user);
     var token = Guid.NewGuid().ToString("N");
-    sessions[token] = user;
-    return Results.Json(new { ok = true, user, token });
+    sessions[token] = new InterviewSession(user, role);
+    return Results.Json(new { ok = true, user, role, token });
 });
 
 app.MapGet("/api/questions", () =>
 {
     using var connection = OpenConnection(databasePath);
     return Results.Json(LoadQuestions(connection, activeOnly: true).Select(ToPublicQuestion));
+});
+
+app.MapPost("/api/questions", async (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede agregar preguntas." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var (question, error) = BuildQuestionFromRequest(document.RootElement);
+    if (question is null)
+    {
+        return Results.BadRequest(new { error });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    SaveQuestion(connection, question);
+
+    return Results.Json(ToPublicQuestion(question));
 });
 
 app.MapGet("/api/answer-key", (HttpRequest request) =>
@@ -554,6 +575,7 @@ static void InitializeDatabase(string databasePath)
         CREATE TABLE IF NOT EXISTS usuarios_entrevistadores (
             correo TEXT PRIMARY KEY,
             contrasena TEXT NOT NULL DEFAULT '',
+            rol TEXT NOT NULL DEFAULT 'entrevistador',
             activo INTEGER NOT NULL DEFAULT 1,
             creado_en TEXT NOT NULL DEFAULT ''
         );
@@ -661,6 +683,7 @@ static void InitializeDatabase(string databasePath)
                 WHEN contrasena LIKE 'pbkdf2$%' THEN 'Protegida'
                 ELSE 'Pendiente de proteger'
             END AS contrasena,
+            'entrevistador' AS rol,
             CASE activo WHEN 1 THEN 'Activo' ELSE 'Inactivo' END AS estado,
             creado_en
         FROM usuarios_entrevistadores
@@ -686,6 +709,9 @@ static void InitializeDatabase(string databasePath)
         ORDER BY area, tipo, titulo;
         """;
     command.ExecuteNonQuery();
+    EnsureColumn(connection, "usuarios_entrevistadores", "rol", "TEXT NOT NULL DEFAULT 'entrevistador'");
+    BackfillUserRoles(connection);
+    RefreshUserView(connection);
     SeedInterviewers(connection);
     MigratePlaintextPasswords(connection);
     BackfillUserCreatedDates(connection);
@@ -713,15 +739,57 @@ static void SeedInterviewers(SqliteConnection connection)
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO usuarios_entrevistadores
-                (correo, contrasena, activo, creado_en)
+                (correo, contrasena, rol, activo, creado_en)
             VALUES
-                ($correo, $contrasena, 1, $createdAt)
+                ($correo, $contrasena, $role, 1, $createdAt)
             """;
         command.Parameters.AddWithValue("$correo", interviewer.Key.ToLowerInvariant());
         command.Parameters.AddWithValue("$contrasena", HashPassword(interviewer.Value));
+        command.Parameters.AddWithValue("$role", AppData.GetDefaultRole(interviewer.Key));
         command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
         command.ExecuteNonQuery();
     }
+}
+
+static void BackfillUserRoles(SqliteConnection connection)
+{
+    using var adminCommand = connection.CreateCommand();
+    adminCommand.CommandText = """
+        UPDATE usuarios_entrevistadores
+        SET rol = 'admin'
+        WHERE lower(correo) IN ('ariel@redgps.com', 'arielsadoth@gmail.com')
+        """;
+    adminCommand.ExecuteNonQuery();
+
+    using var defaultCommand = connection.CreateCommand();
+    defaultCommand.CommandText = """
+        UPDATE usuarios_entrevistadores
+        SET rol = 'entrevistador'
+        WHERE trim(rol) = ''
+            OR rol NOT IN ('admin', 'entrevistador', 'revisor', 'lectura')
+        """;
+    defaultCommand.ExecuteNonQuery();
+}
+
+static void RefreshUserView(SqliteConnection connection)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        DROP VIEW IF EXISTS vista_usuarios_entrevistadores;
+        CREATE VIEW vista_usuarios_entrevistadores AS
+        SELECT
+            correo,
+            rol,
+            CASE
+                WHEN contrasena LIKE 'pbkdf2$%' THEN 'Protegida'
+                ELSE 'Pendiente de proteger'
+            END AS contrasena,
+            CASE activo WHEN 1 THEN 'Activo' ELSE 'Inactivo' END AS estado,
+            creado_en
+        FROM usuarios_entrevistadores
+        ORDER BY rol, correo;
+        """;
+    command.ExecuteNonQuery();
 }
 
 static void MigratePlaintextPasswords(SqliteConnection connection)
@@ -795,6 +863,42 @@ static void SeedQuestions(SqliteConnection connection)
     }
 }
 
+static void SaveQuestion(SqliteConnection connection, ExamQuestion question)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        INSERT INTO banco_preguntas
+            (id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+        VALUES
+            ($id, $area, $type, $title, $prompt, $points, $options, $correctAnswer, $expected, $keywords, $runner, 1, $createdAt)
+        ON CONFLICT(id) DO UPDATE SET
+            area = excluded.area,
+            tipo = excluded.tipo,
+            titulo = excluded.titulo,
+            pregunta = excluded.pregunta,
+            puntos = excluded.puntos,
+            opciones_json = excluded.opciones_json,
+            respuesta_correcta = excluded.respuesta_correcta,
+            respuesta_esperada = excluded.respuesta_esperada,
+            palabras_clave_json = excluded.palabras_clave_json,
+            runner_json = excluded.runner_json,
+            activo = 1
+        """;
+    command.Parameters.AddWithValue("$id", question.Id);
+    command.Parameters.AddWithValue("$area", question.Area);
+    command.Parameters.AddWithValue("$type", question.Type);
+    command.Parameters.AddWithValue("$title", question.Title);
+    command.Parameters.AddWithValue("$prompt", question.Prompt);
+    command.Parameters.AddWithValue("$points", question.Points);
+    command.Parameters.AddWithValue("$options", JsonSerializer.Serialize(question.Options));
+    command.Parameters.AddWithValue("$correctAnswer", question.CorrectAnswer);
+    command.Parameters.AddWithValue("$expected", question.Expected);
+    command.Parameters.AddWithValue("$keywords", JsonSerializer.Serialize(question.Keywords));
+    command.Parameters.AddWithValue("$runner", question.Runner is null ? "" : JsonSerializer.Serialize(question.Runner));
+    command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
+    command.ExecuteNonQuery();
+}
+
 static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool activeOnly)
 {
     using var command = connection.CreateCommand();
@@ -839,6 +943,89 @@ static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool active
     }
 
     return questions;
+}
+
+static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonElement root)
+{
+    var area = GetFirstString(root, "area", "Area").Trim();
+    var type = GetFirstString(root, "type", "tipo", "Type").Trim().ToLowerInvariant();
+    var title = GetFirstString(root, "title", "titulo", "Title").Trim();
+    var prompt = GetFirstString(root, "prompt", "pregunta", "Prompt").Trim();
+    var id = GetFirstString(root, "id", "Id").Trim();
+    var points = GetInt(root, "points");
+    var correctAnswer = GetFirstString(root, "correctAnswer", "respuestaCorrecta", "respuesta_correcta").Trim().ToUpperInvariant();
+    var expected = GetFirstString(root, "expected", "respuestaEsperada", "respuesta_esperada").Trim();
+    var options = GetQuestionOptionsFromRequest(root);
+    var keywords = GetQuestionKeywordsFromRequest(root);
+    var runner = GetQuestionRunnerFromRequest(root);
+
+    if (string.IsNullOrWhiteSpace(area))
+    {
+        return (null, "Escribe el area de la pregunta.");
+    }
+
+    if (type is not ("closed" or "open" or "code"))
+    {
+        return (null, "Selecciona un tipo valido: cerrada, abierta o practica.");
+    }
+
+    if (string.IsNullOrWhiteSpace(title))
+    {
+        return (null, "Escribe el titulo de la pregunta.");
+    }
+
+    if (string.IsNullOrWhiteSpace(prompt))
+    {
+        return (null, "Escribe la pregunta.");
+    }
+
+    if (points < 1 || points > 100)
+    {
+        return (null, "Los puntos deben estar entre 1 y 100.");
+    }
+
+    if (type == "closed")
+    {
+        if (options.Count < 2)
+        {
+            return (null, "Agrega al menos dos opciones para una pregunta cerrada.");
+        }
+
+        if (string.IsNullOrWhiteSpace(correctAnswer) || !options.Any(option => string.Equals(option.Key, correctAnswer, StringComparison.OrdinalIgnoreCase)))
+        {
+            return (null, "La respuesta correcta debe coincidir con una clave de opcion, por ejemplo A.");
+        }
+
+        expected = string.IsNullOrWhiteSpace(expected)
+            ? options.First(option => string.Equals(option.Key, correctAnswer, StringComparison.OrdinalIgnoreCase)).Text
+            : expected;
+    }
+    else
+    {
+        options = [];
+        correctAnswer = "";
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return (null, "Escribe la respuesta esperada para poder evaluar la pregunta.");
+        }
+    }
+
+    if (keywords.Count == 0)
+    {
+        keywords = BuildKeywordsFromExpected(expected);
+    }
+
+    if (type != "code")
+    {
+        runner = null;
+    }
+
+    if (string.IsNullOrWhiteSpace(id))
+    {
+        id = GenerateQuestionId(title);
+    }
+
+    return (new ExamQuestion(id, area, type, title, prompt, points, options, correctAnswer, expected, keywords, runner), "");
 }
 
 static T? DeserializeJson<T>(string value)
@@ -895,6 +1082,29 @@ static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, st
     }
 
     return true;
+}
+
+static string GetInterviewerRole(SqliteConnection connection, string user)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT rol
+        FROM usuarios_entrevistadores
+        WHERE lower(correo) = $correo
+            AND activo = 1
+        LIMIT 1
+        """;
+    command.Parameters.AddWithValue("$correo", user.ToLowerInvariant());
+    var role = Convert.ToString(command.ExecuteScalar()) ?? "";
+    return NormalizeRole(role);
+}
+
+static string NormalizeRole(string role)
+{
+    role = role.Trim().ToLowerInvariant();
+    return role is "admin" or "entrevistador" or "revisor" or "lectura"
+        ? role
+        : "entrevistador";
 }
 
 static bool IsValidEmailAddress(string value)
@@ -1021,6 +1231,139 @@ static List<string> GetStringArray(JsonElement element, string propertyName)
         .ToList();
 }
 
+static List<string> GetFirstStringArray(JsonElement element, params string[] propertyNames)
+{
+    foreach (var propertyName in propertyNames)
+    {
+        var values = GetStringArray(element, propertyName);
+        if (values.Count > 0)
+        {
+            return values;
+        }
+    }
+
+    return [];
+}
+
+static List<ExamOption> GetQuestionOptionsFromRequest(JsonElement element)
+{
+    if (element.ValueKind != JsonValueKind.Object ||
+        !element.TryGetProperty("options", out var property) ||
+        property.ValueKind != JsonValueKind.Array)
+    {
+        return [];
+    }
+
+    return property
+        .EnumerateArray()
+        .Where(item => item.ValueKind == JsonValueKind.Object)
+        .Select(item => new ExamOption(
+            GetFirstString(item, "key", "Key").Trim().ToUpperInvariant(),
+            GetFirstString(item, "text", "Text").Trim()))
+        .Where(option => !string.IsNullOrWhiteSpace(option.Key) && !string.IsNullOrWhiteSpace(option.Text))
+        .GroupBy(option => option.Key, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.First())
+        .ToList();
+}
+
+static List<string> GetQuestionKeywordsFromRequest(JsonElement element)
+{
+    var keywords = GetFirstStringArray(element, "keywords", "palabrasClave", "palabras_clave");
+    if (keywords.Count > 0)
+    {
+        return keywords.Select(keyword => keyword.Trim()).Where(keyword => keyword.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    var keywordText = GetFirstString(element, "keywordText", "palabrasClaveTexto").Trim();
+    return keywordText
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Where(keyword => keyword.Length > 0)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+}
+
+static List<string> BuildKeywordsFromExpected(string expected)
+{
+    return NormalizeText(expected)
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Where(word => word.Length > 3)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(12)
+        .ToList();
+}
+
+static CodeRunner? GetQuestionRunnerFromRequest(JsonElement element)
+{
+    if (element.ValueKind != JsonValueKind.Object ||
+        !element.TryGetProperty("runner", out var runnerElement) ||
+        runnerElement.ValueKind != JsonValueKind.Object)
+    {
+        return null;
+    }
+
+    var functionName = GetFirstString(runnerElement, "functionName", "FunctionName").Trim();
+    var language = GetFirstString(runnerElement, "language", "Language").Trim();
+    var tests = GetCodeTestsFromRequest(runnerElement);
+
+    if (string.IsNullOrWhiteSpace(functionName) || tests.Count == 0)
+    {
+        return null;
+    }
+
+    return new CodeRunner(functionName, string.IsNullOrWhiteSpace(language) ? "JavaScript" : language, tests);
+}
+
+static List<CodeTest> GetCodeTestsFromRequest(JsonElement runnerElement)
+{
+    if (!runnerElement.TryGetProperty("tests", out var testsElement) || testsElement.ValueKind != JsonValueKind.Array)
+    {
+        return [];
+    }
+
+    var tests = new List<CodeTest>();
+    foreach (var testElement in testsElement.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object))
+    {
+        var name = GetFirstString(testElement, "name", "Name").Trim();
+        var args = testElement.TryGetProperty("args", out var argsElement) && argsElement.ValueKind == JsonValueKind.Array
+            ? argsElement.EnumerateArray().Select(ConvertJsonValue).ToArray()
+            : [];
+
+        var expected = testElement.TryGetProperty("expected", out var expectedElement)
+            ? ConvertJsonValue(expectedElement)
+            : "";
+
+        tests.Add(new CodeTest(string.IsNullOrWhiteSpace(name) ? $"Prueba {tests.Count + 1}" : name, args, expected));
+    }
+
+    return tests;
+}
+
+static object ConvertJsonValue(JsonElement element)
+{
+    return element.ValueKind switch
+    {
+        JsonValueKind.String => element.GetString() ?? "",
+        JsonValueKind.Number when element.TryGetInt32(out var intValue) => intValue,
+        JsonValueKind.Number when element.TryGetDouble(out var doubleValue) => doubleValue,
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Array => element.EnumerateArray().Select(ConvertJsonValue).ToArray(),
+        JsonValueKind.Object => JsonSerializer.Deserialize<Dictionary<string, object>>(element.GetRawText()) ?? new Dictionary<string, object>(),
+        _ => ""
+    };
+}
+
+static string GenerateQuestionId(string title)
+{
+    var slug = string.Join("-", NormalizeText(title).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(5));
+    if (string.IsNullOrWhiteSpace(slug))
+    {
+        slug = "pregunta";
+    }
+
+    return $"{slug}-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+}
+
 static int GetInt(JsonElement element, string propertyName)
 {
     if (element.ValueKind != JsonValueKind.Object)
@@ -1048,13 +1391,32 @@ static int? GetNullableInt(JsonElement element, string propertyName)
     return property.TryGetInt32(out var value) ? value : null;
 }
 
-static bool TryGetInterviewer(HttpRequest request, ConcurrentDictionary<string, string> sessions, out string user)
+static bool TryGetInterviewer(HttpRequest request, ConcurrentDictionary<string, InterviewSession> sessions, out string user)
 {
     user = "";
     var token = request.Headers["X-Interview-Token"].FirstOrDefault() ?? "";
-    if (!string.IsNullOrWhiteSpace(token) && sessions.TryGetValue(token, out var savedUser))
+    if (!string.IsNullOrWhiteSpace(token) && sessions.TryGetValue(token, out var session))
     {
-        user = savedUser;
+        user = session.User;
+        return true;
+    }
+
+    return false;
+}
+
+static bool TryRequireRole(HttpRequest request, ConcurrentDictionary<string, InterviewSession> sessions, out InterviewSession session, params string[] allowedRoles)
+{
+    session = new InterviewSession("", "");
+    var token = request.Headers["X-Interview-Token"].FirstOrDefault() ?? "";
+    if (string.IsNullOrWhiteSpace(token) || !sessions.TryGetValue(token, out var savedSession))
+    {
+        return false;
+    }
+
+    var role = NormalizeRole(savedSession.Role);
+    if (allowedRoles.Any(allowedRole => string.Equals(role, allowedRole, StringComparison.OrdinalIgnoreCase)))
+    {
+        session = savedSession with { Role = role };
         return true;
     }
 
@@ -1414,6 +1776,8 @@ record CodeRunner(string FunctionName, string Language, List<CodeTest> Tests);
 
 record CodeTest(string Name, object[] Args, object Expected);
 
+record InterviewSession(string User, string Role);
+
 static class AppData
 {
 public static readonly Dictionary<string, string> DefaultInterviewers = new(StringComparer.OrdinalIgnoreCase)
@@ -1425,6 +1789,14 @@ public static readonly Dictionary<string, string> DefaultInterviewers = new(Stri
     ["juan@redgps.com"] = "12345",
     ["arielsadoth@gmail.com"] = "12345",
 };
+
+public static string GetDefaultRole(string user)
+{
+    return user.Equals("ariel@redgps.com", StringComparison.OrdinalIgnoreCase) ||
+        user.Equals("arielsadoth@gmail.com", StringComparison.OrdinalIgnoreCase)
+            ? "admin"
+            : "entrevistador";
+}
 
 public static readonly List<ExamQuestion> DefaultQuestions =
 [

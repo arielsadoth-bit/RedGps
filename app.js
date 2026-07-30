@@ -38,6 +38,26 @@ const answersList = document.querySelector("#answersList");
 const createdExamsSummary = document.querySelector("#createdExamsSummary");
 const createdExamsList = document.querySelector("#createdExamsList");
 const answerKeyList = document.querySelector("#answerKeyList");
+const questionForm = document.querySelector("#questionForm");
+const questionAreaInput = document.querySelector("#questionArea");
+const questionTypeInput = document.querySelector("#questionType");
+const questionPointsInput = document.querySelector("#questionPoints");
+const questionTitleInput = document.querySelector("#questionTitle");
+const questionPromptInput = document.querySelector("#questionPrompt");
+const questionOptionsInput = document.querySelector("#questionOptions");
+const questionCorrectAnswerInput = document.querySelector("#questionCorrectAnswer");
+const questionExpectedInput = document.querySelector("#questionExpected");
+const questionKeywordsInput = document.querySelector("#questionKeywords");
+const questionFunctionNameInput = document.querySelector("#questionFunctionName");
+const questionLanguageInput = document.querySelector("#questionLanguage");
+const questionTestsInput = document.querySelector("#questionTests");
+const questionManagerStatus = document.querySelector("#questionManagerStatus");
+const questionManagerList = document.querySelector("#questionManagerList");
+const closedQuestionFields = document.querySelector("#closedQuestionFields");
+const codeQuestionFields = document.querySelector("#codeQuestionFields");
+const questionManagerModal = document.querySelector("#questionManagerModal");
+const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
+const closeQuestionManagerButton = document.querySelector("#closeQuestionManagerButton");
 const loginScreen = document.querySelector("#loginScreen");
 const loginForm = document.querySelector("#loginForm");
 const loginUser = document.querySelector("#loginUser");
@@ -49,6 +69,7 @@ const isCandidateLink = urlParams.has("exam");
 const SESSION_KEY = "redgpsInterviewerSession";
 const USER_KEY = "redgpsInterviewerUser";
 const TOKEN_KEY = "redgpsInterviewToken";
+const ROLE_KEY = "redgpsInterviewerRole";
 const CREATED_EXAMS_PAGE_SIZE = 5;
 
 async function loadQuestions() {
@@ -58,6 +79,7 @@ async function loadQuestions() {
 
   const response = await fetchWithTimeout(`${location.origin}/api/questions`, {}, 9000);
   questions = await response.json();
+  syncQuestionCountLimit();
 }
 
 function getAuthHeaders() {
@@ -89,6 +111,205 @@ function renderQuestionBank() {
     .join("");
 }
 
+function syncQuestionCountLimit() {
+  if (!questionCountInput) {
+    return;
+  }
+
+  const maxQuestions = Math.max(1, questions.length);
+  questionCountInput.max = String(maxQuestions);
+
+  const currentValue = Number(questionCountInput.value);
+  if (!Number.isInteger(currentValue) || currentValue < 1) {
+    questionCountInput.value = "1";
+    return;
+  }
+
+  if (currentValue > maxQuestions) {
+    questionCountInput.value = String(maxQuestions);
+  }
+}
+
+function renderQuestionManager() {
+  if (!questionManagerList) {
+    return;
+  }
+
+  questionManagerList.innerHTML = `
+    <div class="question-manager-summary">
+      <strong>${questions.length}</strong>
+      <span>pregunta(s) activas en la base de datos</span>
+    </div>
+    <div class="question-manager-list">
+      ${questions
+        .slice(0, 12)
+        .map(
+          (question) => `
+            <article class="question-manager-item">
+              <div>
+                <strong>${escapeHtml(question.title)}</strong>
+                <p>${escapeHtml(question.prompt)}</p>
+                <div class="tag-row">
+                  <span class="tag">${escapeHtml(question.area)}</span>
+                  <span class="tag">${getQuestionTypeLabel(question)}</span>
+                  ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(question.runner))}</span>` : ""}
+                  <span class="tag">${Number(question.points || 0)} pts</span>
+                </div>
+              </div>
+            </article>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function toggleQuestionFormFields() {
+  const type = questionTypeInput?.value || "closed";
+  closedQuestionFields?.classList.toggle("hidden", type !== "closed");
+  codeQuestionFields?.classList.toggle("hidden", type !== "code");
+
+  if (questionOptionsInput) {
+    questionOptionsInput.required = type === "closed";
+  }
+
+  if (questionCorrectAnswerInput) {
+    questionCorrectAnswerInput.required = type === "closed";
+  }
+}
+
+function parseQuestionOptions(value) {
+  return String(value)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const separatorIndex = line.indexOf("|");
+      if (separatorIndex === -1) {
+        return null;
+      }
+
+      return {
+        key: line.slice(0, separatorIndex).trim().toUpperCase(),
+        text: line.slice(separatorIndex + 1).trim(),
+      };
+    })
+    .filter((option) => option && option.key && option.text);
+}
+
+function parseQuestionKeywords(value) {
+  return String(value)
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+}
+
+function parseQuestionRunner() {
+  const functionName = questionFunctionNameInput?.value.trim() || "";
+  const language = questionLanguageInput?.value.trim() || "JavaScript";
+  const testsText = questionTestsInput?.value.trim() || "";
+
+  if (!functionName && !testsText) {
+    return null;
+  }
+
+  let tests = [];
+  if (testsText) {
+    tests = JSON.parse(testsText);
+  }
+
+  return { functionName, language, tests };
+}
+
+async function saveQuestionFromForm(event) {
+  event.preventDefault();
+
+  if (!isAdminUser()) {
+    showQuestionManagerStatus("Solo un administrador puede guardar preguntas.", true);
+    return;
+  }
+
+  const type = questionTypeInput.value;
+  let runner = null;
+
+  try {
+    runner = type === "code" ? parseQuestionRunner() : null;
+  } catch {
+    showQuestionManagerStatus("Las pruebas de codigo deben estar en formato JSON valido.", true);
+    questionTestsInput?.focus();
+    return;
+  }
+
+  const payload = {
+    area: questionAreaInput.value.trim(),
+    type,
+    title: questionTitleInput.value.trim(),
+    prompt: questionPromptInput.value.trim(),
+    points: Number(questionPointsInput.value),
+    options: type === "closed" ? parseQuestionOptions(questionOptionsInput.value) : [],
+    correctAnswer: type === "closed" ? questionCorrectAnswerInput.value.trim().toUpperCase() : "",
+    expected: questionExpectedInput.value.trim(),
+    keywords: parseQuestionKeywords(questionKeywordsInput.value),
+    runner,
+  };
+
+  showQuestionManagerStatus("Guardando pregunta...", false);
+  const response = await fetchWithTimeout(`${location.origin}/api/questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(payload),
+  }, 9000);
+
+  if (response.status === 401 || response.status === 403) {
+    expireInterviewerSession();
+    showQuestionManagerStatus("Tu sesion expiro. Inicia sesion.", true);
+    return;
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    showQuestionManagerStatus(data.error || "No se pudo guardar la pregunta.", true);
+    return;
+  }
+
+  questionForm.reset();
+  questionPointsInput.value = "20";
+  questionLanguageInput.value = "JavaScript";
+  toggleQuestionFormFields();
+
+  await loadQuestions();
+  renderQuestionBank();
+  renderQuestionManager();
+  await renderAnswerKey();
+  showQuestionManagerStatus("Pregunta guardada en la base de datos y agregada al banco.", false);
+}
+
+function showQuestionManagerStatus(message, isError) {
+  if (!questionManagerStatus) {
+    return;
+  }
+
+  questionManagerStatus.textContent = message;
+  questionManagerStatus.classList.remove("hidden");
+  questionManagerStatus.classList.toggle("error-summary", Boolean(isError));
+}
+
+function openQuestionManagerModal() {
+  if (!isAdminUser()) {
+    alert("Solo un administrador puede abrir el apartado de preguntas.");
+    return;
+  }
+
+  renderQuestionManager();
+  toggleQuestionFormFields();
+  questionManagerModal?.classList.remove("hidden");
+  questionTitleInput?.focus();
+}
+
+function closeQuestionManagerModal() {
+  questionManagerModal?.classList.add("hidden");
+}
+
 function showView(viewId) {
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.querySelector(`#${viewId}`).classList.add("active");
@@ -106,6 +327,7 @@ function showView(viewId) {
     answerKeyView: "Correctas",
   };
   modeLabel.textContent = labels[viewId];
+  applyRoleVisibility();
 }
 
 function getSelectedQuestions() {
@@ -125,8 +347,9 @@ async function createExam() {
     return;
   }
 
-  if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 20) {
-    alert("La cantidad de preguntas debe estar entre 1 y 20.");
+  const maxQuestions = Math.max(1, questions.length);
+  if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > maxQuestions) {
+    alert(`La cantidad de preguntas debe estar entre 1 y ${maxQuestions}.`);
     questionCountInput.focus();
     return;
   }
@@ -1912,6 +2135,7 @@ function expireInterviewerSession() {
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(ROLE_KEY);
   loginScreen.classList.remove("hidden");
   loginError.textContent = "Tu sesion expiro. Inicia sesion.";
   loginError.classList.remove("hidden");
@@ -1998,6 +2222,16 @@ document.querySelector("#deselectAllButton").addEventListener("click", () => {
   });
 });
 
+openQuestionManagerButton?.addEventListener("click", openQuestionManagerModal);
+closeQuestionManagerButton?.addEventListener("click", closeQuestionManagerModal);
+questionManagerModal?.addEventListener("click", (event) => {
+  if (event.target === questionManagerModal) {
+    closeQuestionManagerModal();
+  }
+});
+questionTypeInput?.addEventListener("change", toggleQuestionFormFields);
+questionForm?.addEventListener("submit", saveQuestionFromForm);
+
 document.querySelector("#copyLinkButton").addEventListener("click", async () => {
   const examLink = document.querySelector("#examLink");
 
@@ -2041,12 +2275,14 @@ loginForm.addEventListener("submit", async (event) => {
     const session = await response.json();
     sessionStorage.setItem(SESSION_KEY, "true");
     sessionStorage.setItem(USER_KEY, session.user);
+    sessionStorage.setItem(ROLE_KEY, session.role || "entrevistador");
     sessionStorage.setItem(TOKEN_KEY, session.token);
     loginUser.value = "";
     loginPassword.value = "";
     loginError.textContent = "Correo o contrasena incorrectos.";
     loginError.classList.add("hidden");
     loginScreen.classList.add("hidden");
+    applyRoleVisibility();
     await renderResults();
     await renderCreatedExams();
     await renderSavedAnswers();
@@ -2063,6 +2299,7 @@ logoutButton.addEventListener("click", () => {
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(ROLE_KEY);
   loginScreen.classList.remove("hidden");
   loginUser.focus();
 });
@@ -2090,10 +2327,29 @@ function getCurrentInterviewerUser() {
   return sessionStorage.getItem(USER_KEY) || "";
 }
 
+function getCurrentInterviewerRole() {
+  return sessionStorage.getItem(ROLE_KEY) || "entrevistador";
+}
+
+function isAdminUser() {
+  return getCurrentInterviewerRole() === "admin";
+}
+
+function applyRoleVisibility() {
+  openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
+
+  if (!isAdminUser()) {
+    closeQuestionManagerModal();
+  }
+}
+
 async function initializeApp() {
   await loadQuestions();
   renderQuestionBank();
+  renderQuestionManager();
+  toggleQuestionFormFields();
   protectInterviewerPanel();
+  applyRoleVisibility();
 
   if (isCandidateLink) {
     document.body.classList.add("candidate-mode");

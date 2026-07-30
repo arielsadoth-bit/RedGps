@@ -69,7 +69,7 @@
                 </label>
                 <label class="field">
                   Preguntas
-                  <input id="questionCount" type="number" min="1" max="20" value="5" />
+                  <input id="questionCount" type="number" min="1" value="5" />
                 </label>
                 <label class="field">
                   Tiempo
@@ -85,6 +85,7 @@
                 <button class="primary-button" id="createExamButton" type="button">Generar examen aleatorio</button>
                 <button class="ghost-button" id="selectAllButton" type="button">Seleccionar todo</button>
                 <button class="ghost-button" id="deselectAllButton" type="button">Deseleccionar todo</button>
+                <button class="ghost-button" id="openQuestionManagerButton" type="button">Preguntas</button>
               </div>
             </div>
 
@@ -113,6 +114,92 @@
             </div>
             <div class="result-list" id="createdExamsList"></div>
           </section>
+
+          <div class="modal-overlay hidden" id="questionManagerModal">
+          <section class="question-modal" id="questionManagerView" role="dialog" aria-modal="true" aria-labelledby="questionManagerTitle">
+            <div class="section-heading modal-heading">
+              <div>
+                <p class="eyebrow">Banco de preguntas</p>
+                <h2 id="questionManagerTitle">Agregar pregunta</h2>
+              </div>
+              <button class="ghost-button" id="closeQuestionManagerButton" type="button">Cerrar</button>
+            </div>
+
+            <form class="question-editor" id="questionForm">
+              <div class="question-editor-grid">
+                <label class="field">
+                  Area
+                  <input id="questionArea" placeholder="Ej. Desarrollo de Software" required />
+                </label>
+                <label class="field">
+                  Tipo
+                  <select id="questionType">
+                    <option value="closed">Teorica cerrada</option>
+                    <option value="open">Teorica abierta</option>
+                    <option value="code">Practica de codigo</option>
+                  </select>
+                </label>
+                <label class="field">
+                  Puntos
+                  <input id="questionPoints" type="number" min="1" max="100" value="20" required />
+                </label>
+              </div>
+
+              <label class="field">
+                Titulo
+                <input id="questionTitle" placeholder="Ej. Validacion de login" required />
+              </label>
+
+              <label class="field">
+                Pregunta
+                <textarea id="questionPrompt" placeholder="Escribe aqui la pregunta que vera el candidato" required></textarea>
+              </label>
+
+              <div class="question-type-fields" id="closedQuestionFields">
+                <label class="field">
+                  Opciones
+                  <textarea id="questionOptions" placeholder="A|Primera opcion&#10;B|Segunda opcion&#10;C|Tercera opcion&#10;D|Cuarta opcion"></textarea>
+                </label>
+                <label class="field small-field">
+                  Respuesta correcta
+                  <input id="questionCorrectAnswer" maxlength="3" placeholder="A" />
+                </label>
+              </div>
+
+              <label class="field">
+                Respuesta esperada
+                <textarea id="questionExpected" placeholder="Respuesta correcta o explicacion esperada" required></textarea>
+              </label>
+
+              <label class="field">
+                Palabras clave
+                <input id="questionKeywords" placeholder="Separadas por coma. Ej. api, servidor, respuesta" />
+              </label>
+
+              <div class="question-type-fields hidden" id="codeQuestionFields">
+                <label class="field">
+                  Funcion esperada
+                  <input id="questionFunctionName" placeholder="Ej. validarLogin" />
+                </label>
+                <label class="field">
+                  Lenguaje
+                  <input id="questionLanguage" value="JavaScript" />
+                </label>
+                <label class="field">
+                  Pruebas
+                  <textarea id="questionTests" placeholder='[{"name":"Caso valido","args":["correo@redgps.com","12345678"],"expected":true}]'></textarea>
+                </label>
+              </div>
+
+              <div class="actions-row">
+                <button class="primary-button" type="submit">Guardar pregunta</button>
+              </div>
+            </form>
+
+            <div class="result-summary hidden" id="questionManagerStatus"></div>
+            <div class="result-list" id="questionManagerList"></div>
+          </section>
+          </div>
 
           <section class="view" id="candidateView">
             <div class="exam-header">
