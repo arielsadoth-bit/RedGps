@@ -359,8 +359,9 @@ h3 {
 .workspace::before {
   content: "";
   position: absolute;
-  right: 22px;
+  left: 50%;
   bottom: 24px;
+  transform: translateX(-50%);
   width: min(760px, 82%);
   aspect-ratio: 1200 / 320;
   background: url("assets/redgps-logo.svg") center / contain no-repeat;
