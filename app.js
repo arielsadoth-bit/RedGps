@@ -170,12 +170,14 @@ function renderQuestionManager() {
 
   questionManagerList.innerHTML = `
     <div class="question-manager-summary">
-      <strong>${questions.length}</strong>
-      <span>pregunta(s) activas en la base de datos</span>
+      <div>
+        <strong>${questions.length}</strong>
+        <span>pregunta(s) activas en la base de datos</span>
+      </div>
+      <button class="ghost-button" id="toggleQuestionManagerListButton" type="button">Ver preguntas activas</button>
     </div>
-    <div class="question-manager-list">
+    <div class="question-manager-list hidden" id="questionManagerActiveList">
       ${questions
-        .slice(0, 12)
         .map(
           (question) => `
             <article class="question-manager-item">
@@ -195,6 +197,14 @@ function renderQuestionManager() {
         .join("")}
     </div>
   `;
+
+  document.querySelector("#toggleQuestionManagerListButton")?.addEventListener("click", () => {
+    const list = document.querySelector("#questionManagerActiveList");
+    const isHidden = list?.classList.toggle("hidden");
+    document.querySelector("#toggleQuestionManagerListButton").textContent = isHidden
+      ? "Ver preguntas activas"
+      : "Ocultar preguntas activas";
+  });
 }
 
 function toggleQuestionFormFields() {
