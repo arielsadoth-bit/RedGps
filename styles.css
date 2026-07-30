@@ -238,9 +238,10 @@ button {
 }
 
 .topbar-meta {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
   align-items: center;
-  gap: 12px;
+  column-gap: 18px;
   color: #d7d9dd;
   font-size: 0.88rem;
   font-weight: 700;
@@ -249,16 +250,17 @@ button {
 .session-badge {
   align-items: center;
   display: grid;
-  gap: 6px;
+  gap: 5px;
   justify-items: center;
+  min-width: 210px;
 }
 
 .session-badge small {
   color: #d7d9dd;
-  font-size: 0.72rem;
+  font-size: 0.69rem;
   font-weight: 600;
   line-height: 1.2;
-  max-width: 220px;
+  max-width: 240px;
   overflow: hidden;
   text-align: center;
   text-overflow: ellipsis;
@@ -1433,6 +1435,7 @@ code {
   .brand-block,
   .topbar-meta {
     align-items: stretch;
+    display: flex;
     flex-direction: column;
   }
 
