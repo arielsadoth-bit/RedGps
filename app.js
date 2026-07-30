@@ -108,7 +108,7 @@ function renderQuestionBank() {
         <strong>${questions.length}</strong>
         <span>pregunta(s) disponibles para seleccionar</span>
       </div>
-      <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas activas</button>
+      <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas</button>
     </div>
     <div class="question-bank-list hidden" id="questionBankList">
       ${questions
@@ -139,7 +139,7 @@ function renderQuestionBank() {
     const list = document.querySelector("#questionBankList");
     const isHidden = list?.classList.toggle("hidden");
     document.querySelector("#toggleQuestionBankButton").textContent = isHidden
-      ? "Ver preguntas activas"
+      ? "Ver preguntas"
       : "Ocultar preguntas activas";
   });
 }
