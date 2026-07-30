@@ -63,6 +63,7 @@ const loginForm = document.querySelector("#loginForm");
 const loginUser = document.querySelector("#loginUser");
 const loginPassword = document.querySelector("#loginPassword");
 const loginError = document.querySelector("#loginError");
+const togglePasswordButton = document.querySelector("#togglePasswordButton");
 const logoutButton = document.querySelector("#logoutButton");
 const urlParams = new URLSearchParams(location.search);
 const isCandidateLink = urlParams.has("exam");
@@ -2231,6 +2232,13 @@ questionManagerModal?.addEventListener("click", (event) => {
 });
 questionTypeInput?.addEventListener("change", toggleQuestionFormFields);
 questionForm?.addEventListener("submit", saveQuestionFromForm);
+
+togglePasswordButton?.addEventListener("click", () => {
+  const isPasswordHidden = loginPassword.type === "password";
+  loginPassword.type = isPasswordHidden ? "text" : "password";
+  togglePasswordButton.textContent = isPasswordHidden ? "Ocultar" : "Ver";
+  togglePasswordButton.setAttribute("aria-label", isPasswordHidden ? "Ocultar contrasena" : "Mostrar contrasena");
+});
 
 document.querySelector("#copyLinkButton").addEventListener("click", async () => {
   const examLink = document.querySelector("#examLink");

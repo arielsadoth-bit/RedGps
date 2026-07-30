@@ -19,7 +19,10 @@
         </label>
         <label class="field">
           Contrasena
-          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Ingresa la contrasena" />
+          <div class="password-field">
+            <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Ingresa la contrasena" />
+            <button id="togglePasswordButton" type="button" aria-label="Mostrar contrasena">Ver</button>
+          </div>
         </label>
         <p class="login-error hidden" id="loginError">Correo o contrasena incorrectos.</p>
         <button class="primary-button" type="submit">Entrar</button>
