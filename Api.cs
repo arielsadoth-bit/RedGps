@@ -216,6 +216,16 @@ app.MapPost("/api/evaluate", async (HttpRequest request) =>
 {
     using var document = await JsonDocument.ParseAsync(request.Body);
     var rootElement = document.RootElement;
+    var securityReason = GetString(rootElement, "securityReason");
+    var candidateName = GetString(rootElement, "candidateName");
+    var candidateEmail = GetString(rootElement, "candidateEmail");
+
+    if (string.IsNullOrWhiteSpace(securityReason)
+        && (candidateName.Trim().Length < 3 || !IsValidEmailAddress(candidateEmail)))
+    {
+        return Results.BadRequest(new { error = "Nombre y correo del candidato son obligatorios." });
+    }
+
     using var connection = OpenConnection(databasePath);
     var questions = LoadQuestions(connection, activeOnly: false);
     var savedResult = EvaluateExam(rootElement, includeExpected: true, questions);
@@ -885,6 +895,21 @@ static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, st
     }
 
     return true;
+}
+
+static bool IsValidEmailAddress(string value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return false;
+    }
+
+    var atIndex = value.IndexOf('@');
+    var dotIndex = value.LastIndexOf('.');
+    return atIndex > 0
+        && dotIndex > atIndex + 1
+        && dotIndex < value.Length - 1
+        && !value.Contains(' ');
 }
 
 static bool IsPasswordHash(string value)

@@ -183,6 +183,23 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function hasValidCandidateIdentity() {
+  return candidateNameInput.value.trim().length >= 3
+    && isValidEmail(candidateEmailInput.value.trim().toLowerCase());
+}
+
+function updateFinishExamButtonState() {
+  const finishButton = document.querySelector("#finishExamButton");
+  if (!finishButton || state.isFinishingExam || state.candidateAccessDenied) {
+    return;
+  }
+
+  finishButton.disabled = Boolean(state.activeExam) && !hasValidCandidateIdentity();
+  finishButton.title = finishButton.disabled
+    ? "Captura nombre y correo valido para finalizar."
+    : "";
+}
+
 function pickRandomQuestions(source, count) {
   const shuffled = [...source];
 
@@ -252,6 +269,7 @@ function renderExam() {
   restoreCandidateName();
   restoreDraftAnswers();
   bindDraftSaving();
+  updateFinishExamButtonState();
 }
 
 function showExamBlockedMessage() {
@@ -423,8 +441,13 @@ function bindDraftSaving() {
   examForm.querySelectorAll(".run-code-button").forEach((button) => {
     button.addEventListener("click", () => runCodeTests(button.dataset.questionId));
   });
-  candidateNameInput.addEventListener("input", saveDraftAnswers);
-  candidateEmailInput.addEventListener("input", saveDraftAnswers);
+  [candidateNameInput, candidateEmailInput].forEach((input) => {
+    input.addEventListener("input", () => {
+      saveDraftAnswers();
+      updateFinishExamButtonState();
+    });
+    input.addEventListener("change", updateFinishExamButtonState);
+  });
 }
 
 async function runCodeTests(questionId) {
@@ -676,14 +699,14 @@ async function finishExam(options = {}) {
     const candidateName = candidateNameInput.value.trim() || (forced ? "Candidato sin nombre" : "");
     const candidateEmail = candidateEmailInput.value.trim().toLowerCase();
 
-    if (!forced && !candidateName) {
+    if (!forced && candidateName.length < 3) {
       alert("Escribe tu nombre completo antes de finalizar el examen.");
       candidateNameInput.focus();
       return;
     }
 
     if (!forced && !isValidEmail(candidateEmail)) {
-      alert("Escribe tu correo antes de finalizar el examen.");
+      alert("Escribe un correo valido antes de finalizar el examen.");
       candidateEmailInput.focus();
       return;
     }
@@ -712,9 +735,13 @@ async function finishExam(options = {}) {
     if (!forced) {
       alert("No se pudo finalizar el examen. Revisa que las preguntas hayan cargado correctamente.");
       document.querySelector("#finishExamButton").disabled = false;
+      updateFinishExamButtonState();
     }
   } finally {
     state.isFinishingExam = false;
+    if (!forced) {
+      updateFinishExamButtonState();
+    }
   }
 }
 

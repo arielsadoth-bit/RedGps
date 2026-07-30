@@ -125,12 +125,12 @@
 
             <label class="field candidate-name-field">
               Nombre del candidato
-              <input id="candidateName" placeholder="Escribe tu nombre completo" autocomplete="name" />
+              <input id="candidateName" required minlength="3" placeholder="Escribe tu nombre completo" autocomplete="name" />
             </label>
 
             <label class="field candidate-name-field">
               Correo del candidato
-              <input id="candidateEmail" type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
+              <input id="candidateEmail" required type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
             </label>
 
             <form id="examForm" class="exam-form"></form>
