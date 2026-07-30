@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Tecnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
-    <link rel="stylesheet" href="styles.css?v=20260730-question-form-only" />
+    <link rel="stylesheet" href="styles.css?v=20260730-session-email" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -50,7 +50,10 @@
         </div>
         <div class="topbar-meta">
           <span>Pre filtro de evaluacion</span>
-          <div class="status-pill" id="modeLabel">Entrevistador</div>
+          <div class="session-badge">
+            <div class="status-pill" id="modeLabel">Entrevistador</div>
+            <small id="sessionUserLabel"></small>
+          </div>
           <button class="logout-button" id="logoutButton" type="button">Cerrar sesion</button>
         </div>
       </section>
@@ -324,6 +327,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260730-question-form-only"></script>
+    <script src="app.js?v=20260730-session-email"></script>
   </body>
 </html>

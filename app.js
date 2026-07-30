@@ -31,6 +31,7 @@ const resultList = document.querySelector("#resultList");
 const resultSummary = document.querySelector("#resultSummary");
 const scoreLabel = document.querySelector("#scoreLabel");
 const modeLabel = document.querySelector("#modeLabel");
+const sessionUserLabel = document.querySelector("#sessionUserLabel");
 const timer = document.querySelector("#timer");
 const candidateNameInput = document.querySelector("#candidateName");
 const answersSummary = document.querySelector("#answersSummary");
@@ -2660,12 +2661,18 @@ function updateSessionBadge() {
   if (isCandidateLink) {
     modeLabel.textContent = "Candidato";
     modeLabel.removeAttribute("title");
+    if (sessionUserLabel) {
+      sessionUserLabel.textContent = "";
+    }
     return;
   }
 
   if (!hasInterviewerSession()) {
     modeLabel.textContent = "Sin sesion";
     modeLabel.removeAttribute("title");
+    if (sessionUserLabel) {
+      sessionUserLabel.textContent = "";
+    }
     return;
   }
 
@@ -2673,6 +2680,9 @@ function updateSessionBadge() {
   const user = getCurrentInterviewerUser();
   modeLabel.textContent = role;
   modeLabel.title = user ? `${role}: ${user}` : role;
+  if (sessionUserLabel) {
+    sessionUserLabel.textContent = user ? `${role}: ${user}` : "";
+  }
 }
 
 function applyRoleVisibility() {
