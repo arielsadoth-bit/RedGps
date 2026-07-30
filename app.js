@@ -58,7 +58,6 @@ const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
 const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
 const closeQuestionManagerButton = document.querySelector("#closeQuestionManagerButton");
-const adminToolsCard = document.querySelector("#adminToolsCard");
 const userManagerModal = document.querySelector("#userManagerModal");
 const openUserManagerButton = document.querySelector("#openUserManagerButton");
 const closeUserManagerButton = document.querySelector("#closeUserManagerButton");
@@ -2396,6 +2395,10 @@ function escapeHtml(value) {
 
 document.querySelectorAll(".nav-button").forEach((button) => {
   button.addEventListener("click", async () => {
+    if (!button.dataset.view) {
+      return;
+    }
+
     showView(button.dataset.view);
     if (button.dataset.view === "candidateView") {
       renderExam();
@@ -2566,7 +2569,6 @@ function isAdminUser() {
 
 function applyRoleVisibility() {
   openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
-  adminToolsCard?.classList.toggle("hidden", !isAdminUser());
   openUserManagerButton?.classList.toggle("hidden", !isAdminUser());
 
   if (!isAdminUser()) {
