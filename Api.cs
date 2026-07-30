@@ -678,6 +678,7 @@ static void InitializeDatabase(string databasePath)
     command.ExecuteNonQuery();
     SeedInterviewers(connection);
     MigratePlaintextPasswords(connection);
+    BackfillUserCreatedDates(connection);
     SeedQuestions(connection);
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "modificado_en", "TEXT NOT NULL DEFAULT ''");
@@ -735,6 +736,17 @@ static void MigratePlaintextPasswords(SqliteConnection connection)
     {
         UpdateUserPasswordHash(connection, item.User, HashPassword(item.Password));
     }
+}
+
+static void BackfillUserCreatedDates(SqliteConnection connection)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        UPDATE usuarios_entrevistadores
+        SET creado_en = datetime('now', 'localtime')
+        WHERE trim(creado_en) = ''
+        """;
+    command.ExecuteNonQuery();
 }
 
 static void SeedQuestions(SqliteConnection connection)
