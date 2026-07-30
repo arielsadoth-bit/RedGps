@@ -161,14 +161,18 @@ Las preguntas practicas muestran:
 
 El candidato puede ejecutar pruebas mientras responde. El entrevistador tambien puede ejecutar pruebas al revisar la respuesta guardada.
 
-## Cambiar preguntas
+## Cambiar preguntas desde SQLite
 
-Las preguntas estan en `Api.cs`.
+Las preguntas se guardan en SQLite, en la tabla:
 
-Busca:
+```text
+banco_preguntas
+```
 
-```csharp
-public static readonly List<ExamQuestion> Questions
+Tambien puedes revisarlas desde la vista:
+
+```text
+vista_banco_preguntas
 ```
 
 Tipos de pregunta:
@@ -177,7 +181,100 @@ Tipos de pregunta:
 - `open`: pregunta abierta.
 - `code`: problema practico de programacion.
 
-Despues de cambiar preguntas, reinicia el sistema.
+Para ocultar una pregunta sin borrarla:
+
+```sql
+UPDATE banco_preguntas
+SET activo = 0
+WHERE id = 'soft-html';
+```
+
+Para volver a mostrarla:
+
+```sql
+UPDATE banco_preguntas
+SET activo = 1
+WHERE id = 'soft-html';
+```
+
+Para cambiar el texto de una pregunta:
+
+```sql
+UPDATE banco_preguntas
+SET pregunta = 'Nuevo texto de la pregunta'
+WHERE id = 'soft-html';
+```
+
+Ejemplo para agregar pregunta de opcion multiple:
+
+```sql
+INSERT INTO banco_preguntas
+    (id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+VALUES
+    (
+        'soft-nueva-opcion',
+        'Desarrollo de Software',
+        'closed',
+        'Pregunta nueva',
+        'Cual opcion es correcta?',
+        20,
+        '[{"key":"A","text":"Opcion A"},{"key":"B","text":"Opcion B"}]',
+        'A',
+        'Opcion A',
+        '[]',
+        '',
+        1,
+        datetime('now')
+    );
+```
+
+Ejemplo para agregar pregunta abierta:
+
+```sql
+INSERT INTO banco_preguntas
+    (id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+VALUES
+    (
+        'soft-nueva-abierta',
+        'Desarrollo de Software',
+        'open',
+        'Pregunta abierta nueva',
+        'Explica que es una API REST.',
+        20,
+        '[]',
+        '',
+        'Una API REST permite comunicar sistemas usando HTTP y recursos.',
+        '["api","rest","http","comunicar","sistemas","recursos"]',
+        '',
+        1,
+        datetime('now')
+    );
+```
+
+Ejemplo para agregar problema de codigo:
+
+```sql
+INSERT INTO banco_preguntas
+    (id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+VALUES
+    (
+        'soft-code-suma',
+        'Desarrollo de Software',
+        'code',
+        'Problema practico: suma',
+        'Escriba una funcion llamada sumar(a, b) que regrese la suma de dos numeros.',
+        20,
+        '[]',
+        '',
+        'Crear una funcion que reciba dos numeros y regrese su suma.',
+        '["function","return","sumar","a","b"]',
+        '{"functionName":"sumar","language":"JavaScript","tests":[{"name":"suma positiva","args":[2,3],"expected":5},{"name":"suma con cero","args":[7,0],"expected":7}]}',
+        1,
+        datetime('now')
+    );
+```
+
+Despues de cambiar preguntas desde SQLiteStudio, guarda los cambios y recarga la pagina del sistema.
 
 Si usas Docker:
 

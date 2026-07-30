@@ -48,7 +48,11 @@ app.MapPost("/api/login", async (HttpRequest request) =>
     return Results.Json(new { ok = true, user, token });
 });
 
-app.MapGet("/api/questions", () => Results.Json(AppData.Questions.Select(ToPublicQuestion)));
+app.MapGet("/api/questions", () =>
+{
+    using var connection = OpenConnection(databasePath);
+    return Results.Json(LoadQuestions(connection, activeOnly: true).Select(ToPublicQuestion));
+});
 
 app.MapGet("/api/answer-key", (HttpRequest request) =>
 {
@@ -57,7 +61,8 @@ app.MapGet("/api/answer-key", (HttpRequest request) =>
         return Results.Unauthorized();
     }
 
-    return Results.Json(AppData.Questions.Select(question => new
+    using var connection = OpenConnection(databasePath);
+    return Results.Json(LoadQuestions(connection, activeOnly: true).Select(question => new
     {
         question.Id,
         question.Area,
@@ -210,15 +215,16 @@ app.MapPost("/api/evaluate", async (HttpRequest request) =>
 {
     using var document = await JsonDocument.ParseAsync(request.Body);
     var rootElement = document.RootElement;
-    var savedResult = EvaluateExam(rootElement, includeExpected: true);
-    var result = EvaluateExam(rootElement, includeExpected: false);
+    using var connection = OpenConnection(databasePath);
+    var questions = LoadQuestions(connection, activeOnly: false);
+    var savedResult = EvaluateExam(rootElement, includeExpected: true, questions);
+    var result = EvaluateExam(rootElement, includeExpected: false, questions);
 
     if (savedResult is null || result is null)
     {
         return Results.BadRequest(new { error = "El resultado no tiene id." });
     }
 
-    using var connection = OpenConnection(databasePath);
     SaveResult(connection, JsonSerializer.SerializeToElement(savedResult));
 
     return Results.Json(result);
@@ -541,6 +547,22 @@ static void InitializeDatabase(string databasePath)
             creado_en TEXT NOT NULL DEFAULT ''
         );
 
+        CREATE TABLE IF NOT EXISTS banco_preguntas (
+            id TEXT PRIMARY KEY,
+            area TEXT NOT NULL DEFAULT '',
+            tipo TEXT NOT NULL DEFAULT '',
+            titulo TEXT NOT NULL DEFAULT '',
+            pregunta TEXT NOT NULL DEFAULT '',
+            puntos INTEGER NOT NULL DEFAULT 20,
+            opciones_json TEXT NOT NULL DEFAULT '[]',
+            respuesta_correcta TEXT NOT NULL DEFAULT '',
+            respuesta_esperada TEXT NOT NULL DEFAULT '',
+            palabras_clave_json TEXT NOT NULL DEFAULT '[]',
+            runner_json TEXT NOT NULL DEFAULT '',
+            activo INTEGER NOT NULL DEFAULT 1,
+            creado_en TEXT NOT NULL DEFAULT ''
+        );
+
         CREATE INDEX IF NOT EXISTS idx_resultados_examenes_finalizado_en
         ON resultados_examenes(finalizado_en DESC);
 
@@ -552,6 +574,12 @@ static void InitializeDatabase(string databasePath)
 
         CREATE INDEX IF NOT EXISTS idx_usuarios_entrevistadores_activo
         ON usuarios_entrevistadores(activo);
+
+        CREATE INDEX IF NOT EXISTS idx_banco_preguntas_activo
+        ON banco_preguntas(activo);
+
+        CREATE INDEX IF NOT EXISTS idx_banco_preguntas_area
+        ON banco_preguntas(area);
 
         DROP VIEW IF EXISTS vista_resultados;
         CREATE VIEW vista_resultados AS
@@ -623,9 +651,29 @@ static void InitializeDatabase(string databasePath)
             creado_en
         FROM usuarios_entrevistadores
         ORDER BY correo;
+
+        DROP VIEW IF EXISTS vista_banco_preguntas;
+        CREATE VIEW vista_banco_preguntas AS
+        SELECT
+            id,
+            area,
+            tipo,
+            titulo,
+            pregunta,
+            puntos,
+            opciones_json,
+            respuesta_correcta,
+            respuesta_esperada,
+            palabras_clave_json,
+            runner_json,
+            CASE activo WHEN 1 THEN 'Activa' ELSE 'Inactiva' END AS estado,
+            creado_en
+        FROM banco_preguntas
+        ORDER BY area, tipo, titulo;
         """;
     command.ExecuteNonQuery();
     SeedInterviewers(connection);
+    SeedQuestions(connection);
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "modificado_en", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "correo_candidato", "TEXT NOT NULL DEFAULT ''");
@@ -658,6 +706,113 @@ static void SeedInterviewers(SqliteConnection connection)
         command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
         command.ExecuteNonQuery();
     }
+}
+
+static void SeedQuestions(SqliteConnection connection)
+{
+    using var countCommand = connection.CreateCommand();
+    countCommand.CommandText = "SELECT COUNT(*) FROM banco_preguntas";
+    var count = Convert.ToInt32(countCommand.ExecuteScalar());
+
+    if (count > 0)
+    {
+        return;
+    }
+
+    foreach (var question in AppData.DefaultQuestions)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO banco_preguntas
+                (id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+            VALUES
+                ($id, $area, $type, $title, $prompt, $points, $options, $correctAnswer, $expected, $keywords, $runner, 1, $createdAt)
+            """;
+        command.Parameters.AddWithValue("$id", question.Id);
+        command.Parameters.AddWithValue("$area", question.Area);
+        command.Parameters.AddWithValue("$type", question.Type);
+        command.Parameters.AddWithValue("$title", question.Title);
+        command.Parameters.AddWithValue("$prompt", question.Prompt);
+        command.Parameters.AddWithValue("$points", question.Points);
+        command.Parameters.AddWithValue("$options", JsonSerializer.Serialize(question.Options));
+        command.Parameters.AddWithValue("$correctAnswer", question.CorrectAnswer);
+        command.Parameters.AddWithValue("$expected", question.Expected);
+        command.Parameters.AddWithValue("$keywords", JsonSerializer.Serialize(question.Keywords));
+        command.Parameters.AddWithValue("$runner", question.Runner is null ? "" : JsonSerializer.Serialize(question.Runner));
+        command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
+        command.ExecuteNonQuery();
+    }
+}
+
+static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool activeOnly)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = activeOnly
+        ? """
+            SELECT id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
+            FROM banco_preguntas
+            WHERE activo = 1
+            ORDER BY area, tipo, titulo
+            """
+        : """
+            SELECT id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
+            FROM banco_preguntas
+            ORDER BY area, tipo, titulo
+            """;
+
+    using var reader = command.ExecuteReader();
+    var questions = new List<ExamQuestion>();
+
+    while (reader.Read())
+    {
+        var options = DeserializeJson<List<ExamOption>>(GetDbString(reader, 6)) ?? [];
+        var keywords = DeserializeJson<List<string>>(GetDbString(reader, 9)) ?? [];
+        var runnerJson = GetDbString(reader, 10);
+        var runner = string.IsNullOrWhiteSpace(runnerJson)
+            ? null
+            : DeserializeJson<CodeRunner>(runnerJson);
+
+        questions.Add(new ExamQuestion(
+            GetDbString(reader, 0),
+            GetDbString(reader, 1),
+            GetDbString(reader, 2),
+            GetDbString(reader, 3),
+            GetDbString(reader, 4),
+            reader.GetInt32(5),
+            options,
+            GetDbString(reader, 7),
+            GetDbString(reader, 8),
+            keywords,
+            runner
+        ));
+    }
+
+    return questions;
+}
+
+static T? DeserializeJson<T>(string value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return default;
+    }
+
+    try
+    {
+        return JsonSerializer.Deserialize<T>(value, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+    }
+    catch (JsonException)
+    {
+        return default;
+    }
+}
+
+static string GetDbString(SqliteDataReader reader, int ordinal)
+{
+    return reader.IsDBNull(ordinal) ? "" : reader.GetString(ordinal);
 }
 
 static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, string password)
@@ -797,7 +952,7 @@ static object ToResultQuestion(ExamQuestion question, bool includeExpected)
     };
 }
 
-static object? EvaluateExam(JsonElement request, bool includeExpected)
+static object? EvaluateExam(JsonElement request, bool includeExpected, IReadOnlyList<ExamQuestion> questions)
 {
     var id = GetString(request, "id");
     if (string.IsNullOrWhiteSpace(id))
@@ -816,7 +971,7 @@ static object? EvaluateExam(JsonElement request, bool includeExpected)
         : default;
 
     var selectedQuestions = questionIds
-        .Select(idValue => AppData.Questions.FirstOrDefault(question => question.Id == idValue))
+        .Select(idValue => questions.FirstOrDefault(question => question.Id == idValue))
         .Where(question => question is not null)
         .Cast<ExamQuestion>()
         .ToList();
@@ -1129,7 +1284,7 @@ public static readonly Dictionary<string, string> DefaultInterviewers = new(Stri
     ["arielsadoth@gmail.com"] = "12345",
 };
 
-public static readonly List<ExamQuestion> Questions =
+public static readonly List<ExamQuestion> DefaultQuestions =
 [
     new("soft-html", "Desarrollo de Software", "closed", "Que significa HTML", "Que significa HTML?", 20,
         [new("A", "Hyper Text Markup Language"), new("B", "High Transfer Machine Language"), new("C", "Hyper Tool Multi Language"), new("D", "Home Text Markup Language")],
