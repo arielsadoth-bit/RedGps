@@ -250,17 +250,17 @@ button {
 .session-badge {
   align-items: center;
   display: grid;
-  gap: 5px;
+  gap: 7px;
   justify-items: center;
-  min-width: 210px;
+  min-width: 230px;
 }
 
 .session-badge small {
-  color: #d7d9dd;
-  font-size: 0.69rem;
+  color: #f4f6f8;
+  font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.2;
-  max-width: 240px;
+  max-width: 260px;
   overflow: hidden;
   text-align: center;
   text-overflow: ellipsis;

@@ -2696,9 +2696,9 @@ function updateSessionBadge() {
   const role = getRoleLabel(getCurrentInterviewerRole());
   const user = getCurrentInterviewerUser();
   modeLabel.textContent = role;
-  modeLabel.title = user ? `${role}: ${user}` : role;
+  modeLabel.title = user || role;
   if (sessionUserLabel) {
-    sessionUserLabel.textContent = user ? `${role}: ${user}` : "";
+    sessionUserLabel.textContent = user || "";
   }
 }
 
