@@ -73,6 +73,8 @@ const loginUser = document.querySelector("#loginUser");
 const loginPassword = document.querySelector("#loginPassword");
 const loginError = document.querySelector("#loginError");
 const togglePasswordButton = document.querySelector("#togglePasswordButton");
+const intruderAlert = document.querySelector("#intruderAlert");
+const closeIntruderAlertButton = document.querySelector("#closeIntruderAlertButton");
 const logoutButton = document.querySelector("#logoutButton");
 const urlParams = new URLSearchParams(location.search);
 const isCandidateLink = urlParams.has("exam");
@@ -81,6 +83,8 @@ const USER_KEY = "redgpsInterviewerUser";
 const TOKEN_KEY = "redgpsInterviewToken";
 const ROLE_KEY = "redgpsInterviewerRole";
 const CREATED_EXAMS_PAGE_SIZE = 5;
+let intruderAudioContext = null;
+let intruderAlarmTimer = null;
 
 async function loadQuestions() {
   if (!location.protocol.startsWith("http")) {
@@ -278,7 +282,7 @@ async function saveQuestionFromForm(event) {
   }, 9000);
 
   if (response.status === 401 || response.status === 403) {
-    expireInterviewerSession();
+    expireInterviewerSession(response.status === 403);
     showQuestionManagerStatus("Tu sesion expiro. Inicia sesion.", true);
     return;
   }
@@ -313,7 +317,7 @@ function showQuestionManagerStatus(message, isError) {
 
 function openQuestionManagerModal() {
   if (!isAdminUser()) {
-    alert("Solo un administrador puede abrir el apartado de preguntas.");
+    expireInterviewerSession(true);
     return;
   }
 
@@ -329,7 +333,7 @@ function closeQuestionManagerModal() {
 
 async function openUserManagerModal() {
   if (!isAdminUser()) {
-    alert("Solo un administrador puede administrar usuarios.");
+    expireInterviewerSession(true);
     return;
   }
 
@@ -355,7 +359,7 @@ async function getUsersFromServer() {
   }, 9000);
 
   if (response.status === 401 || response.status === 403) {
-    expireInterviewerSession();
+    expireInterviewerSession(response.status === 403);
     return [];
   }
 
@@ -1754,7 +1758,7 @@ async function saveCreatedExam(exam) {
     }, 9000);
 
     if (response.status === 401 || response.status === 403) {
-      expireInterviewerSession();
+      expireInterviewerSession(response.status === 403);
     }
   } catch {
     console.warn("No se pudo guardar el examen creado en el servidor.");
@@ -1779,7 +1783,7 @@ async function getServerCreatedExams() {
       }
 
       if (response.status === 401 || response.status === 403) {
-        expireInterviewerSession();
+        expireInterviewerSession(response.status === 403);
       }
     } catch {
       console.warn("No se pudieron cargar los examenes creados del servidor.");
@@ -2054,7 +2058,7 @@ async function deleteResult(resultId) {
   }, 9000);
 
   if (response.status === 401 || response.status === 403) {
-    expireInterviewerSession();
+    expireInterviewerSession(response.status === 403);
     throw new Error("Sesion expirada.");
   }
 
@@ -2353,7 +2357,7 @@ async function getServerHistory() {
         return Array.isArray(data) ? data : [data];
       }
       if (response.status === 401 || response.status === 403) {
-        expireInterviewerSession();
+        expireInterviewerSession(response.status === 403);
         return [];
       }
     } catch {
@@ -2366,7 +2370,7 @@ async function getServerHistory() {
   return getHistory();
 }
 
-function expireInterviewerSession() {
+function expireInterviewerSession(showIntruderAlert = false) {
   if (isCandidateLink) {
     return;
   }
@@ -2379,6 +2383,64 @@ function expireInterviewerSession() {
   loginScreen.classList.remove("hidden");
   loginError.textContent = "Tu sesion expiro. Inicia sesion.";
   loginError.classList.remove("hidden");
+
+  if (showIntruderAlert) {
+    showIntruderAccessAlert();
+  }
+}
+
+function showIntruderAccessAlert() {
+  intruderAlert?.classList.remove("hidden");
+  closeIntruderAlertButton?.focus();
+  startIntruderAlarm();
+}
+
+function closeIntruderAccessAlert() {
+  intruderAlert?.classList.add("hidden");
+  stopIntruderAlarm();
+}
+
+function startIntruderAlarm() {
+  stopIntruderAlarm();
+
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return;
+  }
+
+  intruderAudioContext = new AudioContextClass();
+  const playBeep = () => {
+    if (!intruderAudioContext) {
+      return;
+    }
+
+    const oscillator = intruderAudioContext.createOscillator();
+    const gain = intruderAudioContext.createGain();
+    oscillator.type = "square";
+    oscillator.frequency.setValueAtTime(880, intruderAudioContext.currentTime);
+    gain.gain.setValueAtTime(0.0001, intruderAudioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, intruderAudioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, intruderAudioContext.currentTime + 0.34);
+    oscillator.connect(gain);
+    gain.connect(intruderAudioContext.destination);
+    oscillator.start();
+    oscillator.stop(intruderAudioContext.currentTime + 0.36);
+  };
+
+  playBeep();
+  intruderAlarmTimer = window.setInterval(playBeep, 720);
+}
+
+function stopIntruderAlarm() {
+  if (intruderAlarmTimer) {
+    window.clearInterval(intruderAlarmTimer);
+    intruderAlarmTimer = null;
+  }
+
+  if (intruderAudioContext) {
+    intruderAudioContext.close().catch(() => {});
+    intruderAudioContext = null;
+  }
 }
 
 async function fetchWithTimeout(url, options = {}, timeout = 3500) {
@@ -2490,6 +2552,8 @@ togglePasswordButton?.addEventListener("click", () => {
   togglePasswordButton.textContent = isPasswordHidden ? "Ocultar" : "Ver";
   togglePasswordButton.setAttribute("aria-label", isPasswordHidden ? "Ocultar contrasena" : "Mostrar contrasena");
 });
+
+closeIntruderAlertButton?.addEventListener("click", closeIntruderAccessAlert);
 
 document.querySelector("#copyLinkButton").addEventListener("click", async () => {
   const examLink = document.querySelector("#examLink");

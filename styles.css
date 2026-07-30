@@ -130,6 +130,55 @@ button {
   font-weight: 800;
 }
 
+.intruder-overlay {
+  align-items: center;
+  background: rgba(7, 9, 13, 0.78);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 22px;
+  position: fixed;
+  z-index: 50;
+}
+
+.intruder-panel {
+  background: #fff;
+  border: 2px solid #b42318;
+  border-radius: 8px;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+  max-width: 460px;
+  padding: 30px;
+  text-align: center;
+  width: min(100%, 460px);
+}
+
+.intruder-icon {
+  align-items: center;
+  background: #b42318;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 2rem;
+  font-weight: 1000;
+  height: 62px;
+  justify-content: center;
+  margin-bottom: 16px;
+  width: 62px;
+}
+
+.intruder-panel h2 {
+  color: #111827;
+  font-size: 2rem;
+  margin: 4px 0 12px;
+}
+
+.intruder-panel p:not(.eyebrow) {
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.45;
+  margin-bottom: 22px;
+}
+
 .logout-button {
   min-height: 38px;
   border: 1px solid rgba(255, 255, 255, 0.18);

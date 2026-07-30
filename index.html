@@ -29,6 +29,16 @@
       </form>
     </section>
 
+    <div class="intruder-overlay hidden" id="intruderAlert" role="alertdialog" aria-modal="true" aria-labelledby="intruderAlertTitle">
+      <div class="intruder-panel">
+        <div class="intruder-icon">!</div>
+        <p class="eyebrow">Acceso bloqueado</p>
+        <h2 id="intruderAlertTitle">Alerta de intruso</h2>
+        <p>Se detecto un intento de entrar a funciones sin permiso. La sesion fue cerrada por seguridad.</p>
+        <button class="primary-button" id="closeIntruderAlertButton" type="button">Entendido</button>
+      </div>
+    </div>
+
     <main class="app-shell">
       <section class="topbar">
         <div class="brand-block">
