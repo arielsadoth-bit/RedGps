@@ -1209,7 +1209,8 @@ function filterCreatedExams(exams) {
   return exams
     .filter((exam) => {
     const candidateEmail = exam.candidateEmail || "";
-    const searchableEmail = normalizeText(candidateEmail);
+    const createdBy = exam.createdBy || exam.creadoPor || "";
+    const searchableEmail = normalizeText(`${candidateEmail} ${createdBy}`);
 
     return (!emailTerm || searchableEmail.includes(emailTerm))
       && isWithinDateRange(exam.createdAt, filters.dateFrom, filters.dateTo);
@@ -1360,8 +1361,8 @@ async function renderCreatedExams() {
   createdExamsList.innerHTML = `
     <div class="answers-tools table-filter-tools">
       <label class="field search-field">
-        Correo del candidato
-        <input id="createdExamEmailFilter" value="${escapeHtml(state.createdExamFilters.email)}" placeholder="correo del candidato" autocomplete="off" />
+        Correo
+        <input id="createdExamEmailFilter" value="${escapeHtml(state.createdExamFilters.email)}" placeholder="Candidato o quien lo creo" autocomplete="off" />
       </label>
       <label class="field search-field">
         Desde
