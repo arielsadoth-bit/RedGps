@@ -2663,13 +2663,41 @@ document.querySelector("#copyLinkButton").addEventListener("click", async () => 
 
 document.querySelector("#finishExamButton").addEventListener("click", finishExam);
 
-document.querySelector("#clearHistoryButton").addEventListener("click", () => {
+document.querySelector("#clearHistoryButton").addEventListener("click", async () => {
+  const confirmed = confirm(
+    "Vas a eliminar todo el historial de examenes guardados. Esto tambien borrara las respuestas de la base de datos. ¿Estas seguro?"
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
   localStorage.removeItem("examHistory");
   localStorage.removeItem("lastResult");
   state.lastResult = null;
+
   if (location.protocol.startsWith("http")) {
-    fetch("/api/results", { method: "DELETE", headers: getAuthHeaders() });
+    try {
+      const response = await fetchWithTimeout("/api/results", {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      }, 9000);
+
+      if (response.status === 401 || response.status === 403) {
+        expireInterviewerSession(response.status === 403);
+        return;
+      }
+
+      if (!response.ok) {
+        alert("No se pudo limpiar el historial en la base de datos.");
+        return;
+      }
+    } catch {
+      alert("No se pudo conectar con la base de datos para limpiar el historial.");
+      return;
+    }
   }
+
   renderResults();
   renderSavedAnswers();
 });
