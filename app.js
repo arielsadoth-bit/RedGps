@@ -410,7 +410,7 @@ function renderUserRow(user) {
       <td>
         <label class="inline-check">
           <input class="user-active-check" type="checkbox" ${user.active ? "checked" : ""} />
-          Activo
+          <span class="user-active-label">${user.active ? "Activo" : "Inactivo"}</span>
         </label>
       </td>
       <td>
@@ -435,6 +435,15 @@ function getRoleLabel(role) {
 }
 
 function bindUserManagerControls() {
+  userManagerList?.querySelectorAll(".user-active-check").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const label = checkbox.closest(".inline-check")?.querySelector(".user-active-label");
+      if (label) {
+        label.textContent = checkbox.checked ? "Activo" : "Inactivo";
+      }
+    });
+  });
+
   userManagerList?.querySelectorAll(".save-user-button").forEach((button) => {
     button.addEventListener("click", async () => {
       const row = button.closest("tr");

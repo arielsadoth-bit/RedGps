@@ -694,6 +694,14 @@ textarea {
   accent-color: var(--accent);
 }
 
+.user-active-label {
+  color: var(--ink);
+}
+
+.inline-check input:not(:checked) + .user-active-label {
+  color: #a61b1b;
+}
+
 .error-summary {
   border-left-color: #b42318;
   background: #fff1f0;
