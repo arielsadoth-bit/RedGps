@@ -710,6 +710,10 @@ textarea {
   font-weight: 900;
 }
 
+#questionManagerList {
+  margin-bottom: 18px;
+}
+
 .question-manager-summary div {
   align-items: center;
   display: flex;
