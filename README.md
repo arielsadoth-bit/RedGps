@@ -65,7 +65,19 @@ Get-Process -Name RedGpsExam,dotnet -ErrorAction SilentlyContinue | Stop-Process
 
 ## Usuarios autorizados
 
-Usuarios actuales:
+Los usuarios autorizados se guardan en SQLite, en la tabla:
+
+```text
+usuarios_entrevistadores
+```
+
+Tambien puedes verlos desde la vista:
+
+```text
+vista_usuarios_entrevistadores
+```
+
+Usuarios iniciales:
 
 - `ariel@redgps.com` / `12345`
 - `hector@redgps.com` / `12345`
@@ -74,23 +86,35 @@ Usuarios actuales:
 - `juan@redgps.com` / `12345`
 - `arielsadoth@gmail.com` / `12345`
 
-Para agregar o cambiar usuarios:
+Para agregar un usuario desde SQLite:
 
-1. Abre `Api.cs`.
-2. Busca `public static readonly Dictionary<string, string> Interviewers`.
-3. Agrega un usuario asi:
-
-```csharp
-["correo@redgps.com"] = "12345",
+```sql
+INSERT INTO usuarios_entrevistadores (correo, contrasena, activo, creado_en)
+VALUES ('nuevo@redgps.com', '12345', 1, datetime('now'));
 ```
 
-4. Guarda `Api.cs`.
-5. Reinicia el sistema.
+Para quitar acceso sin borrar el registro:
 
-Si usas Docker y cambias usuarios, ejecuta:
+```sql
+UPDATE usuarios_entrevistadores
+SET activo = 0
+WHERE correo = 'nuevo@redgps.com';
+```
 
-```powershell
-docker compose up --build -d
+Para volver a activar un usuario:
+
+```sql
+UPDATE usuarios_entrevistadores
+SET activo = 1
+WHERE correo = 'nuevo@redgps.com';
+```
+
+Para cambiar contrasena:
+
+```sql
+UPDATE usuarios_entrevistadores
+SET contrasena = 'nueva123'
+WHERE correo = 'nuevo@redgps.com';
 ```
 
 ## Crear un examen

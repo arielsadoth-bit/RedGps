@@ -37,7 +37,8 @@ app.MapPost("/api/login", async (HttpRequest request) =>
     var user = GetString(document.RootElement, "user").Trim().ToLowerInvariant();
     var password = GetString(document.RootElement, "password");
 
-    if (!AppData.Interviewers.TryGetValue(user, out var savedPassword) || savedPassword != password)
+    using var connection = OpenConnection(databasePath);
+    if (!IsAuthorizedInterviewer(connection, user, password))
     {
         return Results.Unauthorized();
     }
@@ -108,19 +109,42 @@ app.MapGet("/api/exams", (HttpRequest request) =>
     using var connection = OpenConnection(databasePath);
     using var command = connection.CreateCommand();
     command.CommandText = """
-        SELECT datos_json
+        SELECT
+            id,
+            nombre_examen,
+            cantidad_preguntas,
+            cantidad_links,
+            correo_candidato,
+            link_acceso,
+            tiempo_minutos,
+            creado_por,
+            creado_en,
+            datos_json
         FROM examenes_creados
         ORDER BY creado_en DESC
         LIMIT 200
         """;
 
     using var reader = command.ExecuteReader();
-    var exams = new List<JsonElement>();
+    var exams = new List<object>();
 
     while (reader.Read())
     {
-        using var document = JsonDocument.Parse(reader.GetString(0));
-        exams.Add(document.RootElement.Clone());
+        using var document = JsonDocument.Parse(reader.GetString(9));
+        var rootElement = document.RootElement;
+        exams.Add(new
+        {
+            id = reader.GetString(0),
+            examName = reader.GetString(1),
+            questionCount = reader.GetInt32(2),
+            linkCount = reader.GetInt32(3),
+            candidateEmail = reader.GetString(4),
+            link = reader.GetString(5),
+            timeLimit = reader.GetInt32(6),
+            createdBy = reader.GetString(7),
+            createdAt = reader.GetString(8),
+            questionIds = GetStringArray(rootElement, "questionIds")
+        });
     }
 
     return Results.Json(exams);
@@ -510,6 +534,13 @@ static void InitializeDatabase(string databasePath)
             datos_json TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS usuarios_entrevistadores (
+            correo TEXT PRIMARY KEY,
+            contrasena TEXT NOT NULL DEFAULT '',
+            activo INTEGER NOT NULL DEFAULT 1,
+            creado_en TEXT NOT NULL DEFAULT ''
+        );
+
         CREATE INDEX IF NOT EXISTS idx_resultados_examenes_finalizado_en
         ON resultados_examenes(finalizado_en DESC);
 
@@ -518,6 +549,9 @@ static void InitializeDatabase(string databasePath)
 
         CREATE INDEX IF NOT EXISTS idx_examenes_creados_creado_en
         ON examenes_creados(creado_en DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_usuarios_entrevistadores_activo
+        ON usuarios_entrevistadores(activo);
 
         DROP VIEW IF EXISTS vista_resultados;
         CREATE VIEW vista_resultados AS
@@ -579,13 +613,72 @@ static void InitializeDatabase(string databasePath)
             creado_por,
             creado_en
         FROM examenes_creados;
+
+        DROP VIEW IF EXISTS vista_usuarios_entrevistadores;
+        CREATE VIEW vista_usuarios_entrevistadores AS
+        SELECT
+            correo,
+            contrasena,
+            CASE activo WHEN 1 THEN 'Activo' ELSE 'Inactivo' END AS estado,
+            creado_en
+        FROM usuarios_entrevistadores
+        ORDER BY correo;
         """;
     command.ExecuteNonQuery();
+    SeedInterviewers(connection);
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "modificado_en", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "correo_candidato", "TEXT NOT NULL DEFAULT ''");
     MigrateOldResultsTable(connection);
     BackfillAnswerRows(connection);
+}
+
+static void SeedInterviewers(SqliteConnection connection)
+{
+    using var countCommand = connection.CreateCommand();
+    countCommand.CommandText = "SELECT COUNT(*) FROM usuarios_entrevistadores";
+    var count = Convert.ToInt32(countCommand.ExecuteScalar());
+
+    if (count > 0)
+    {
+        return;
+    }
+
+    foreach (var interviewer in AppData.DefaultInterviewers)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO usuarios_entrevistadores
+                (correo, contrasena, activo, creado_en)
+            VALUES
+                ($correo, $contrasena, 1, $createdAt)
+            """;
+        command.Parameters.AddWithValue("$correo", interviewer.Key.ToLowerInvariant());
+        command.Parameters.AddWithValue("$contrasena", interviewer.Value);
+        command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
+        command.ExecuteNonQuery();
+    }
+}
+
+static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, string password)
+{
+    if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
+    {
+        return false;
+    }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT contrasena
+        FROM usuarios_entrevistadores
+        WHERE lower(correo) = $correo
+            AND activo = 1
+        LIMIT 1
+        """;
+    command.Parameters.AddWithValue("$correo", user.ToLowerInvariant());
+    var savedPassword = command.ExecuteScalar() as string;
+
+    return savedPassword == password;
 }
 
 static string GetString(JsonElement element, string propertyName)
@@ -612,6 +705,23 @@ static string GetFirstString(JsonElement element, params string[] propertyNames)
     }
 
     return "";
+}
+
+static List<string> GetStringArray(JsonElement element, string propertyName)
+{
+    if (element.ValueKind != JsonValueKind.Object ||
+        !element.TryGetProperty(propertyName, out var property) ||
+        property.ValueKind != JsonValueKind.Array)
+    {
+        return [];
+    }
+
+    return property
+        .EnumerateArray()
+        .Where(item => item.ValueKind == JsonValueKind.String)
+        .Select(item => item.GetString() ?? "")
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .ToList();
 }
 
 static int GetInt(JsonElement element, string propertyName)
@@ -1009,7 +1119,7 @@ record CodeTest(string Name, object[] Args, object Expected);
 
 static class AppData
 {
-public static readonly Dictionary<string, string> Interviewers = new(StringComparer.OrdinalIgnoreCase)
+public static readonly Dictionary<string, string> DefaultInterviewers = new(StringComparer.OrdinalIgnoreCase)
 {
     ["ariel@redgps.com"] = "12345",
     ["hector@redgps.com"] = "12345",

@@ -148,6 +148,7 @@ async function createExam() {
     linkCount: 1,
     link,
     timeLimit: state.activeExam.timeLimit,
+    createdBy: getCurrentInterviewerUser(),
     questionIds: state.activeExam.questions.map((question) => question.id),
     createdAt: state.activeExam.createdAt,
   });
@@ -1260,6 +1261,7 @@ async function renderCreatedExams() {
             <th>Nombre del examen</th>
             <th>Num preguntas</th>
             <th>Num links generados</th>
+            <th>Generado por</th>
             <th>Correo capturado</th>
             <th>Link unico de acceso</th>
           </tr>
@@ -1283,6 +1285,7 @@ function renderCreatedExamRow(exam) {
       </td>
       <td>${Number(exam.questionCount || 0)}</td>
       <td>${Number(exam.linkCount || 1)}</td>
+      <td>${escapeHtml(exam.createdBy || exam.creadoPor || "Sin registro")}</td>
       <td>${escapeHtml(exam.candidateEmail || "Sin correo")}</td>
       <td>
         <div class="created-link-cell">
@@ -1706,7 +1709,7 @@ function expireInterviewerSession() {
   sessionStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   loginScreen.classList.remove("hidden");
-  loginError.textContent = "Tu sesion expiro. Inicia sesion otra vez para ver la base de datos.";
+  loginError.textContent = "Tu sesion expiro. Inicia sesion.";
   loginError.classList.remove("hidden");
 }
 
