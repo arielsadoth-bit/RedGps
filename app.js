@@ -315,9 +315,14 @@ function showQuestionManagerStatus(message, isError) {
   questionManagerStatus.classList.toggle("error-summary", Boolean(isError));
 }
 
-function openQuestionManagerModal() {
+async function openQuestionManagerModal() {
   if (!isAdminUser()) {
     expireInterviewerSession(true);
+    return;
+  }
+
+  const users = await getUsersFromServer();
+  if (!users) {
     return;
   }
 
@@ -337,10 +342,15 @@ async function openUserManagerModal() {
     return;
   }
 
+  const users = await getUsersFromServer();
+  if (!users) {
+    return;
+  }
+
   document.querySelectorAll(".nav-button").forEach((button) => button.classList.remove("active"));
   openUserManagerButton?.classList.add("active");
   userManagerModal?.classList.remove("hidden");
-  await renderUserManager();
+  await renderUserManager(users);
   newUserEmailInput?.focus();
 }
 
@@ -360,23 +370,27 @@ async function getUsersFromServer() {
 
   if (response.status === 401 || response.status === 403) {
     expireInterviewerSession(response.status === 403);
-    return [];
+    return null;
   }
 
   if (!response.ok) {
-    return [];
+    return null;
   }
 
   const users = await response.json();
   return Array.isArray(users) ? users : [];
 }
 
-async function renderUserManager() {
+async function renderUserManager(users = null) {
   if (!userManagerList) {
     return;
   }
 
-  const users = await getUsersFromServer();
+  users = users || await getUsersFromServer();
+  if (!users) {
+    return;
+  }
+
   if (!users.length) {
     userManagerList.innerHTML = "<p>No hay usuarios registrados.</p>";
     return;
@@ -2379,6 +2393,9 @@ function expireInterviewerSession(showIntruderAlert = false) {
   sessionStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(ROLE_KEY);
+  questionManagerModal?.classList.add("hidden");
+  userManagerModal?.classList.add("hidden");
+  openUserManagerButton?.classList.remove("active");
   updateSessionBadge();
   loginScreen.classList.remove("hidden");
   loginError.textContent = "Tu sesion expiro. Inicia sesion.";
@@ -2409,26 +2426,37 @@ function startIntruderAlarm() {
   }
 
   intruderAudioContext = new AudioContextClass();
+  let alarmStep = 0;
   const playBeep = () => {
     if (!intruderAudioContext) {
       return;
     }
 
+    const now = intruderAudioContext.currentTime;
+    const frequency = alarmStep % 2 === 0 ? 740 : 1180;
+    alarmStep += 1;
+
     const oscillator = intruderAudioContext.createOscillator();
+    const secondOscillator = intruderAudioContext.createOscillator();
     const gain = intruderAudioContext.createGain();
     oscillator.type = "square";
-    oscillator.frequency.setValueAtTime(880, intruderAudioContext.currentTime);
-    gain.gain.setValueAtTime(0.0001, intruderAudioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, intruderAudioContext.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, intruderAudioContext.currentTime + 0.34);
+    secondOscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(frequency, now);
+    secondOscillator.frequency.setValueAtTime(frequency * 1.5, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.34, now + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
     oscillator.connect(gain);
+    secondOscillator.connect(gain);
     gain.connect(intruderAudioContext.destination);
     oscillator.start();
-    oscillator.stop(intruderAudioContext.currentTime + 0.36);
+    secondOscillator.start();
+    oscillator.stop(now + 0.36);
+    secondOscillator.stop(now + 0.36);
   };
 
   playBeep();
-  intruderAlarmTimer = window.setInterval(playBeep, 720);
+  intruderAlarmTimer = window.setInterval(playBeep, 390);
 }
 
 function stopIntruderAlarm() {
