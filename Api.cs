@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Collections.Concurrent;
 using System.Text;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.FileProviders;
@@ -646,7 +647,10 @@ static void InitializeDatabase(string databasePath)
         CREATE VIEW vista_usuarios_entrevistadores AS
         SELECT
             correo,
-            contrasena,
+            CASE
+                WHEN contrasena LIKE 'pbkdf2$%' THEN 'Protegida'
+                ELSE 'Pendiente de proteger'
+            END AS contrasena,
             CASE activo WHEN 1 THEN 'Activo' ELSE 'Inactivo' END AS estado,
             creado_en
         FROM usuarios_entrevistadores
@@ -673,6 +677,7 @@ static void InitializeDatabase(string databasePath)
         """;
     command.ExecuteNonQuery();
     SeedInterviewers(connection);
+    MigratePlaintextPasswords(connection);
     SeedQuestions(connection);
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "modificado_en", "TEXT NOT NULL DEFAULT ''");
@@ -702,9 +707,33 @@ static void SeedInterviewers(SqliteConnection connection)
                 ($correo, $contrasena, 1, $createdAt)
             """;
         command.Parameters.AddWithValue("$correo", interviewer.Key.ToLowerInvariant());
-        command.Parameters.AddWithValue("$contrasena", interviewer.Value);
+        command.Parameters.AddWithValue("$contrasena", HashPassword(interviewer.Value));
         command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
         command.ExecuteNonQuery();
+    }
+}
+
+static void MigratePlaintextPasswords(SqliteConnection connection)
+{
+    using var readCommand = connection.CreateCommand();
+    readCommand.CommandText = """
+        SELECT correo, contrasena
+        FROM usuarios_entrevistadores
+        WHERE contrasena NOT LIKE 'pbkdf2$%'
+        """;
+
+    var pendingPasswords = new List<(string User, string Password)>();
+    using (var reader = readCommand.ExecuteReader())
+    {
+        while (reader.Read())
+        {
+            pendingPasswords.Add((reader.GetString(0), reader.GetString(1)));
+        }
+    }
+
+    foreach (var item in pendingPasswords)
+    {
+        UpdateUserPasswordHash(connection, item.User, HashPassword(item.Password));
     }
 }
 
@@ -833,7 +862,83 @@ static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, st
     command.Parameters.AddWithValue("$correo", user.ToLowerInvariant());
     var savedPassword = command.ExecuteScalar() as string;
 
-    return savedPassword == password;
+    if (string.IsNullOrWhiteSpace(savedPassword) || !VerifyPassword(password, savedPassword))
+    {
+        return false;
+    }
+
+    if (!IsPasswordHash(savedPassword))
+    {
+        UpdateUserPasswordHash(connection, user, HashPassword(password));
+    }
+
+    return true;
+}
+
+static bool IsPasswordHash(string value)
+{
+    return value.StartsWith("pbkdf2$", StringComparison.Ordinal);
+}
+
+static string HashPassword(string password)
+{
+    const int passwordHashIterations = 100_000;
+    const int passwordSaltBytes = 16;
+    const int passwordHashBytes = 32;
+    var salt = RandomNumberGenerator.GetBytes(passwordSaltBytes);
+    var hash = Rfc2898DeriveBytes.Pbkdf2(
+        password,
+        salt,
+        passwordHashIterations,
+        HashAlgorithmName.SHA256,
+        passwordHashBytes);
+
+    return $"pbkdf2${passwordHashIterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+}
+
+static bool VerifyPassword(string password, string savedPassword)
+{
+    if (!IsPasswordHash(savedPassword))
+    {
+        return string.Equals(savedPassword, password, StringComparison.Ordinal);
+    }
+
+    var parts = savedPassword.Split('$');
+    if (parts.Length != 4 || !int.TryParse(parts[1], out var iterations))
+    {
+        return false;
+    }
+
+    try
+    {
+        var salt = Convert.FromBase64String(parts[2]);
+        var savedHash = Convert.FromBase64String(parts[3]);
+        var enteredHash = Rfc2898DeriveBytes.Pbkdf2(
+            password,
+            salt,
+            iterations,
+            HashAlgorithmName.SHA256,
+            savedHash.Length);
+
+        return CryptographicOperations.FixedTimeEquals(savedHash, enteredHash);
+    }
+    catch (FormatException)
+    {
+        return false;
+    }
+}
+
+static void UpdateUserPasswordHash(SqliteConnection connection, string user, string passwordHash)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        UPDATE usuarios_entrevistadores
+        SET contrasena = $passwordHash
+        WHERE lower(correo) = $correo
+        """;
+    command.Parameters.AddWithValue("$passwordHash", passwordHash);
+    command.Parameters.AddWithValue("$correo", user.ToLowerInvariant());
+    command.ExecuteNonQuery();
 }
 
 static string GetString(JsonElement element, string propertyName)

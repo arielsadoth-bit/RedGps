@@ -93,6 +93,8 @@ INSERT INTO usuarios_entrevistadores (correo, contrasena, activo, creado_en)
 VALUES ('nuevo@redgps.com', '12345', 1, datetime('now'));
 ```
 
+La contrasena se puede escribir normal al crear el usuario. Cuando el sistema inicia o cuando ese usuario inicia sesion por primera vez, la contrasena se convierte automaticamente a un hash protegido. En la vista `vista_usuarios_entrevistadores` ya no se muestra la contrasena real.
+
 Para quitar acceso sin borrar el registro:
 
 ```sql
@@ -116,6 +118,8 @@ UPDATE usuarios_entrevistadores
 SET contrasena = 'nueva123'
 WHERE correo = 'nuevo@redgps.com';
 ```
+
+Despues de cambiarla, reinicia el sistema o inicia sesion con ese usuario para que se vuelva a proteger automaticamente.
 
 ## Crear un examen
 
