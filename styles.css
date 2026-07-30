@@ -626,6 +626,17 @@ textarea {
   gap: 12px;
 }
 
+.question-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.question-delete-button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
 .question-card input[type="checkbox"] {
   appearance: none;
   background: #fff;

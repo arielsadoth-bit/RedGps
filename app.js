@@ -58,7 +58,6 @@ const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
 const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
 const closeQuestionManagerButton = document.querySelector("#closeQuestionManagerButton");
-const deleteSelectedQuestionsButton = document.querySelector("#deleteSelectedQuestionsButton");
 const userManagerModal = document.querySelector("#userManagerModal");
 const openUserManagerButton = document.querySelector("#openUserManagerButton");
 const closeUserManagerButton = document.querySelector("#closeUserManagerButton");
@@ -118,7 +117,7 @@ function renderQuestionBank() {
           <article class="question-card">
             <div class="question-top">
               <input type="checkbox" id="${question.id}" value="${question.id}" checked />
-              <div>
+              <div class="question-content">
                 <h3>${question.title}</h3>
                 <p>${question.prompt}</p>
                 <div class="tag-row">
@@ -128,6 +127,11 @@ function renderQuestionBank() {
                   <span class="tag">${question.points} pts</span>
                 </div>
               </div>
+              ${
+                isAdminUser()
+                  ? `<button class="danger-button question-delete-button" type="button" data-question-id="${escapeHtml(question.id)}">Borrar</button>`
+                  : ""
+              }
             </div>
           </article>
         `
@@ -142,6 +146,12 @@ function renderQuestionBank() {
     document.querySelector("#toggleQuestionBankButton").textContent = isHidden
       ? "Ver preguntas"
       : "Ocultar preguntas activas";
+  });
+
+  document.querySelectorAll(".question-delete-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteQuestionById(button.dataset.questionId || "");
+    });
   });
 }
 
@@ -300,23 +310,20 @@ function showQuestionManagerStatus(message, isError) {
   questionManagerStatus.classList.toggle("error-summary", Boolean(isError));
 }
 
-async function deleteSelectedQuestions() {
+async function deleteQuestionById(questionId) {
   if (!isAdminUser()) {
     expireInterviewerSession(true);
     return;
   }
 
-  const selectedIds = [...document.querySelectorAll("#questionBank input:checked")]
-    .map((input) => input.value)
-    .filter(Boolean);
-
-  if (selectedIds.length === 0) {
-    alert("Selecciona al menos una pregunta para borrar.");
+  const question = questions.find((item) => item.id === questionId);
+  if (!question) {
+    alert("No se encontro la pregunta seleccionada.");
     return;
   }
 
   const confirmed = confirm(
-    `Vas a borrar ${selectedIds.length} pregunta(s) seleccionada(s). Ya no apareceran para crear examenes nuevos.`
+    `Vas a borrar la pregunta "${question.title}". Ya no aparecera para crear examenes nuevos.`
   );
 
   if (!confirmed) {
@@ -326,7 +333,7 @@ async function deleteSelectedQuestions() {
   const response = await fetchWithTimeout(`${location.origin}/api/questions`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ ids: selectedIds }),
+    body: JSON.stringify({ ids: [questionId] }),
   }, 9000);
 
   if (response.status === 401 || response.status === 403) {
@@ -338,6 +345,11 @@ async function deleteSelectedQuestions() {
     const data = await response.json().catch(() => ({}));
     alert(data.error || "No se pudieron borrar las preguntas seleccionadas.");
     return;
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!data.deleted) {
+    alert("La pregunta ya no estaba activa o no se pudo borrar.");
   }
 
   await loadQuestions();
@@ -2585,7 +2597,6 @@ document.querySelector("#deselectAllButton").addEventListener("click", () => {
   });
 });
 
-deleteSelectedQuestionsButton?.addEventListener("click", deleteSelectedQuestions);
 openQuestionManagerButton?.addEventListener("click", openQuestionManagerModal);
 closeQuestionManagerButton?.addEventListener("click", closeQuestionManagerModal);
 questionManagerModal?.addEventListener("click", (event) => {
@@ -2753,7 +2764,6 @@ function applyRoleVisibility() {
   updateSessionBadge();
   openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
   openUserManagerButton?.classList.toggle("hidden", !isAdminUser());
-  deleteSelectedQuestionsButton?.classList.toggle("hidden", !isAdminUser());
 
   if (!isAdminUser()) {
     closeQuestionManagerModal();
