@@ -101,6 +101,27 @@ function getAuthHeaders() {
   return token ? { "X-Interview-Token": token } : {};
 }
 
+function getActionIcon(name) {
+  if (name === "eye") {
+    return `
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    `;
+  }
+
+  return `
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  `;
+}
+
 function renderQuestionBank() {
   questionBank.innerHTML = `
     <div class="question-bank-toggle">
@@ -129,7 +150,7 @@ function renderQuestionBank() {
               </div>
               ${
                 isAdminUser()
-                  ? `<button class="danger-button question-delete-button" type="button" data-question-id="${escapeHtml(question.id)}">Borrar</button>`
+                  ? `<button class="danger-button icon-button question-delete-button" type="button" data-question-id="${escapeHtml(question.id)}" aria-label="Borrar pregunta" title="Borrar pregunta">${getActionIcon("trash")}</button>`
                   : ""
               }
             </div>
@@ -2062,8 +2083,8 @@ function renderCandidateRow(result, isSelected) {
       <td>${answerCount}</td>
       <td>
         <div class="table-actions">
-          <button class="secondary-button view-answer-button" type="button" data-result-id="${result.id}">Ver</button>
-          <button class="danger-button delete-answer-button" type="button" data-result-id="${result.id}" data-candidate-name="${escapeHtml(candidateName)}">Borrar</button>
+          <button class="secondary-button icon-button view-answer-button" type="button" data-result-id="${result.id}" aria-label="Ver examen" title="Ver examen">${getActionIcon("eye")}</button>
+          <button class="danger-button icon-button delete-answer-button" type="button" data-result-id="${result.id}" data-candidate-name="${escapeHtml(candidateName)}" aria-label="Borrar examen" title="Borrar examen">${getActionIcon("trash")}</button>
         </div>
       </td>
     </tr>
@@ -2211,7 +2232,7 @@ function bindCandidateTableControls() {
       }
 
       button.disabled = true;
-      button.textContent = "Borrando...";
+      button.setAttribute("aria-label", "Borrando examen");
 
       try {
         await deleteResult(resultId);
@@ -2224,7 +2245,7 @@ function bindCandidateTableControls() {
         console.error(error);
         alert("No se pudo borrar el examen. Intenta de nuevo.");
         button.disabled = false;
-        button.textContent = "Borrar";
+        button.setAttribute("aria-label", "Borrar examen");
       }
     });
   });
