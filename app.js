@@ -10,9 +10,6 @@ const state = {
   selectedHistoryId: null,
   answerFilters: {
     text: "",
-    email: "",
-    dateFrom: "",
-    dateTo: "",
   },
   createdExamFilters: {
     email: "",
@@ -1193,17 +1190,13 @@ function hasActiveFilters(filters) {
 function filterSavedResults(history) {
   const filters = state.answerFilters;
   const textTerm = normalizeText(filters.text.trim());
-  const emailTerm = normalizeText(filters.email.trim());
 
   return history.filter((result) => {
     const candidateName = result.candidateName || "Candidato sin nombre";
     const candidateEmail = result.candidateEmail || "";
     const searchableText = normalizeText(`${candidateName} ${candidateEmail} ${result.id}`);
-    const searchableEmail = normalizeText(candidateEmail);
 
-    return (!textTerm || searchableText.includes(textTerm))
-      && (!emailTerm || searchableEmail.includes(emailTerm))
-      && isWithinDateRange(result.finishedAt, filters.dateFrom, filters.dateTo);
+    return !textTerm || searchableText.includes(textTerm);
   });
 }
 
@@ -1249,18 +1242,6 @@ async function renderSavedAnswers() {
       <label class="field search-field">
         Buscar candidato
         <input id="answerSearchInput" value="${escapeHtml(state.answerFilters.text)}" placeholder="Nombre, correo o id" autocomplete="off" />
-      </label>
-      <label class="field search-field">
-        Correo
-        <input id="answerEmailFilter" value="${escapeHtml(state.answerFilters.email)}" placeholder="correo@ejemplo.com" autocomplete="off" />
-      </label>
-      <label class="field search-field">
-        Desde
-        <input id="answerDateFromFilter" type="date" value="${escapeHtml(state.answerFilters.dateFrom)}" />
-      </label>
-      <label class="field search-field">
-        Hasta
-        <input id="answerDateToFilter" type="date" value="${escapeHtml(state.answerFilters.dateTo)}" />
       </label>
       <button class="ghost-button ${hasFilters ? "" : "hidden"}" id="clearAnswerSearchButton" type="button">Limpiar filtros</button>
       <span class="answers-count">${filteredHistory.length} de ${history.length} examen(es)</span>
@@ -1528,9 +1509,6 @@ function renderCandidateRow(result, isSelected) {
 function bindAnswerSearchControls() {
   const filters = [
     ["#answerSearchInput", "text"],
-    ["#answerEmailFilter", "email"],
-    ["#answerDateFromFilter", "dateFrom"],
-    ["#answerDateToFilter", "dateTo"],
   ];
   const clearButton = document.querySelector("#clearAnswerSearchButton");
 
@@ -1557,9 +1535,6 @@ function bindAnswerSearchControls() {
     clearButton.addEventListener("click", async () => {
       state.answerFilters = {
         text: "",
-        email: "",
-        dateFrom: "",
-        dateTo: "",
       };
       await renderSavedAnswers();
       document.querySelector("#answerSearchInput")?.focus();
