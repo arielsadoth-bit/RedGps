@@ -536,14 +536,15 @@ function showView(viewId) {
   });
 
   const labels = {
-    interviewerView: "Entrevistador",
+    interviewerView: "Crear examen",
     createdExamsView: "Examenes",
     candidateView: "Candidato",
     resultsView: "Resultados",
     answersView: "Respuestas",
     answerKeyView: "Correctas",
   };
-  modeLabel.textContent = labels[viewId];
+  modeLabel.dataset.viewLabel = labels[viewId] || "";
+  updateSessionBadge();
   applyRoleVisibility();
 }
 
@@ -2356,6 +2357,7 @@ function expireInterviewerSession() {
   sessionStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(ROLE_KEY);
+  updateSessionBadge();
   loginScreen.classList.remove("hidden");
   loginError.textContent = "Tu sesion expiro. Inicia sesion.";
   loginError.classList.remove("hidden");
@@ -2539,6 +2541,7 @@ logoutButton.addEventListener("click", () => {
   sessionStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(ROLE_KEY);
+  updateSessionBadge();
   loginScreen.classList.remove("hidden");
   loginUser.focus();
 });
@@ -2574,7 +2577,31 @@ function isAdminUser() {
   return getCurrentInterviewerRole() === "admin";
 }
 
+function updateSessionBadge() {
+  if (!modeLabel) {
+    return;
+  }
+
+  if (isCandidateLink) {
+    modeLabel.textContent = "Candidato";
+    modeLabel.removeAttribute("title");
+    return;
+  }
+
+  if (!hasInterviewerSession()) {
+    modeLabel.textContent = "Sin sesion";
+    modeLabel.removeAttribute("title");
+    return;
+  }
+
+  const role = getRoleLabel(getCurrentInterviewerRole());
+  const user = getCurrentInterviewerUser();
+  modeLabel.textContent = role;
+  modeLabel.title = user ? `${role}: ${user}` : role;
+}
+
 function applyRoleVisibility() {
+  updateSessionBadge();
   openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
   openUserManagerButton?.classList.toggle("hidden", !isAdminUser());
 
