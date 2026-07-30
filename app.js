@@ -333,6 +333,8 @@ async function openUserManagerModal() {
     return;
   }
 
+  document.querySelectorAll(".nav-button").forEach((button) => button.classList.remove("active"));
+  openUserManagerButton?.classList.add("active");
   userManagerModal?.classList.remove("hidden");
   await renderUserManager();
   newUserEmailInput?.focus();
@@ -340,6 +342,11 @@ async function openUserManagerModal() {
 
 function closeUserManagerModal() {
   userManagerModal?.classList.add("hidden");
+  openUserManagerButton?.classList.remove("active");
+  const activeView = document.querySelector(".view.active");
+  if (activeView?.id) {
+    document.querySelector(`.nav-button[data-view="${activeView.id}"]`)?.classList.add("active");
+  }
 }
 
 async function getUsersFromServer() {
