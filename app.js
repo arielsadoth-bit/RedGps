@@ -15,7 +15,6 @@ const state = {
     dateTo: "",
   },
   createdExamFilters: {
-    text: "",
     email: "",
     dateFrom: "",
     dateTo: "",
@@ -1183,18 +1182,17 @@ function filterSavedResults(history) {
 
 function filterCreatedExams(exams) {
   const filters = state.createdExamFilters;
-  const textTerm = normalizeText(filters.text.trim());
   const emailTerm = normalizeText(filters.email.trim());
 
-  return exams.filter((exam) => {
+  return exams
+    .filter((exam) => {
     const candidateEmail = exam.candidateEmail || "";
-    const searchableText = normalizeText(`${exam.examName || ""} ${exam.id || ""} ${exam.link || ""} ${exam.createdBy || exam.creadoPor || ""}`);
     const searchableEmail = normalizeText(candidateEmail);
 
-    return (!textTerm || searchableText.includes(textTerm))
-      && (!emailTerm || searchableEmail.includes(emailTerm))
+    return (!emailTerm || searchableEmail.includes(emailTerm))
       && isWithinDateRange(exam.createdAt, filters.dateFrom, filters.dateTo);
-  });
+    })
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
 async function renderSavedAnswers() {
@@ -1345,11 +1343,7 @@ async function renderCreatedExams() {
   createdExamsList.innerHTML = `
     <div class="answers-tools table-filter-tools">
       <label class="field search-field">
-        Buscar examen
-        <input id="createdExamSearchInput" value="${escapeHtml(state.createdExamFilters.text)}" placeholder="Nombre, enlace o entrevistador" autocomplete="off" />
-      </label>
-      <label class="field search-field">
-        Correo
+        Correo del candidato
         <input id="createdExamEmailFilter" value="${escapeHtml(state.createdExamFilters.email)}" placeholder="correo del candidato" autocomplete="off" />
       </label>
       <label class="field search-field">
@@ -1429,7 +1423,6 @@ function bindCreatedExamControls() {
 
 function bindCreatedExamFilterControls() {
   const filters = [
-    ["#createdExamSearchInput", "text"],
     ["#createdExamEmailFilter", "email"],
     ["#createdExamDateFromFilter", "dateFrom"],
     ["#createdExamDateToFilter", "dateTo"],
@@ -1456,13 +1449,12 @@ function bindCreatedExamFilterControls() {
 
   document.querySelector("#clearCreatedExamFiltersButton")?.addEventListener("click", async () => {
     state.createdExamFilters = {
-      text: "",
       email: "",
       dateFrom: "",
       dateTo: "",
     };
     await renderCreatedExams();
-    document.querySelector("#createdExamSearchInput")?.focus();
+    document.querySelector("#createdExamEmailFilter")?.focus();
   });
 }
 
