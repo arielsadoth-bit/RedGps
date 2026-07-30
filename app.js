@@ -1334,6 +1334,7 @@ async function renderCreatedExams() {
   }
 
   if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
+    createdExamsSummary.classList.remove("hidden");
     createdExamsSummary.textContent = "Inicia sesion para cargar los examenes creados.";
     createdExamsList.innerHTML = "";
     return;
@@ -1341,6 +1342,7 @@ async function renderCreatedExams() {
 
   const exams = await getServerCreatedExams();
   if (!exams.length) {
+    createdExamsSummary.classList.remove("hidden");
     createdExamsSummary.textContent = "Aun no hay examenes creados.";
     createdExamsList.innerHTML = "";
     return;
@@ -1353,7 +1355,8 @@ async function renderCreatedExams() {
   const pageStart = (state.createdExamsPage - 1) * CREATED_EXAMS_PAGE_SIZE;
   const pageExams = filteredExams.slice(pageStart, pageStart + CREATED_EXAMS_PAGE_SIZE);
 
-  createdExamsSummary.textContent = `Hay ${exams.length} examen(es) creado(s) con enlace registrado.`;
+  createdExamsSummary.textContent = "";
+  createdExamsSummary.classList.add("hidden");
   createdExamsList.innerHTML = `
     <div class="answers-tools table-filter-tools">
       <label class="field search-field">
@@ -1369,7 +1372,6 @@ async function renderCreatedExams() {
         <input id="createdExamDateToFilter" type="date" value="${escapeHtml(state.createdExamFilters.dateTo)}" />
       </label>
       <button class="ghost-button ${hasFilters ? "" : "hidden"}" id="clearCreatedExamFiltersButton" type="button">Limpiar filtros</button>
-      <span class="answers-count">${filteredExams.length} de ${exams.length} examen(es)</span>
     </div>
     <div class="created-exams-table-wrap">
       <table class="created-exams-table">
