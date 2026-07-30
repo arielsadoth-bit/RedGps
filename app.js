@@ -103,28 +103,45 @@ function getAuthHeaders() {
 
 function renderQuestionBank() {
   questionBank.innerHTML = `
-    ${questions
-      .map(
-        (question) => `
-        <article class="question-card">
-          <div class="question-top">
-            <input type="checkbox" id="${question.id}" value="${question.id}" checked />
-            <div>
-              <h3>${question.title}</h3>
-              <p>${question.prompt}</p>
-              <div class="tag-row">
-                <span class="tag">${question.area}</span>
-                <span class="tag">${getQuestionTypeLabel(question)}</span>
-                ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(question.runner))}</span>` : ""}
-                <span class="tag">${question.points} pts</span>
+    <div class="question-bank-toggle">
+      <div>
+        <strong>${questions.length}</strong>
+        <span>pregunta(s) activas en la base de datos</span>
+      </div>
+      <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas activas</button>
+    </div>
+    <div class="question-bank-list hidden" id="questionBankList">
+      ${questions
+        .map(
+          (question) => `
+          <article class="question-card">
+            <div class="question-top">
+              <input type="checkbox" id="${question.id}" value="${question.id}" checked />
+              <div>
+                <h3>${question.title}</h3>
+                <p>${question.prompt}</p>
+                <div class="tag-row">
+                  <span class="tag">${question.area}</span>
+                  <span class="tag">${getQuestionTypeLabel(question)}</span>
+                  ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(question.runner))}</span>` : ""}
+                  <span class="tag">${question.points} pts</span>
+                </div>
               </div>
             </div>
-          </div>
-        </article>
-      `
-      )
-      .join("")}
+          </article>
+        `
+        )
+        .join("")}
+    </div>
   `;
+
+  document.querySelector("#toggleQuestionBankButton")?.addEventListener("click", () => {
+    const list = document.querySelector("#questionBankList");
+    const isHidden = list?.classList.toggle("hidden");
+    document.querySelector("#toggleQuestionBankButton").textContent = isHidden
+      ? "Ver preguntas activas"
+      : "Ocultar preguntas activas";
+  });
 }
 
 function syncQuestionCountLimit() {
