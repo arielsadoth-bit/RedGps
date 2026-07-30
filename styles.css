@@ -671,23 +671,6 @@ textarea {
   align-items: start;
 }
 
-#questionManagerList {
-  margin-bottom: 18px;
-}
-
-.question-manager-item {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  padding: 16px;
-}
-
-.question-manager-item p {
-  margin-top: 6px;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
 .user-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);

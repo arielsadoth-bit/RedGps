@@ -52,7 +52,6 @@ const questionFunctionNameInput = document.querySelector("#questionFunctionName"
 const questionLanguageInput = document.querySelector("#questionLanguage");
 const questionTestsInput = document.querySelector("#questionTests");
 const questionManagerStatus = document.querySelector("#questionManagerStatus");
-const questionManagerList = document.querySelector("#questionManagerList");
 const closedQuestionFields = document.querySelector("#closedQuestionFields");
 const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
@@ -144,33 +143,6 @@ function syncQuestionCountLimit() {
   if (currentValue > maxQuestions) {
     questionCountInput.value = String(maxQuestions);
   }
-}
-
-function renderQuestionManager() {
-  if (!questionManagerList) {
-    return;
-  }
-
-  questionManagerList.innerHTML = `
-    ${questions
-      .map(
-        (question) => `
-          <article class="question-manager-item">
-            <div>
-              <strong>${escapeHtml(question.title)}</strong>
-              <p>${escapeHtml(question.prompt)}</p>
-              <div class="tag-row">
-                <span class="tag">${escapeHtml(question.area)}</span>
-                <span class="tag">${getQuestionTypeLabel(question)}</span>
-                ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(question.runner))}</span>` : ""}
-                <span class="tag">${Number(question.points || 0)} pts</span>
-              </div>
-            </div>
-          </article>
-        `
-      )
-      .join("")}
-  `;
 }
 
 function toggleQuestionFormFields() {
@@ -295,7 +267,6 @@ async function saveQuestionFromForm(event) {
 
   await loadQuestions();
   renderQuestionBank();
-  renderQuestionManager();
   await renderAnswerKey();
   showQuestionManagerStatus("Pregunta guardada en la base de datos y agregada al banco.", false);
 }
@@ -321,7 +292,6 @@ async function openQuestionManagerModal() {
     return;
   }
 
-  renderQuestionManager();
   toggleQuestionFormFields();
   questionManagerModal?.classList.remove("hidden");
   questionTitleInput?.focus();
@@ -2719,7 +2689,6 @@ function applyRoleVisibility() {
 async function initializeApp() {
   await loadQuestions();
   renderQuestionBank();
-  renderQuestionManager();
   toggleQuestionFormFields();
   protectInterviewerPanel();
   applyRoleVisibility();
