@@ -103,17 +103,9 @@ function getAuthHeaders() {
 
 function renderQuestionBank() {
   questionBank.innerHTML = `
-    <div class="question-bank-toggle">
-      <div>
-        <strong>${questions.length}</strong>
-        <span>pregunta(s) activas en la base de datos</span>
-      </div>
-      <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas activas</button>
-    </div>
-    <div class="question-bank-list hidden" id="questionBankList">
-      ${questions
-        .map(
-          (question) => `
+    ${questions
+      .map(
+        (question) => `
         <article class="question-card">
           <div class="question-top">
             <input type="checkbox" id="${question.id}" value="${question.id}" checked />
@@ -130,18 +122,9 @@ function renderQuestionBank() {
           </div>
         </article>
       `
-        )
-        .join("")}
-    </div>
+      )
+      .join("")}
   `;
-
-  document.querySelector("#toggleQuestionBankButton")?.addEventListener("click", () => {
-    const list = document.querySelector("#questionBankList");
-    const isHidden = list?.classList.toggle("hidden");
-    document.querySelector("#toggleQuestionBankButton").textContent = isHidden
-      ? "Ver preguntas activas"
-      : "Ocultar preguntas activas";
-  });
 }
 
 function syncQuestionCountLimit() {
@@ -169,42 +152,25 @@ function renderQuestionManager() {
   }
 
   questionManagerList.innerHTML = `
-    <div class="question-manager-summary">
-      <div>
-        <strong>${questions.length}</strong>
-        <span>pregunta(s) activas en la base de datos</span>
-      </div>
-      <button class="ghost-button" id="toggleQuestionManagerListButton" type="button">Ver preguntas activas</button>
-    </div>
-    <div class="question-manager-list hidden" id="questionManagerActiveList">
-      ${questions
-        .map(
-          (question) => `
-            <article class="question-manager-item">
-              <div>
-                <strong>${escapeHtml(question.title)}</strong>
-                <p>${escapeHtml(question.prompt)}</p>
-                <div class="tag-row">
-                  <span class="tag">${escapeHtml(question.area)}</span>
-                  <span class="tag">${getQuestionTypeLabel(question)}</span>
-                  ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(question.runner))}</span>` : ""}
-                  <span class="tag">${Number(question.points || 0)} pts</span>
-                </div>
+    ${questions
+      .map(
+        (question) => `
+          <article class="question-manager-item">
+            <div>
+              <strong>${escapeHtml(question.title)}</strong>
+              <p>${escapeHtml(question.prompt)}</p>
+              <div class="tag-row">
+                <span class="tag">${escapeHtml(question.area)}</span>
+                <span class="tag">${getQuestionTypeLabel(question)}</span>
+                ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(question.runner))}</span>` : ""}
+                <span class="tag">${Number(question.points || 0)} pts</span>
               </div>
-            </article>
-          `
-        )
-        .join("")}
-    </div>
+            </div>
+          </article>
+        `
+      )
+      .join("")}
   `;
-
-  document.querySelector("#toggleQuestionManagerListButton")?.addEventListener("click", () => {
-    const list = document.querySelector("#questionManagerActiveList");
-    const isHidden = list?.classList.toggle("hidden");
-    document.querySelector("#toggleQuestionManagerListButton").textContent = isHidden
-      ? "Ver preguntas activas"
-      : "Ocultar preguntas activas";
-  });
 }
 
 function toggleQuestionFormFields() {
