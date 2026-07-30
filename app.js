@@ -58,6 +58,7 @@ const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
 const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
 const closeQuestionManagerButton = document.querySelector("#closeQuestionManagerButton");
+const adminToolsCard = document.querySelector("#adminToolsCard");
 const userManagerModal = document.querySelector("#userManagerModal");
 const openUserManagerButton = document.querySelector("#openUserManagerButton");
 const closeUserManagerButton = document.querySelector("#closeUserManagerButton");
@@ -2556,6 +2557,7 @@ function isAdminUser() {
 
 function applyRoleVisibility() {
   openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
+  adminToolsCard?.classList.toggle("hidden", !isAdminUser());
   openUserManagerButton?.classList.toggle("hidden", !isAdminUser());
 
   if (!isAdminUser()) {
