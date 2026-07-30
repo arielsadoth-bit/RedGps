@@ -106,7 +106,7 @@ function renderQuestionBank() {
     <div class="question-bank-toggle">
       <div>
         <strong>${questions.length}</strong>
-        <span>pregunta(s) activas en la base de datos</span>
+        <span>pregunta(s) disponibles para seleccionar</span>
       </div>
       <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas activas</button>
     </div>
