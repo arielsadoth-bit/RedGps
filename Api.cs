@@ -970,12 +970,12 @@ static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool active
             SELECT id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
             FROM banco_preguntas
             WHERE activo = 1
-            ORDER BY area, tipo, titulo
+            ORDER BY rowid ASC
             """
         : """
             SELECT id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
             FROM banco_preguntas
-            ORDER BY area, tipo, titulo
+            ORDER BY rowid ASC
             """;
 
     using var reader = command.ExecuteReader();
