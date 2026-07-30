@@ -731,6 +731,16 @@ textarea {
   .answers-tools {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .pagination-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
 }
 
 .answers-table-wrap {
@@ -800,6 +810,36 @@ textarea {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.pagination-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-actions strong {
+  color: #111827;
+  font-size: 0.9rem;
+}
+
+.created-page-button {
+  min-width: 92px;
+  min-height: 36px;
 }
 
 .answers-table {

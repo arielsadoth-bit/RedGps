@@ -16,6 +16,7 @@ const state = {
     dateFrom: "",
     dateTo: "",
   },
+  createdExamsPage: 1,
   isFinishingExam: false,
   securityFinishTriggered: false,
   securityFinishReason: "",
@@ -48,6 +49,7 @@ const isCandidateLink = urlParams.has("exam");
 const SESSION_KEY = "redgpsInterviewerSession";
 const USER_KEY = "redgpsInterviewerUser";
 const TOKEN_KEY = "redgpsInterviewToken";
+const CREATED_EXAMS_PAGE_SIZE = 5;
 
 async function loadQuestions() {
   if (!location.protocol.startsWith("http")) {
@@ -1346,6 +1348,10 @@ async function renderCreatedExams() {
 
   const filteredExams = filterCreatedExams(exams);
   const hasFilters = hasActiveFilters(state.createdExamFilters);
+  const totalPages = Math.max(1, Math.ceil(filteredExams.length / CREATED_EXAMS_PAGE_SIZE));
+  state.createdExamsPage = Math.min(Math.max(1, state.createdExamsPage), totalPages);
+  const pageStart = (state.createdExamsPage - 1) * CREATED_EXAMS_PAGE_SIZE;
+  const pageExams = filteredExams.slice(pageStart, pageStart + CREATED_EXAMS_PAGE_SIZE);
 
   createdExamsSummary.textContent = `Hay ${exams.length} examen(es) creado(s) con enlace registrado.`;
   createdExamsList.innerHTML = `
@@ -1378,14 +1384,31 @@ async function renderCreatedExams() {
           </tr>
         </thead>
         <tbody>
-          ${filteredExams.length
-            ? filteredExams.map(renderCreatedExamRow).join("")
+          ${pageExams.length
+            ? pageExams.map(renderCreatedExamRow).join("")
             : renderNoSearchResultsRow(hasFilters)}
         </tbody>
       </table>
     </div>
+    ${filteredExams.length > CREATED_EXAMS_PAGE_SIZE ? renderCreatedExamsPagination(filteredExams.length, totalPages) : ""}
   `;
   bindCreatedExamControls();
+}
+
+function renderCreatedExamsPagination(totalItems, totalPages) {
+  const firstItem = (state.createdExamsPage - 1) * CREATED_EXAMS_PAGE_SIZE + 1;
+  const lastItem = Math.min(state.createdExamsPage * CREATED_EXAMS_PAGE_SIZE, totalItems);
+
+  return `
+    <div class="pagination-bar">
+      <span>Mostrando ${firstItem}-${lastItem} de ${totalItems}</span>
+      <div class="pagination-actions">
+        <button class="ghost-button created-page-button" type="button" data-page="${state.createdExamsPage - 1}" ${state.createdExamsPage <= 1 ? "disabled" : ""}>Anterior</button>
+        <strong>Pagina ${state.createdExamsPage} de ${totalPages}</strong>
+        <button class="ghost-button created-page-button" type="button" data-page="${state.createdExamsPage + 1}" ${state.createdExamsPage >= totalPages ? "disabled" : ""}>Siguiente</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderCreatedExamRow(exam) {
@@ -1412,6 +1435,7 @@ function renderCreatedExamRow(exam) {
 
 function bindCreatedExamControls() {
   bindCreatedExamFilterControls();
+  bindCreatedExamPaginationControls();
 
   createdExamsList?.querySelectorAll(".copy-created-link-button").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -1425,6 +1449,20 @@ function bindCreatedExamControls() {
       setTimeout(() => {
         button.textContent = "Copiar";
       }, 1400);
+    });
+  });
+}
+
+function bindCreatedExamPaginationControls() {
+  createdExamsList?.querySelectorAll(".created-page-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const page = Number(button.dataset.page);
+      if (!Number.isInteger(page) || page < 1) {
+        return;
+      }
+
+      state.createdExamsPage = page;
+      await renderCreatedExams();
     });
   });
 }
@@ -1444,6 +1482,7 @@ function bindCreatedExamFilterControls() {
 
     input.addEventListener("input", async () => {
       state.createdExamFilters[key] = input.value;
+      state.createdExamsPage = 1;
       await renderCreatedExams();
       const nextInput = document.querySelector(selector);
       if (nextInput) {
@@ -1461,6 +1500,7 @@ function bindCreatedExamFilterControls() {
       dateFrom: "",
       dateTo: "",
     };
+    state.createdExamsPage = 1;
     await renderCreatedExams();
     document.querySelector("#createdExamEmailFilter")?.focus();
   });
