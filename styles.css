@@ -680,14 +680,14 @@ textarea {
 
 .answers-tools {
   display: grid;
-  grid-template-columns: minmax(240px, 1.25fr) minmax(210px, 1fr) minmax(150px, 0.65fr) minmax(150px, 0.65fr) minmax(120px, auto) minmax(170px, auto);
+  grid-template-columns: minmax(220px, 1.2fr) minmax(190px, 1fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr);
   gap: 12px;
   align-items: end;
   margin-top: 22px;
 }
 
 .table-filter-tools {
-  grid-template-columns: minmax(260px, 1fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr) minmax(120px, auto) minmax(170px, auto);
+  grid-template-columns: minmax(260px, 1.25fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr);
   margin-top: 0;
   margin-bottom: 14px;
 }
@@ -701,14 +701,19 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 170px;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f8fafc;
   color: var(--muted);
   padding: 0 14px;
   font-weight: 900;
-  white-space: nowrap;
+  text-align: center;
+}
+
+.answers-tools .ghost-button,
+.answers-count {
+  align-self: end;
 }
 
 @media (max-width: 1180px) {
@@ -729,7 +734,7 @@ textarea {
 }
 
 .answers-table-wrap {
-  overflow-x: auto;
+  overflow-x: visible;
   border-radius: 8px;
   background: #f3f5f7;
   padding: 10px;
@@ -801,14 +806,45 @@ textarea {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0 10px;
-  min-width: 780px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .answers-table th,
 .answers-table td {
-  padding: 16px 18px;
+  padding: 16px 14px;
   text-align: left;
   vertical-align: middle;
+}
+
+.answers-table th:nth-child(1),
+.answers-table td:nth-child(1) {
+  width: 29%;
+}
+
+.answers-table th:nth-child(2),
+.answers-table td:nth-child(2) {
+  width: 14%;
+}
+
+.answers-table th:nth-child(3),
+.answers-table td:nth-child(3) {
+  width: 13%;
+}
+
+.answers-table th:nth-child(4),
+.answers-table td:nth-child(4) {
+  width: 21%;
+}
+
+.answers-table th:nth-child(5),
+.answers-table td:nth-child(5) {
+  width: 8%;
+}
+
+.answers-table th:nth-child(6),
+.answers-table td:nth-child(6) {
+  width: 15%;
 }
 
 .answers-table th {
@@ -891,9 +927,10 @@ textarea {
 
 .view-answer-button,
 .delete-answer-button {
-  min-width: 76px;
+  min-width: 64px;
   min-height: 40px;
   border-radius: 6px;
+  padding: 0 10px;
 }
 
 .danger-button {
