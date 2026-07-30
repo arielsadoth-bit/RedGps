@@ -76,6 +76,45 @@ app.MapPost("/api/questions", async (HttpRequest request) =>
     return Results.Json(ToPublicQuestion(question));
 });
 
+app.MapDelete("/api/questions", async (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede borrar preguntas." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var ids = GetFirstStringArray(document.RootElement, "ids", "questionIds", "preguntas")
+        .Select(id => id.Trim())
+        .Where(id => !string.IsNullOrWhiteSpace(id))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    if (ids.Count == 0)
+    {
+        return Results.BadRequest(new { error = "Selecciona al menos una pregunta." });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    using var transaction = connection.BeginTransaction();
+    using var command = connection.CreateCommand();
+    command.Transaction = transaction;
+    command.CommandText = "UPDATE banco_preguntas SET activo = 0 WHERE id = $id";
+    var idParameter = command.CreateParameter();
+    idParameter.ParameterName = "$id";
+    command.Parameters.Add(idParameter);
+
+    var deleted = 0;
+    foreach (var id in ids)
+    {
+        idParameter.Value = id;
+        deleted += command.ExecuteNonQuery();
+    }
+
+    transaction.Commit();
+    return Results.Json(new { ok = true, deleted });
+});
+
 app.MapGet("/api/users", (HttpRequest request) =>
 {
     if (!TryRequireRole(request, sessions, out _, "admin"))

@@ -58,6 +58,7 @@ const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
 const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
 const closeQuestionManagerButton = document.querySelector("#closeQuestionManagerButton");
+const deleteSelectedQuestionsButton = document.querySelector("#deleteSelectedQuestionsButton");
 const userManagerModal = document.querySelector("#userManagerModal");
 const openUserManagerButton = document.querySelector("#openUserManagerButton");
 const closeUserManagerButton = document.querySelector("#closeUserManagerButton");
@@ -297,6 +298,51 @@ function showQuestionManagerStatus(message, isError) {
   questionManagerStatus.textContent = message;
   questionManagerStatus.classList.remove("hidden");
   questionManagerStatus.classList.toggle("error-summary", Boolean(isError));
+}
+
+async function deleteSelectedQuestions() {
+  if (!isAdminUser()) {
+    expireInterviewerSession(true);
+    return;
+  }
+
+  const selectedIds = [...document.querySelectorAll("#questionBank input:checked")]
+    .map((input) => input.value)
+    .filter(Boolean);
+
+  if (selectedIds.length === 0) {
+    alert("Selecciona al menos una pregunta para borrar.");
+    return;
+  }
+
+  const confirmed = confirm(
+    `Vas a borrar ${selectedIds.length} pregunta(s) seleccionada(s). Ya no apareceran para crear examenes nuevos.`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const response = await fetchWithTimeout(`${location.origin}/api/questions`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify({ ids: selectedIds }),
+  }, 9000);
+
+  if (response.status === 401 || response.status === 403) {
+    expireInterviewerSession(response.status === 403);
+    return;
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    alert(data.error || "No se pudieron borrar las preguntas seleccionadas.");
+    return;
+  }
+
+  await loadQuestions();
+  renderQuestionBank();
+  await renderAnswerKey();
 }
 
 async function openQuestionManagerModal() {
@@ -2539,6 +2585,7 @@ document.querySelector("#deselectAllButton").addEventListener("click", () => {
   });
 });
 
+deleteSelectedQuestionsButton?.addEventListener("click", deleteSelectedQuestions);
 openQuestionManagerButton?.addEventListener("click", openQuestionManagerModal);
 closeQuestionManagerButton?.addEventListener("click", closeQuestionManagerModal);
 questionManagerModal?.addEventListener("click", (event) => {
@@ -2706,6 +2753,7 @@ function applyRoleVisibility() {
   updateSessionBadge();
   openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
   openUserManagerButton?.classList.toggle("hidden", !isAdminUser());
+  deleteSelectedQuestionsButton?.classList.toggle("hidden", !isAdminUser());
 
   if (!isAdminUser()) {
     closeQuestionManagerModal();
