@@ -1596,7 +1596,7 @@ function getLiveAnswersSnapshot() {
   });
 }
 
-function queueLiveExamUpdate(status = "Contestando") {
+function queueLiveExamUpdate(status = "Contestando", delay = 120) {
   if (!isCandidateLink || !state.activeExam || state.candidateAccessDenied) {
     return;
   }
@@ -1606,8 +1606,22 @@ function queueLiveExamUpdate(status = "Contestando") {
   }
 
   liveExamSaveTimer = setTimeout(() => {
+    liveExamSaveTimer = null;
     sendLiveExamUpdate(status).catch(() => {});
-  }, 550);
+  }, delay);
+}
+
+function flushLiveExamUpdate(status = "Contestando") {
+  if (!isCandidateLink || !state.activeExam || state.candidateAccessDenied) {
+    return;
+  }
+
+  if (liveExamSaveTimer) {
+    clearTimeout(liveExamSaveTimer);
+    liveExamSaveTimer = null;
+  }
+
+  sendLiveExamUpdate(status).catch(() => {});
 }
 
 async function sendLiveExamUpdate(status = "Contestando", keepalive = false) {
@@ -1686,7 +1700,10 @@ function restoreDraftAnswers() {
 function bindDraftSaving() {
   examForm.querySelectorAll("textarea, input").forEach((field) => {
     field.addEventListener("input", saveDraftAnswers);
-    field.addEventListener("change", saveDraftAnswers);
+    field.addEventListener("change", () => {
+      saveDraftAnswers();
+      flushLiveExamUpdate();
+    });
   });
   examForm.querySelectorAll(".run-code-button").forEach((button) => {
     button.addEventListener("click", () => runCodeTests(button.dataset.questionId));
@@ -1695,8 +1712,12 @@ function bindDraftSaving() {
     input.addEventListener("input", () => {
       saveDraftAnswers();
       updateFinishExamButtonState();
+      queueLiveExamUpdate("Contestando", 80);
     });
-    input.addEventListener("change", updateFinishExamButtonState);
+    input.addEventListener("change", () => {
+      updateFinishExamButtonState();
+      flushLiveExamUpdate();
+    });
   });
 }
 
@@ -3849,7 +3870,7 @@ liveMonitorRefreshTimer = window.setInterval(() => {
   if (document.querySelector("#liveMonitorView")?.classList.contains("active") && isAdminUser()) {
     renderLiveMonitor();
   }
-}, 5000);
+}, 1000);
 
 async function initializeApp() {
   clearDeliveryLocalDataOnce();
