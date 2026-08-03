@@ -1263,6 +1263,10 @@ async function createExam(mode = "random") {
   const link = `${getExamBaseUrl()}${location.pathname}?exam=${state.activeExam.id}&time=${state.activeExam.timeLimit}&q=${questionIds}`;
   document.querySelector("#examLink").value = link;
   document.querySelector("#examLinkBox").classList.remove("hidden");
+  state.questionBankOpen = false;
+  state.areaBankVisible = false;
+  renderQuestionBank();
+  document.querySelector("#examLinkBox")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   await saveCreatedExam({
     id: state.activeExam.id,
     examName,
