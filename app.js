@@ -351,10 +351,10 @@ function renderQuestionBank() {
   questionBank.innerHTML = `
     <div class="question-bank-toggle">
       <div class="question-bank-toggle-main">
-        <strong>${bankQuestions.length}</strong>
+        <strong>${selectedCount}</strong>
         <div class="question-bank-toggle-copy">
           <span>${escapeHtml(state.selectedQuestionArea)}</span>
-          <small>${selectedCount} seleccionada(s) para el examen</small>
+          <small>${selectedCount} de ${bankQuestions.length} seleccionada(s) para el examen</small>
         </div>
       </div>
       <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas</button>
@@ -476,10 +476,17 @@ function renderQuestionBankPagination(totalPages) {
 }
 
 function updateQuestionBankSelectionCount() {
-  const counter = questionBank?.querySelector(".question-bank-toggle small");
-  if (counter) {
-    const selectedCount = getQuestionsForSelectedArea().filter((question) => state.selectedQuestionIds.has(question.id)).length;
-    counter.textContent = `${selectedCount} seleccionada(s) para el examen`;
+  const badge = questionBank?.querySelector(".question-bank-toggle strong");
+  const label = questionBank?.querySelector(".question-bank-toggle small");
+  if (badge || label) {
+    const bankQuestions = getQuestionsForSelectedArea();
+    const selectedCount = bankQuestions.filter((question) => state.selectedQuestionIds.has(question.id)).length;
+    if (badge) {
+      badge.textContent = String(selectedCount);
+    }
+    if (label) {
+      label.textContent = `${selectedCount} de ${bankQuestions.length} seleccionada(s) para el examen`;
+    }
   }
 }
 
