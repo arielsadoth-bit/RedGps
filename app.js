@@ -1257,6 +1257,12 @@ function triggerSecurityFinish(reason) {
     return;
   }
 
+  if (!hasValidCandidateIdentity()) {
+    alert("Antes de continuar, escribe tu nombre completo y correo para identificar el examen.");
+    candidateNameInput?.focus();
+    return;
+  }
+
   state.securityFinishTriggered = true;
   state.securityFinishReason = reason;
   finishExam({ forced: true });
@@ -1267,22 +1273,25 @@ function bindCandidateSecurityRules() {
     return;
   }
 
+  let visibilityTimeout = null;
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      triggerSecurityFinish("El candidato cambió de pestaña, minimizó o salió de la página.");
+      visibilityTimeout = setTimeout(() => {
+        if (document.visibilityState === "hidden") {
+          triggerSecurityFinish("El candidato cambió de pestaña, minimizó o salió de la página.");
+        }
+      }, 2500);
+      return;
+    }
+
+    if (visibilityTimeout) {
+      clearTimeout(visibilityTimeout);
+      visibilityTimeout = null;
     }
   });
 
   window.addEventListener("pagehide", () => {
     triggerSecurityFinish("El candidato cerró o abandonó la página del examen.");
-  });
-
-  window.addEventListener("blur", () => {
-    setTimeout(() => {
-      if (!document.hasFocus()) {
-        triggerSecurityFinish("El candidato salió del foco de la ventana del examen.");
-      }
-    }, 500);
   });
 }
 
@@ -1302,16 +1311,16 @@ async function finishExam(options = {}) {
 
   try {
     state.isFinishingExam = true;
-    const candidateName = candidateNameInput.value.trim() || (forced ? "Candidato sin nombre" : "");
+    const candidateName = candidateNameInput.value.trim();
     const candidateEmail = candidateEmailInput.value.trim().toLowerCase();
 
-    if (!forced && candidateName.length < 3) {
+    if (candidateName.length < 3) {
       alert("Escribe tu nombre completo antes de finalizar el examen.");
       candidateNameInput.focus();
       return;
     }
 
-    if (!forced && !isValidEmail(candidateEmail)) {
+    if (!isValidEmail(candidateEmail)) {
       alert("Escribe un correo válido antes de finalizar el examen.");
       candidateEmailInput.focus();
       return;
@@ -1323,7 +1332,7 @@ async function finishExam(options = {}) {
     state.answers = Object.fromEntries(formData.entries());
     state.lastResult = await evaluateAnswersOnServer(
       candidateName,
-      isValidEmail(candidateEmail) ? candidateEmail : "",
+      candidateEmail,
       forced
     );
     localStorage.setItem(getFinishedKey(), JSON.stringify(state.lastResult));

@@ -418,8 +418,7 @@ app.MapPost("/api/evaluate", async (HttpRequest request) =>
     var candidateName = GetString(rootElement, "candidateName");
     var candidateEmail = GetString(rootElement, "candidateEmail");
 
-    if (string.IsNullOrWhiteSpace(securityReason)
-        && (candidateName.Trim().Length < 3 || !IsValidEmailAddress(candidateEmail)))
+    if (candidateName.Trim().Length < 3 || !IsValidEmailAddress(candidateEmail))
     {
         return Results.BadRequest(new { error = "Nombre y correo del candidato son obligatorios." });
     }
