@@ -639,7 +639,7 @@ function showView(viewId) {
     createdExamsView: "Examenes",
     candidateView: "Candidato",
     resultsView: "Resultados",
-    answersView: "Respuestas",
+    answersView: "Respuestas guardadas",
     answerKeyView: "Correctas",
   };
   modeLabel.dataset.viewLabel = labels[viewId] || "";
