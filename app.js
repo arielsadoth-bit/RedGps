@@ -26,6 +26,7 @@ const questionBank = document.querySelector("#questionBank");
 const examNameInput = document.querySelector("#examName");
 const candidateEmailInput = document.querySelector("#candidateEmail");
 const questionCountInput = document.querySelector("#questionCount");
+const createManualExamButton = document.querySelector("#createManualExamButton");
 const examForm = document.querySelector("#examForm");
 const resultList = document.querySelector("#resultList");
 const resultSummary = document.querySelector("#resultSummary");
@@ -652,7 +653,7 @@ function getSelectedQuestions() {
     .filter(Boolean);
 }
 
-async function createExam() {
+async function createExam(mode = "random") {
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
   const examName = examNameInput.value.trim();
@@ -663,16 +664,26 @@ async function createExam() {
     return;
   }
 
-  const maxQuestions = Math.max(1, questions.length);
-  if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > maxQuestions) {
-    alert(`La cantidad de preguntas debe estar entre 1 y ${maxQuestions}.`);
-    questionCountInput.focus();
-    return;
-  }
+  let examQuestions = [];
+  let savedQuestionCount = questionCount;
 
-  if (selectedQuestions.length < questionCount) {
-    alert(`Selecciona al menos ${questionCount} pregunta(s) para generar el examen.`);
-    return;
+  if (mode === "manual") {
+    if (!selectedQuestions.length) {
+      alert("Selecciona al menos una pregunta para crear el examen.");
+      return;
+    }
+
+    examQuestions = selectedQuestions;
+    savedQuestionCount = selectedQuestions.length;
+  } else {
+    const maxQuestions = Math.max(1, questions.length);
+    if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > maxQuestions) {
+      alert(`La cantidad de preguntas debe estar entre 1 y ${maxQuestions}.`);
+      questionCountInput.focus();
+      return;
+    }
+
+    examQuestions = pickExamQuestions(questions, questionCount);
   }
 
   state.activeExam = {
@@ -680,7 +691,7 @@ async function createExam() {
     name: examName,
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
-    questions: pickExamQuestions(selectedQuestions, questionCount),
+    questions: examQuestions,
   };
 
   localStorage.setItem("activeExam", JSON.stringify(state.activeExam));
@@ -692,7 +703,7 @@ async function createExam() {
     id: state.activeExam.id,
     examName,
     candidateEmail: "",
-    questionCount,
+    questionCount: savedQuestionCount,
     linkCount: 1,
     link,
     timeLimit: state.activeExam.timeLimit,
@@ -2599,23 +2610,15 @@ document.querySelectorAll(".nav-button").forEach((button) => {
 });
 
 document.querySelector("#createExamButton").addEventListener("click", () => {
-  createExam();
+  createExam("random");
+});
+
+createManualExamButton?.addEventListener("click", () => {
+  createExam("manual");
 });
 
 document.querySelector("#newExamShortcutButton")?.addEventListener("click", () => {
   showView("interviewerView");
-});
-
-document.querySelector("#selectAllButton").addEventListener("click", () => {
-  document.querySelectorAll("#questionBank input").forEach((input) => {
-    input.checked = true;
-  });
-});
-
-document.querySelector("#deselectAllButton").addEventListener("click", () => {
-  document.querySelectorAll("#questionBank input").forEach((input) => {
-    input.checked = false;
-  });
 });
 
 openQuestionManagerButton?.addEventListener("click", openQuestionManagerModal);
