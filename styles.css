@@ -1494,45 +1494,56 @@ textarea {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0 10px;
-  min-width: 920px;
+  min-width: 1120px;
   table-layout: fixed;
 }
 
 .answers-table th,
 .answers-table td {
-  padding: 16px 14px;
+  padding: 18px 20px;
   text-align: left;
   vertical-align: middle;
 }
 
 .answers-table th:nth-child(1),
 .answers-table td:nth-child(1) {
-  width: 26%;
+  width: 24%;
 }
 
 .answers-table th:nth-child(2),
 .answers-table td:nth-child(2) {
-  width: 14%;
+  width: 15%;
 }
 
 .answers-table th:nth-child(3),
 .answers-table td:nth-child(3) {
-  width: 13%;
+  width: 15%;
 }
 
 .answers-table th:nth-child(4),
 .answers-table td:nth-child(4) {
-  width: 19%;
+  width: 22%;
 }
 
 .answers-table th:nth-child(5),
 .answers-table td:nth-child(5) {
-  width: 12%;
+  width: 10%;
 }
 
 .answers-table th:nth-child(6),
 .answers-table td:nth-child(6) {
-  width: 16%;
+  width: 14%;
+}
+
+.answers-table th:nth-child(2),
+.answers-table td:nth-child(2),
+.answers-table th:nth-child(3),
+.answers-table td:nth-child(3),
+.answers-table th:nth-child(5),
+.answers-table td:nth-child(5),
+.answers-table th:nth-child(6),
+.answers-table td:nth-child(6) {
+  text-align: center;
 }
 
 .answers-table th {
@@ -1558,7 +1569,7 @@ textarea {
 .answers-table tbody td:last-child {
   border-right: 1px solid var(--line);
   border-radius: 0 8px 8px 0;
-  text-align: right;
+  text-align: center;
 }
 
 .answers-table .empty-table-cell {
@@ -1593,6 +1604,7 @@ textarea {
 .answers-table td strong,
 .answers-table td small {
   display: block;
+  overflow-wrap: anywhere;
 }
 
 .answers-table td small {
@@ -1610,17 +1622,17 @@ textarea {
 
 .table-actions {
   display: inline-flex;
-  gap: 6px;
-  justify-content: flex-end;
+  gap: 10px;
+  justify-content: center;
   align-items: center;
   white-space: nowrap;
 }
 
 .view-answer-button,
 .delete-answer-button {
-  min-height: 38px;
-  min-width: 42px;
-  border-radius: 5px;
+  min-height: 44px;
+  min-width: 52px;
+  border-radius: 7px;
   padding: 0;
 }
 
@@ -1628,8 +1640,9 @@ textarea {
   align-items: center;
   display: inline-grid;
   justify-content: center;
-  min-height: 38px;
-  min-width: 42px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  min-width: 52px;
   padding: 0;
 }
 
