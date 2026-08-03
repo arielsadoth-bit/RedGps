@@ -24,6 +24,8 @@ const state = {
   selectedQuestionArea: "Área de Desarrollo",
   selectedQuestionIds: new Set(),
   questionSelectionInitialized: false,
+  questionBankOpen: false,
+  areaBankVisible: false,
   isFinishingExam: false,
   securityFinishTriggered: false,
   securityFinishReason: "",
@@ -202,6 +204,16 @@ function getActionIcon(name) {
     `;
   }
 
+  if (name === "menu") {
+    return `
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M4 7h16" />
+        <path d="M4 12h16" />
+        <path d="M4 17h16" />
+      </svg>
+    `;
+  }
+
   return `
     <svg aria-hidden="true" viewBox="0 0 24 24">
       <path d="M3 6h18" />
@@ -358,9 +370,14 @@ function renderQuestionBank() {
           <small>${selectedCount} de ${bankQuestions.length} seleccionada(s) para el examen</small>
         </div>
       </div>
-      <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas</button>
+      <div class="question-bank-toggle-actions">
+        <button class="ghost-button icon-button area-bank-menu-button" id="toggleAreaBankButton" type="button" aria-label="Banco por puesto" title="Banco por puesto">
+          ${getActionIcon("menu")}
+        </button>
+        <button class="ghost-button" id="toggleQuestionBankButton" type="button">${state.questionBankOpen ? "Ocultar preguntas" : "Ver preguntas"}</button>
+      </div>
     </div>
-    <div class="question-bank-list hidden" id="questionBankList">
+    <div class="question-bank-list ${state.questionBankOpen ? "" : "hidden"}" id="questionBankList">
       <div class="question-bank-toolbar">
         <strong>Banco de preguntas</strong>
         <span>${rangeLabel}</span>
@@ -396,12 +413,17 @@ function renderQuestionBank() {
   `;
 
   document.querySelector("#toggleQuestionBankButton")?.addEventListener("click", () => {
+    state.questionBankOpen = !state.questionBankOpen;
     const list = document.querySelector("#questionBankList");
-    const isHidden = list?.classList.toggle("hidden");
+    list?.classList.toggle("hidden", !state.questionBankOpen);
+    document.querySelector("#toggleQuestionBankButton").textContent = state.questionBankOpen
+      ? "Ocultar preguntas"
+      : "Ver preguntas";
+  });
+
+  document.querySelector("#toggleAreaBankButton")?.addEventListener("click", () => {
+    state.areaBankVisible = !state.areaBankVisible;
     updateAreaBankVisibility();
-    document.querySelector("#toggleQuestionBankButton").textContent = isHidden
-      ? "Ver preguntas"
-      : "Ocultar preguntas";
   });
 
   document.querySelectorAll(".question-delete-button").forEach((button) => {
@@ -430,13 +452,7 @@ function renderQuestionBank() {
       }
 
       state.questionBankPage = page;
-      const listWasOpen = !document.querySelector("#questionBankList")?.classList.contains("hidden");
       renderQuestionBank();
-      if (listWasOpen) {
-        document.querySelector("#questionBankList")?.classList.remove("hidden");
-        document.querySelector("#toggleQuestionBankButton").textContent = "Ocultar preguntas";
-      }
-      updateAreaBankVisibility();
     });
   });
 
@@ -445,9 +461,8 @@ function renderQuestionBank() {
 }
 
 function updateAreaBankVisibility() {
-  const list = document.querySelector("#questionBankList");
-  const listIsOpen = Boolean(list && !list.classList.contains("hidden"));
-  questionBankLayout?.classList.toggle("area-bank-hidden", !listIsOpen);
+  questionBankLayout?.classList.toggle("area-bank-hidden", !state.areaBankVisible);
+  document.querySelector("#toggleAreaBankButton")?.classList.toggle("active", state.areaBankVisible);
 }
 
 function syncSelectedQuestionsWithBank() {

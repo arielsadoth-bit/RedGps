@@ -687,10 +687,34 @@ textarea {
   font-weight: 800;
 }
 
+.question-bank-toggle-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.area-bank-menu-button {
+  min-height: 52px;
+  min-width: 52px;
+  padding: 0;
+}
+
+.area-bank-menu-button.active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+
 .question-bank-toggle .ghost-button {
   flex: 0 0 150px;
   min-height: 52px;
   padding-inline: 18px;
+}
+
+.question-bank-toggle .area-bank-menu-button {
+  flex: 0 0 52px;
+  padding-inline: 0;
 }
 
 .question-bank-toolbar {
