@@ -357,7 +357,6 @@ function syncSelectedQuestionsWithBank() {
   }
 
   if (!state.questionSelectionInitialized) {
-    questions.forEach((question) => state.selectedQuestionIds.add(question.id));
     state.questionSelectionInitialized = true;
     return;
   }
@@ -928,20 +927,21 @@ async function createExam(mode = "random") {
   let examQuestions = [];
 
   if (mode === "manual") {
-    if (!selectedQuestions.length) {
-      alert("Selecciona al menos una pregunta para crear el examen.");
-      return;
-    }
-
-    if (selectedQuestions.length < questionCount) {
-      alert(`Seleccionaste ${selectedQuestions.length} pregunta(s), pero pediste ${questionCount}. Selecciona más preguntas o baja la cantidad.`);
+    if (selectedQuestions.length !== questionCount) {
+      alert(`Selecciona exactamente ${questionCount} pregunta(s). Actualmente tienes ${selectedQuestions.length} seleccionada(s).`);
       questionCountInput.focus();
       return;
     }
 
-    examQuestions = selectedQuestions.slice(0, questionCount);
+    examQuestions = selectedQuestions;
   } else {
-    examQuestions = pickExamQuestions(bankQuestions, questionCount);
+    if (selectedQuestions.length !== questionCount) {
+      alert(`Para generar el examen aleatorio selecciona exactamente ${questionCount} pregunta(s). Actualmente tienes ${selectedQuestions.length} seleccionada(s).`);
+      questionCountInput.focus();
+      return;
+    }
+
+    examQuestions = pickRandomQuestions(selectedQuestions, questionCount);
   }
 
   selectOnlyExamQuestions(examQuestions);
