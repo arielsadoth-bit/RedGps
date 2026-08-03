@@ -473,6 +473,7 @@ function syncSelectedQuestionsWithBank() {
   }
 
   if (!state.questionSelectionInitialized) {
+    activeIds.forEach((id) => state.selectedQuestionIds.add(id));
     state.questionSelectionInitialized = true;
     return;
   }
@@ -1305,6 +1306,30 @@ function hasValidCandidateIdentity() {
     && isValidEmail(candidateEmailInput.value.trim().toLowerCase());
 }
 
+function getUnansweredQuestions() {
+  if (!state.activeExam) {
+    return [];
+  }
+
+  const formData = new FormData(examForm);
+  return state.activeExam.questions.filter((question) => {
+    const answer = String(formData.get(question.id) || "").trim();
+    return !answer;
+  });
+}
+
+function showUnansweredQuestionsAlert(unansweredQuestions) {
+  const preview = unansweredQuestions
+    .slice(0, 5)
+    .map((question) => `- ${question.title || question.prompt || "Pregunta sin titulo"}`)
+    .join("\n");
+  const extra = unansweredQuestions.length > 5
+    ? `\n...y ${unansweredQuestions.length - 5} pregunta(s) más.`
+    : "";
+
+  alert(`Te faltan ${unansweredQuestions.length} pregunta(s) por contestar:\n\n${preview}${extra}`);
+}
+
 function updateFinishExamButtonState() {
   const finishButton = document.querySelector("#finishExamButton");
   if (!finishButton || state.isFinishingExam || state.candidateAccessDenied) {
@@ -1922,12 +1947,6 @@ function triggerSecurityFinish(reason) {
     return;
   }
 
-  if (!hasValidCandidateIdentity()) {
-    alert("Antes de continuar, escribe tu nombre completo y correo para identificar el examen.");
-    candidateNameInput?.focus();
-    return;
-  }
-
   state.securityFinishTriggered = true;
   state.securityFinishReason = reason;
   finishExam({ forced: true });
@@ -1976,19 +1995,34 @@ async function finishExam(options = {}) {
 
   try {
     state.isFinishingExam = true;
-    const candidateName = candidateNameInput.value.trim();
-    const candidateEmail = candidateEmailInput.value.trim().toLowerCase();
+    const typedCandidateName = candidateNameInput.value.trim();
+    const typedCandidateEmail = candidateEmailInput.value.trim().toLowerCase();
+    const candidateName = typedCandidateName || "Candidato sin nombre";
+    const candidateEmail = isValidEmail(typedCandidateEmail) ? typedCandidateEmail : "";
 
-    if (candidateName.length < 3) {
+    if (!forced && typedCandidateName.length < 3) {
       alert("Escribe tu nombre completo antes de finalizar el examen.");
       candidateNameInput.focus();
       return;
     }
 
-    if (!isValidEmail(candidateEmail)) {
+    if (!forced && !isValidEmail(typedCandidateEmail)) {
       alert("Escribe un correo válido antes de finalizar el examen.");
       candidateEmailInput.focus();
       return;
+    }
+
+    if (!forced) {
+      const unansweredQuestions = getUnansweredQuestions();
+      if (unansweredQuestions.length > 0) {
+        showUnansweredQuestionsAlert(unansweredQuestions);
+        const firstMissingIndex = state.activeExam.questions.findIndex((question) => question.id === unansweredQuestions[0].id);
+        const pageSize = 5;
+        state.candidateExamPage = Math.floor(firstMissingIndex / pageSize) + 1;
+        renderExam();
+        document.querySelector(`#answer-${CSS.escape(unansweredQuestions[0].id)}`)?.focus();
+        return;
+      }
     }
 
     clearInterval(state.timerId);
