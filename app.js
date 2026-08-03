@@ -47,7 +47,7 @@ const questionTypeInput = document.querySelector("#questionType");
 const questionPointsInput = document.querySelector("#questionPoints");
 const questionTitleInput = document.querySelector("#questionTitle");
 const questionPromptInput = document.querySelector("#questionPrompt");
-const questionOptionsInput = document.querySelector("#questionOptions");
+const questionOptionInputs = Array.from(document.querySelectorAll(".question-option-input"));
 const questionCorrectAnswerInput = document.querySelector("#questionCorrectAnswer");
 const questionExpectedInput = document.querySelector("#questionExpected");
 const questionKeywordsInput = document.querySelector("#questionKeywords");
@@ -208,9 +208,9 @@ function toggleQuestionFormFields() {
   closedQuestionFields?.classList.toggle("hidden", type !== "closed");
   codeQuestionFields?.classList.toggle("hidden", type !== "code");
 
-  if (questionOptionsInput) {
-    questionOptionsInput.required = type === "closed";
-  }
+  questionOptionInputs.forEach((input, index) => {
+    input.required = type === "closed" && index < 2;
+  });
 
   if (questionCorrectAnswerInput) {
     questionCorrectAnswerInput.required = type === "closed";
@@ -224,23 +224,13 @@ function toggleQuestionFormFields() {
   }
 }
 
-function parseQuestionOptions(value) {
-  return String(value)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const separatorIndex = line.indexOf("|");
-      if (separatorIndex === -1) {
-        return null;
-      }
-
-      return {
-        key: line.slice(0, separatorIndex).trim().toUpperCase(),
-        text: line.slice(separatorIndex + 1).trim(),
-      };
-    })
-    .filter((option) => option && option.key && option.text);
+function parseQuestionOptions() {
+  return questionOptionInputs
+    .map((input) => ({
+      key: (input.dataset.optionKey || "").trim().toUpperCase(),
+      text: input.value.trim(),
+    }))
+    .filter((option) => option.key && option.text);
 }
 
 function parseQuestionKeywords(value) {
@@ -292,7 +282,7 @@ async function saveQuestionFromForm(event) {
     title: questionTitleInput.value.trim(),
     prompt: questionPromptInput.value.trim(),
     points: Number(questionPointsInput.value),
-    options: type === "closed" ? parseQuestionOptions(questionOptionsInput.value) : [],
+    options: type === "closed" ? parseQuestionOptions() : [],
     correctAnswer: type === "closed" ? questionCorrectAnswerInput.value.trim().toUpperCase() : "",
     expected: questionExpectedInput.value.trim(),
     keywords: parseQuestionKeywords(questionKeywordsInput.value),

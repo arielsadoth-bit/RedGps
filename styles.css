@@ -739,6 +739,46 @@ textarea {
   align-items: start;
 }
 
+.option-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.option-editor-grid label {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.option-editor-grid span {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  color: #fff;
+  background: var(--ink);
+  font-weight: 900;
+}
+
+.option-editor-grid input {
+  border: 0;
+  min-height: 48px;
+  padding: 12px 14px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  outline: none;
+}
+
+.option-editor-grid label:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(255, 128, 0, 0.18);
+}
+
 .user-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);

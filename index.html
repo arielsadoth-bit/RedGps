@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Técnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
-    <link rel="stylesheet" href="styles.css?v=20260730-answers-table-width" />
+    <link rel="stylesheet" href="styles.css?v=20260803-option-editor" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -174,10 +174,27 @@
               </label>
 
               <div class="question-type-fields" id="closedQuestionFields">
-                <label class="field">
+                <div class="field">
                   Opciones
-                  <textarea id="questionOptions" placeholder="A|Primera opción&#10;B|Segunda opción&#10;C|Tercera opción&#10;D|Cuarta opción"></textarea>
-                </label>
+                  <div class="option-editor-grid">
+                    <label>
+                      <span>A</span>
+                      <input class="question-option-input" id="questionOptionA" data-option-key="A" placeholder="Primera opción" />
+                    </label>
+                    <label>
+                      <span>B</span>
+                      <input class="question-option-input" id="questionOptionB" data-option-key="B" placeholder="Segunda opción" />
+                    </label>
+                    <label>
+                      <span>C</span>
+                      <input class="question-option-input" id="questionOptionC" data-option-key="C" placeholder="Tercera opción" />
+                    </label>
+                    <label>
+                      <span>D</span>
+                      <input class="question-option-input" id="questionOptionD" data-option-key="D" placeholder="Cuarta opción" />
+                    </label>
+                  </div>
+                </div>
                 <label class="field small-field">
                   Respuesta correcta
                   <input id="questionCorrectAnswer" maxlength="3" placeholder="A" />
@@ -327,6 +344,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260803-textos-acentos"></script>
+    <script src="app.js?v=20260803-option-editor"></script>
   </body>
 </html>
