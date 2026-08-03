@@ -688,7 +688,7 @@ textarea {
   font-weight: 800;
 }
 
-.area-bank-menu-button {
+.ghost-button.area-bank-menu-button {
   background: #111827;
   border: 1px solid #111827;
   border-radius: 6px;
@@ -701,8 +701,14 @@ textarea {
   width: 56px;
 }
 
-.area-bank-menu-button.active {
-  background: #0b0d11;
+.ghost-button.area-bank-menu-button:hover {
+  background: #111827;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ghost-button.area-bank-menu-button.active {
+  background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
