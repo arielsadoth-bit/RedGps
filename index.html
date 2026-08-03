@@ -68,6 +68,7 @@
           <button class="nav-button admin-nav-button" id="openQuestionManagerButton" type="button">Crear preguntas</button>
           <button class="nav-button" data-view="createdExamsView">Exámenes creados</button>
           <button class="nav-button admin-nav-button" data-view="linkTrackingView">Seguimiento de enlaces</button>
+          <button class="nav-button admin-nav-button" data-view="liveMonitorView">Monitoreo en vivo</button>
           <button class="nav-button" data-view="candidateView">Responder examen</button>
           <button class="nav-button" data-view="resultsView">Resultados del candidato</button>
           <button class="nav-button" data-view="answersView">Respuestas guardadas</button>
@@ -148,6 +149,20 @@
               Solo los administradores pueden ver este apartado.
             </div>
             <div class="result-list" id="linkTrackingList"></div>
+          </section>
+
+          <section class="view" id="liveMonitorView">
+            <div class="section-heading">
+              <div>
+                <h2>Monitoreo en vivo</h2>
+              </div>
+              <button class="ghost-button" id="refreshLiveMonitorButton" type="button">Actualizar</button>
+            </div>
+
+            <div class="result-summary" id="liveMonitorSummary">
+              Solo los administradores pueden ver este apartado.
+            </div>
+            <div class="result-list" id="liveMonitorList"></div>
           </section>
 
           <div class="modal-overlay hidden" id="questionManagerModal">

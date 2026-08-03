@@ -48,6 +48,9 @@ const createdExamsSummary = document.querySelector("#createdExamsSummary");
 const createdExamsList = document.querySelector("#createdExamsList");
 const linkTrackingSummary = document.querySelector("#linkTrackingSummary");
 const linkTrackingList = document.querySelector("#linkTrackingList");
+const liveMonitorSummary = document.querySelector("#liveMonitorSummary");
+const liveMonitorList = document.querySelector("#liveMonitorList");
+const refreshLiveMonitorButton = document.querySelector("#refreshLiveMonitorButton");
 const answerKeyList = document.querySelector("#answerKeyList");
 const questionForm = document.querySelector("#questionForm");
 const questionAreaInput = document.querySelector("#questionArea");
@@ -106,6 +109,8 @@ const QUESTION_BANK_AREAS = [
 ];
 let intruderAudioContext = null;
 let intruderAlarmTimer = null;
+let liveExamSaveTimer = null;
+let liveMonitorRefreshTimer = null;
 
 function clearDeliveryLocalDataOnce() {
   if (localStorage.getItem(DELIVERY_RESET_KEY) === DELIVERY_RESET_VERSION) {
@@ -832,7 +837,7 @@ function showUserManagerStatus(message, isError) {
 }
 
 function showView(viewId) {
-  if (viewId === "linkTrackingView" && !isAdminUser()) {
+  if ((viewId === "linkTrackingView" || viewId === "liveMonitorView") && !isAdminUser()) {
     viewId = "interviewerView";
   }
 
@@ -847,6 +852,7 @@ function showView(viewId) {
     interviewerView: "Crear examen",
     createdExamsView: "Exámenes",
     linkTrackingView: "Seguimiento de enlaces",
+    liveMonitorView: "Monitoreo en vivo",
     candidateView: "Responder examen",
     resultsView: "Resultados del candidato",
     answersView: "Respuestas guardadas",
@@ -1093,6 +1099,7 @@ function renderExam() {
   bindDraftSaving();
   bindCandidateExamPagination(totalPages);
   updateFinishExamButtonState();
+  queueLiveExamUpdate();
 }
 
 function renderCandidateExamPagination(totalPages) {
@@ -1250,6 +1257,88 @@ function saveDraftAnswers() {
   answers.__candidateName = candidateNameInput.value.trim();
   answers.__candidateEmail = candidateEmailInput.value.trim();
   localStorage.setItem(getDraftKey(), JSON.stringify(answers));
+  queueLiveExamUpdate();
+}
+
+function getLiveAnswersSnapshot() {
+  if (!state.activeExam) {
+    return [];
+  }
+
+  const formData = new FormData(examForm);
+  const answers = Object.fromEntries(formData.entries());
+
+  return state.activeExam.questions.map((question, index) => {
+    const rawAnswer = String(answers[question.id] || "").trim();
+    let displayAnswer = rawAnswer;
+
+    if (question.type === "closed" && rawAnswer) {
+      const selectedOption = question.options?.find((option) => option.key === rawAnswer);
+      displayAnswer = selectedOption ? `${rawAnswer}) ${selectedOption.text}` : rawAnswer;
+    }
+
+    return {
+      id: question.id,
+      number: index + 1,
+      title: question.title,
+      prompt: question.prompt,
+      area: question.area,
+      type: getQuestionTypeLabel(question),
+      answer: displayAnswer,
+      answered: Boolean(rawAnswer),
+    };
+  });
+}
+
+function queueLiveExamUpdate(status = "Contestando") {
+  if (!isCandidateLink || !state.activeExam || state.candidateAccessDenied) {
+    return;
+  }
+
+  if (liveExamSaveTimer) {
+    clearTimeout(liveExamSaveTimer);
+  }
+
+  liveExamSaveTimer = setTimeout(() => {
+    sendLiveExamUpdate(status).catch(() => {});
+  }, 550);
+}
+
+async function sendLiveExamUpdate(status = "Contestando", keepalive = false) {
+  if (!isCandidateLink || !state.activeExam || state.candidateAccessDenied) {
+    return;
+  }
+
+  const token = getCandidateToken();
+  if (!token) {
+    return;
+  }
+
+  const answers = getLiveAnswersSnapshot();
+  const payload = {
+    token,
+    candidateName: candidateNameInput.value.trim(),
+    candidateEmail: candidateEmailInput.value.trim().toLowerCase(),
+    status,
+    remainingSeconds: state.remainingSeconds,
+    answeredCount: answers.filter((answer) => answer.answered).length,
+    totalQuestions: state.activeExam.questions.length,
+    answers,
+  };
+
+  const request = fetch(`${location.origin}/api/live-exams/${encodeURIComponent(state.activeExam.id)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive,
+    body: JSON.stringify(payload),
+  });
+
+  if (keepalive) {
+    request.catch(() => {});
+    return;
+  }
+
+  await request;
 }
 
 function restoreDraftAnswers() {
@@ -1579,6 +1668,7 @@ async function finishExam(options = {}) {
     document.querySelector("#finishExamButton").disabled = true;
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
+    await sendLiveExamUpdate(forced ? "Finalizado automatico" : "Finalizado", forced);
     state.lastResult = await evaluateAnswersOnServer(
       candidateName,
       candidateEmail,
@@ -1616,6 +1706,7 @@ async function evaluateAnswersOnServer(candidateName, candidateEmail, keepalive 
     keepalive,
     body: JSON.stringify({
       id: state.activeExam.id,
+      candidateToken: getCandidateToken(),
       candidateName,
       candidateEmail,
       securityReason: state.securityFinishReason,
@@ -2355,6 +2446,88 @@ async function renderLinkTracking() {
     </div>
   `;
   bindLinkTrackingControls();
+}
+
+async function renderLiveMonitor() {
+  if (!liveMonitorSummary || !liveMonitorList) {
+    return;
+  }
+
+  if (!isAdminUser()) {
+    liveMonitorSummary.classList.remove("hidden");
+    liveMonitorSummary.textContent = "Solo los administradores pueden ver el monitoreo en vivo.";
+    liveMonitorList.innerHTML = "";
+    return;
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${location.origin}/api/live-exams`, {
+      headers: getAuthHeaders(),
+    }, 9000);
+
+    if (!response.ok) {
+      throw new Error("No se pudo cargar el monitoreo.");
+    }
+
+    const exams = await response.json();
+    liveMonitorSummary.classList.remove("hidden");
+    liveMonitorSummary.textContent = exams.length
+      ? `${exams.length} examen(es) con actividad reciente.`
+      : "Aun no hay candidatos contestando.";
+    liveMonitorList.innerHTML = exams.length
+      ? exams.map(renderLiveMonitorCard).join("")
+      : "";
+  } catch (error) {
+    liveMonitorSummary.classList.remove("hidden");
+    liveMonitorSummary.textContent = "No se pudo cargar el monitoreo en vivo.";
+    liveMonitorList.innerHTML = "";
+  }
+}
+
+function renderLiveMonitorCard(exam) {
+  const answers = Array.isArray(exam.answers) ? exam.answers : [];
+  const updatedAt = exam.updatedAt ? new Date(exam.updatedAt).toLocaleString("es-MX") : "Sin actualizacion";
+  const remaining = formatRemainingTime(Number(exam.remainingSeconds || 0));
+  const statusClass = String(exam.status || "").startsWith("Finalizado") ? "completed" : "opened";
+
+  return `
+    <article class="live-monitor-card">
+      <div class="live-monitor-head">
+        <div>
+          <span class="tracking-status ${statusClass}">${escapeHtml(exam.status || "Contestando")}</span>
+          <h3>${escapeHtml(exam.candidateName || "Candidato sin nombre")}</h3>
+          <p>${escapeHtml(exam.candidateEmail || "Sin correo")} · ${escapeHtml(exam.examId || "")}</p>
+        </div>
+        <div class="live-monitor-stats">
+          <strong>${Number(exam.answeredCount || 0)}/${Number(exam.totalQuestions || answers.length || 0)}</strong>
+          <span>respondidas</span>
+          <strong>${remaining}</strong>
+          <span>restante</span>
+        </div>
+      </div>
+      <small class="live-monitor-updated">Actualizado: ${updatedAt}</small>
+      <div class="live-answer-grid">
+        ${answers.length ? answers.map(renderLiveAnswerItem).join("") : "<p>El candidato aun no ha contestado preguntas.</p>"}
+      </div>
+    </article>
+  `;
+}
+
+function renderLiveAnswerItem(answer) {
+  return `
+    <div class="live-answer-item ${answer.answered ? "answered" : ""}">
+      <strong>${Number(answer.number || 0)}. ${escapeHtml(answer.title || "Pregunta sin titulo")}</strong>
+      <span>${escapeHtml(answer.area || "")} · ${escapeHtml(answer.type || "")}</span>
+      <p>${escapeHtml(answer.answer || "Sin respuesta")}</p>
+    </div>
+  `;
+}
+
+function formatRemainingTime(totalSeconds) {
+  const safeSeconds = Math.max(0, totalSeconds || 0);
+  const minutes = Math.floor(safeSeconds / 60).toString().padStart(2, "0");
+  const seconds = Math.floor(safeSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
 }
 
 function renderLinkStats(stats) {
@@ -3122,6 +3295,9 @@ document.querySelectorAll(".nav-button").forEach((button) => {
     if (button.dataset.view === "linkTrackingView") {
       await renderLinkTracking();
     }
+    if (button.dataset.view === "liveMonitorView") {
+      await renderLiveMonitor();
+    }
     if (button.dataset.view === "answerKeyView") {
       await renderAnswerKey();
     }
@@ -3168,6 +3344,7 @@ togglePasswordButton?.addEventListener("click", () => {
 });
 
 closeIntruderAlertButton?.addEventListener("click", closeIntruderAccessAlert);
+refreshLiveMonitorButton?.addEventListener("click", renderLiveMonitor);
 
 document.querySelector("#copyLinkButton").addEventListener("click", async () => {
   const examLink = document.querySelector("#examLink");
@@ -3345,8 +3522,17 @@ function applyRoleVisibility() {
     if (document.querySelector("#linkTrackingView")?.classList.contains("active")) {
       showView("interviewerView");
     }
+    if (document.querySelector("#liveMonitorView")?.classList.contains("active")) {
+      showView("interviewerView");
+    }
   }
 }
+
+liveMonitorRefreshTimer = window.setInterval(() => {
+  if (document.querySelector("#liveMonitorView")?.classList.contains("active") && isAdminUser()) {
+    renderLiveMonitor();
+  }
+}, 5000);
 
 async function initializeApp() {
   clearDeliveryLocalDataOnce();
@@ -3373,6 +3559,9 @@ async function initializeApp() {
     await renderCreatedExams();
     await renderSavedAnswers();
     await renderAnswerKey();
+    if (isAdminUser()) {
+      await renderLiveMonitor();
+    }
   }
 
   renderExam();

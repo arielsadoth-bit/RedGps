@@ -413,6 +413,37 @@ app.MapPost("/api/exam-access/{examId}", async (string examId, HttpRequest reque
     });
 });
 
+app.MapPost("/api/live-exams/{examId}", async (string examId, HttpRequest request) =>
+{
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var token = GetString(document.RootElement, "token");
+
+    if (string.IsNullOrWhiteSpace(examId) || string.IsNullOrWhiteSpace(token))
+    {
+        return Results.BadRequest(new { error = "El avance no tiene enlace valido." });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    if (!CandidateTokenMatches(connection, examId, token))
+    {
+        return Results.Json(new { error = "No autorizado." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    SaveLiveExamProgress(connection, examId, token, document.RootElement);
+    return Results.Ok(new { ok = true });
+});
+
+app.MapGet("/api/live-exams", (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede ver el monitoreo en vivo." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var connection = OpenConnection(databasePath);
+    return Results.Json(LoadLiveExamProgress(connection));
+});
+
 app.MapPost("/api/evaluate", async (HttpRequest request) =>
 {
     using var document = await JsonDocument.ParseAsync(request.Body);
@@ -771,6 +802,20 @@ static void InitializeDatabase(string databasePath)
             creado_en TEXT NOT NULL DEFAULT ''
         );
 
+        CREATE TABLE IF NOT EXISTS monitoreo_examenes (
+            id_examen TEXT PRIMARY KEY,
+            token_candidato TEXT NOT NULL DEFAULT '',
+            nombre_candidato TEXT NOT NULL DEFAULT '',
+            correo_candidato TEXT NOT NULL DEFAULT '',
+            estado TEXT NOT NULL DEFAULT 'Contestando',
+            tiempo_restante INTEGER NOT NULL DEFAULT 0,
+            respuestas_contestadas INTEGER NOT NULL DEFAULT 0,
+            total_preguntas INTEGER NOT NULL DEFAULT 0,
+            actualizado_en TEXT NOT NULL DEFAULT '',
+            finalizado_en TEXT NOT NULL DEFAULT '',
+            datos_json TEXT NOT NULL DEFAULT '{}'
+        );
+
         CREATE INDEX IF NOT EXISTS idx_resultados_examenes_finalizado_en
         ON resultados_examenes(finalizado_en DESC);
 
@@ -788,6 +833,9 @@ static void InitializeDatabase(string databasePath)
 
         CREATE INDEX IF NOT EXISTS idx_banco_preguntas_area
         ON banco_preguntas(area);
+
+        CREATE INDEX IF NOT EXISTS idx_monitoreo_examenes_actualizado_en
+        ON monitoreo_examenes(actualizado_en DESC);
 
         DROP VIEW IF EXISTS vista_resultados;
         CREATE VIEW vista_resultados AS
@@ -912,6 +960,23 @@ static void InitializeDatabase(string databasePath)
             creado_en
         FROM banco_preguntas
         ORDER BY area, tipo, titulo;
+
+        DROP VIEW IF EXISTS vista_monitoreo_en_vivo;
+        CREATE VIEW vista_monitoreo_en_vivo AS
+        SELECT
+            id_examen,
+            nombre_candidato,
+            correo_candidato,
+            estado,
+            tiempo_restante,
+            respuestas_contestadas,
+            total_preguntas,
+            actualizado_en,
+            finalizado_en
+        FROM monitoreo_examenes
+        ORDER BY
+            CASE estado WHEN 'Contestando' THEN 0 ELSE 1 END,
+            actualizado_en DESC;
         """;
     command.ExecuteNonQuery();
     EnsureColumn(connection, "usuarios_entrevistadores", "rol", "TEXT NOT NULL DEFAULT 'entrevistador'");
@@ -1294,6 +1359,165 @@ static long CountActiveResultsSince(SqliteConnection connection, DateTime since)
         """;
     command.Parameters.AddWithValue("$since", since.ToString("O"));
     return Convert.ToInt64(command.ExecuteScalar() ?? 0);
+}
+
+static bool CandidateTokenMatches(SqliteConnection connection, string examId, string token)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT token_candidato
+        FROM enlaces_examenes
+        WHERE id_examen = $examId
+        LIMIT 1
+        """;
+    command.Parameters.AddWithValue("$examId", examId);
+    var savedToken = Convert.ToString(command.ExecuteScalar()) ?? "";
+
+    return !string.IsNullOrWhiteSpace(savedToken)
+        && string.Equals(savedToken, token, StringComparison.Ordinal);
+}
+
+static void SaveLiveExamProgress(SqliteConnection connection, string examId, string token, JsonElement rootElement)
+{
+    var status = GetString(rootElement, "status");
+    if (string.IsNullOrWhiteSpace(status))
+    {
+        status = "Contestando";
+    }
+
+    var updatedAt = DateTime.UtcNow.ToString("O");
+    var finishedAt = status.StartsWith("Finalizado", StringComparison.OrdinalIgnoreCase)
+        ? updatedAt
+        : "";
+    var payload = JsonSerializer.Serialize(rootElement);
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        INSERT INTO monitoreo_examenes (
+            id_examen,
+            token_candidato,
+            nombre_candidato,
+            correo_candidato,
+            estado,
+            tiempo_restante,
+            respuestas_contestadas,
+            total_preguntas,
+            actualizado_en,
+            finalizado_en,
+            datos_json
+        )
+        VALUES (
+            $examId,
+            $token,
+            $candidateName,
+            $candidateEmail,
+            $status,
+            $remainingSeconds,
+            $answeredCount,
+            $totalQuestions,
+            $updatedAt,
+            $finishedAt,
+            $payload
+        )
+        ON CONFLICT(id_examen) DO UPDATE SET
+            token_candidato = excluded.token_candidato,
+            nombre_candidato = excluded.nombre_candidato,
+            correo_candidato = excluded.correo_candidato,
+            estado = excluded.estado,
+            tiempo_restante = excluded.tiempo_restante,
+            respuestas_contestadas = excluded.respuestas_contestadas,
+            total_preguntas = excluded.total_preguntas,
+            actualizado_en = excluded.actualizado_en,
+            finalizado_en = CASE
+                WHEN excluded.finalizado_en <> '' THEN excluded.finalizado_en
+                ELSE monitoreo_examenes.finalizado_en
+            END,
+            datos_json = excluded.datos_json
+        """;
+    command.Parameters.AddWithValue("$examId", examId);
+    command.Parameters.AddWithValue("$token", token);
+    command.Parameters.AddWithValue("$candidateName", GetString(rootElement, "candidateName"));
+    command.Parameters.AddWithValue("$candidateEmail", GetString(rootElement, "candidateEmail"));
+    command.Parameters.AddWithValue("$status", status);
+    command.Parameters.AddWithValue("$remainingSeconds", GetInt(rootElement, "remainingSeconds"));
+    command.Parameters.AddWithValue("$answeredCount", GetInt(rootElement, "answeredCount"));
+    command.Parameters.AddWithValue("$totalQuestions", GetInt(rootElement, "totalQuestions"));
+    command.Parameters.AddWithValue("$updatedAt", updatedAt);
+    command.Parameters.AddWithValue("$finishedAt", finishedAt);
+    command.Parameters.AddWithValue("$payload", payload);
+    command.ExecuteNonQuery();
+}
+
+static List<object> LoadLiveExamProgress(SqliteConnection connection)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT
+            id_examen,
+            nombre_candidato,
+            correo_candidato,
+            estado,
+            tiempo_restante,
+            respuestas_contestadas,
+            total_preguntas,
+            actualizado_en,
+            finalizado_en,
+            datos_json
+        FROM monitoreo_examenes
+        ORDER BY
+            CASE estado WHEN 'Contestando' THEN 0 ELSE 1 END,
+            actualizado_en DESC
+        LIMIT 100
+        """;
+
+    var items = new List<object>();
+    using var reader = command.ExecuteReader();
+    while (reader.Read())
+    {
+        var answers = new List<object>();
+        var payload = GetDbString(reader, 9);
+
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (document.RootElement.TryGetProperty("answers", out var answersElement) && answersElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var answer in answersElement.EnumerateArray())
+                {
+                    answers.Add(new
+                    {
+                        number = GetInt(answer, "number"),
+                        title = GetString(answer, "title"),
+                        prompt = GetString(answer, "prompt"),
+                        area = GetString(answer, "area"),
+                        type = GetString(answer, "type"),
+                        answer = GetString(answer, "answer"),
+                        answered = GetBool(answer, "answered", false)
+                    });
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            answers.Clear();
+        }
+
+        items.Add(new
+        {
+            examId = GetDbString(reader, 0),
+            candidateName = GetDbString(reader, 1),
+            candidateEmail = GetDbString(reader, 2),
+            status = GetDbString(reader, 3),
+            remainingSeconds = reader.GetInt32(4),
+            answeredCount = reader.GetInt32(5),
+            totalQuestions = reader.GetInt32(6),
+            updatedAt = GetDbString(reader, 7),
+            finishedAt = GetDbString(reader, 8),
+            answers
+        });
+    }
+
+    return items;
 }
 
 static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, string password)
