@@ -27,6 +27,7 @@ const examNameInput = document.querySelector("#examName");
 const candidateEmailInput = document.querySelector("#candidateEmail");
 const questionCountInput = document.querySelector("#questionCount");
 const createManualExamButton = document.querySelector("#createManualExamButton");
+const toggleQuestionSelectionButton = document.querySelector("#toggleQuestionSelectionButton");
 const examForm = document.querySelector("#examForm");
 const resultList = document.querySelector("#resultList");
 const resultSummary = document.querySelector("#resultSummary");
@@ -175,6 +176,12 @@ function renderQuestionBank() {
       deleteQuestionById(button.dataset.questionId || "");
     });
   });
+
+  document.querySelectorAll("#questionBank input[type='checkbox']").forEach((input) => {
+    input.addEventListener("change", updateQuestionSelectionToggleLabel);
+  });
+
+  updateQuestionSelectionToggleLabel();
 }
 
 function syncQuestionCountLimit() {
@@ -651,6 +658,27 @@ function getSelectedQuestions() {
   return [...document.querySelectorAll("#questionBank input:checked")]
     .map((input) => questions.find((question) => question.id === input.value))
     .filter(Boolean);
+}
+
+function updateQuestionSelectionToggleLabel() {
+  if (!toggleQuestionSelectionButton) {
+    return;
+  }
+
+  const checkboxes = [...document.querySelectorAll("#questionBank input[type='checkbox']")];
+  const allSelected = checkboxes.length > 0 && checkboxes.every((input) => input.checked);
+  toggleQuestionSelectionButton.textContent = allSelected ? "Deseleccionar todo" : "Seleccionar todo";
+}
+
+function toggleQuestionSelection() {
+  const checkboxes = [...document.querySelectorAll("#questionBank input[type='checkbox']")];
+  const allSelected = checkboxes.length > 0 && checkboxes.every((input) => input.checked);
+
+  checkboxes.forEach((input) => {
+    input.checked = !allSelected;
+  });
+
+  updateQuestionSelectionToggleLabel();
 }
 
 async function createExam(mode = "random") {
@@ -2616,6 +2644,8 @@ document.querySelector("#createExamButton").addEventListener("click", () => {
 createManualExamButton?.addEventListener("click", () => {
   createExam("manual");
 });
+
+toggleQuestionSelectionButton?.addEventListener("click", toggleQuestionSelection);
 
 document.querySelector("#newExamShortcutButton")?.addEventListener("click", () => {
   showView("interviewerView");
