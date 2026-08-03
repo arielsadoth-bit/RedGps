@@ -1238,13 +1238,7 @@ async function createExam(mode = "random") {
 
     examQuestions = selectedQuestions;
   } else {
-    if (selectedQuestions.length !== questionCount) {
-      alert(`Para generar el examen aleatorio selecciona exactamente ${questionCount} pregunta(s). Actualmente tienes ${selectedQuestions.length} seleccionada(s).`);
-      questionCountInput.focus();
-      return;
-    }
-
-    examQuestions = pickRandomQuestions(selectedQuestions, questionCount);
+    examQuestions = pickRandomQuestions(bankQuestions, questionCount);
   }
 
   selectOnlyExamQuestions(examQuestions);
@@ -1957,6 +1951,15 @@ function bindCandidateSecurityRules() {
     return;
   }
 
+  const devtoolsThreshold = 160;
+  const detectDevTools = () => {
+    const widthGap = Math.abs(window.outerWidth - window.innerWidth);
+    const heightGap = Math.abs(window.outerHeight - window.innerHeight);
+    if (widthGap > devtoolsThreshold || heightGap > devtoolsThreshold) {
+      triggerSecurityFinish("El candidato abrió las herramientas de inspección del navegador.");
+    }
+  };
+
   let visibilityTimeout = null;
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
@@ -1964,7 +1967,7 @@ function bindCandidateSecurityRules() {
         if (document.visibilityState === "hidden") {
           triggerSecurityFinish("El candidato cambió de pestaña, minimizó o salió de la página.");
         }
-      }, 2500);
+      }, 700);
       return;
     }
 
@@ -1977,6 +1980,20 @@ function bindCandidateSecurityRules() {
   window.addEventListener("pagehide", () => {
     triggerSecurityFinish("El candidato cerró o abandonó la página del examen.");
   });
+
+  window.addEventListener("resize", detectDevTools);
+  window.addEventListener("keydown", (event) => {
+    const key = String(event.key || "").toLowerCase();
+    const opensDevTools = event.key === "F12"
+      || (event.ctrlKey && event.shiftKey && ["i", "j", "c"].includes(key));
+
+    if (opensDevTools) {
+      event.preventDefault();
+      triggerSecurityFinish("El candidato intentó abrir las herramientas de inspección del navegador.");
+    }
+  });
+
+  detectDevTools();
 }
 
 async function finishExam(options = {}) {
