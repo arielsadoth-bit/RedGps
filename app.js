@@ -640,7 +640,7 @@ function showView(viewId) {
     candidateView: "Candidato",
     resultsView: "Resultados",
     answersView: "Respuestas guardadas",
-    answerKeyView: "Correctas",
+    answerKeyView: "Respuestas correctas",
   };
   modeLabel.dataset.viewLabel = labels[viewId] || "";
   updateSessionBadge();
