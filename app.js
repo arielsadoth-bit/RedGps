@@ -656,7 +656,7 @@ function showView(viewId) {
 
   const labels = {
     interviewerView: "Crear examen",
-    createdExamsView: "Exámenes",
+    createdExamsView: "Resultados del candidato",
     candidateView: "Candidato",
     resultsView: "Resultados",
     answersView: "Respuestas guardadas",
