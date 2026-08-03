@@ -698,6 +698,7 @@ async function createExam(mode = "random") {
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
   const examName = examNameInput.value.trim();
+  const maxQuestions = Math.max(1, questions.length);
 
   if (!examName) {
     alert("Escribe el nombre del examen.");
@@ -705,8 +706,13 @@ async function createExam(mode = "random") {
     return;
   }
 
+  if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > maxQuestions) {
+    alert(`La cantidad de preguntas debe estar entre 1 y ${maxQuestions}.`);
+    questionCountInput.focus();
+    return;
+  }
+
   let examQuestions = [];
-  let savedQuestionCount = questionCount;
 
   if (mode === "manual") {
     if (!selectedQuestions.length) {
@@ -714,16 +720,8 @@ async function createExam(mode = "random") {
       return;
     }
 
-    examQuestions = selectedQuestions;
-    savedQuestionCount = selectedQuestions.length;
+    examQuestions = selectedQuestions.slice(0, questionCount);
   } else {
-    const maxQuestions = Math.max(1, questions.length);
-    if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > maxQuestions) {
-      alert(`La cantidad de preguntas debe estar entre 1 y ${maxQuestions}.`);
-      questionCountInput.focus();
-      return;
-    }
-
     examQuestions = pickExamQuestions(questions, questionCount);
   }
 
@@ -744,7 +742,7 @@ async function createExam(mode = "random") {
     id: state.activeExam.id,
     examName,
     candidateEmail: "",
-    questionCount: savedQuestionCount,
+    questionCount: state.activeExam.questions.length,
     linkCount: 1,
     link,
     timeLimit: state.activeExam.timeLimit,
