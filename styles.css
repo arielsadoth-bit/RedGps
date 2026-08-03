@@ -1047,6 +1047,41 @@ textarea {
   margin-bottom: 14px;
 }
 
+.link-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.link-stat-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 18px;
+}
+
+.link-stat-card span,
+.link-stat-card small {
+  display: block;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.link-stat-card strong {
+  display: block;
+  margin: 8px 0 2px;
+  color: var(--accent-dark);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.link-stat-card p {
+  margin-bottom: 10px;
+  color: var(--ink);
+  font-weight: 900;
+}
+
 .search-field input {
   min-height: 48px;
 }
@@ -1087,6 +1122,10 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .link-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pagination-bar {
     align-items: stretch;
     flex-direction: column;
@@ -1116,7 +1155,7 @@ textarea {
 
 .created-exams-table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 1220px;
   border-collapse: collapse;
 }
 
@@ -1165,6 +1204,31 @@ textarea {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tracking-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.tracking-status.generated {
+  background: #eef2f7;
+  color: #111827;
+}
+
+.tracking-status.opened {
+  background: #fff7ed;
+  color: #b54708;
+}
+
+.tracking-status.completed {
+  background: #ecfdf3;
+  color: #027a48;
 }
 
 .pagination-bar {

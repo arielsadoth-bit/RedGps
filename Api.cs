@@ -239,18 +239,22 @@ app.MapGet("/api/exams", (HttpRequest request) =>
     using var command = connection.CreateCommand();
     command.CommandText = """
         SELECT
-            id,
-            nombre_examen,
-            cantidad_preguntas,
-            cantidad_links,
-            correo_candidato,
-            link_acceso,
-            tiempo_minutos,
-            creado_por,
-            creado_en,
-            datos_json
-        FROM examenes_creados
-        ORDER BY creado_en DESC
+            e.id,
+            e.nombre_examen,
+            e.cantidad_preguntas,
+            e.cantidad_links,
+            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, '') AS correo_candidato,
+            e.link_acceso,
+            e.tiempo_minutos,
+            e.creado_por,
+            e.creado_en,
+            e.datos_json,
+            COALESCE(l.tomado_en, '') AS abierto_en,
+            COALESCE(r.finalizado_en, '') AS completado_en
+        FROM examenes_creados e
+        LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
+        LEFT JOIN resultados_examenes r ON r.id = e.id
+        ORDER BY e.creado_en DESC
         LIMIT 200
         """;
 
@@ -272,11 +276,32 @@ app.MapGet("/api/exams", (HttpRequest request) =>
             timeLimit = reader.GetInt32(6),
             createdBy = reader.GetString(7),
             createdAt = reader.GetString(8),
+            openedAt = GetDbString(reader, 10),
+            completedAt = GetDbString(reader, 11),
             questionIds = GetStringArray(rootElement, "questionIds")
         });
     }
 
     return Results.Json(exams);
+});
+
+app.MapGet("/api/link-stats", (HttpRequest request) =>
+{
+    if (!TryGetInterviewer(request, sessions, out _))
+    {
+        return Results.Unauthorized();
+    }
+
+    using var connection = OpenConnection(databasePath);
+    var now = DateTime.UtcNow;
+    var currentMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    return Results.Json(new
+    {
+        day = BuildLinkStats(connection, now.Date),
+        week = BuildLinkStats(connection, now.Date.AddDays(-6)),
+        month = BuildLinkStats(connection, currentMonth)
+    });
 });
 
 app.MapPost("/api/exams", async (HttpRequest request) =>
@@ -766,16 +791,44 @@ static void InitializeDatabase(string databasePath)
         DROP VIEW IF EXISTS vista_examenes_creados;
         CREATE VIEW vista_examenes_creados AS
         SELECT
-            id AS id_examen,
-            nombre_examen,
-            cantidad_preguntas,
-            cantidad_links,
-            correo_candidato,
-            link_acceso,
-            tiempo_minutos,
-            creado_por,
-            creado_en
-        FROM examenes_creados;
+            e.id AS id_examen,
+            e.nombre_examen,
+            e.cantidad_preguntas,
+            e.cantidad_links,
+            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, '') AS correo_candidato,
+            e.link_acceso,
+            e.tiempo_minutos,
+            e.creado_por,
+            e.creado_en,
+            COALESCE(l.tomado_en, '') AS abierto_en,
+            COALESCE(r.finalizado_en, '') AS completado_en,
+            CASE
+                WHEN r.finalizado_en IS NOT NULL THEN 'Examen terminado'
+                WHEN l.tomado_en IS NOT NULL THEN 'Link abierto'
+                ELSE 'Link generado'
+            END AS estado
+        FROM examenes_creados e
+        LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
+        LEFT JOIN resultados_examenes r ON r.id = e.id;
+
+        DROP VIEW IF EXISTS vista_seguimiento_enlaces;
+        CREATE VIEW vista_seguimiento_enlaces AS
+        SELECT
+            e.id AS id_examen,
+            e.nombre_examen,
+            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, '') AS correo_candidato,
+            e.creado_por,
+            e.creado_en AS link_generado_en,
+            COALESCE(l.tomado_en, '') AS link_abierto_en,
+            COALESCE(r.finalizado_en, '') AS examen_terminado_en,
+            CASE
+                WHEN r.finalizado_en IS NOT NULL THEN 'Examen terminado'
+                WHEN l.tomado_en IS NOT NULL THEN 'Link abierto'
+                ELSE 'Link generado'
+            END AS estado
+        FROM examenes_creados e
+        LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
+        LEFT JOIN resultados_examenes r ON r.id = e.id;
 
         DROP VIEW IF EXISTS vista_usuarios_entrevistadores;
         CREATE VIEW vista_usuarios_entrevistadores AS
@@ -1153,6 +1206,24 @@ static T? DeserializeJson<T>(string value)
 static string GetDbString(SqliteDataReader reader, int ordinal)
 {
     return reader.IsDBNull(ordinal) ? "" : reader.GetString(ordinal);
+}
+
+static object BuildLinkStats(SqliteConnection connection, DateTime since)
+{
+    return new
+    {
+        generated = CountRowsSince(connection, "examenes_creados", "creado_en", since),
+        opened = CountRowsSince(connection, "enlaces_examenes", "tomado_en", since),
+        completed = CountRowsSince(connection, "resultados_examenes", "finalizado_en", since)
+    };
+}
+
+static long CountRowsSince(SqliteConnection connection, string tableName, string columnName, DateTime since)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = $"SELECT COUNT(*) FROM {tableName} WHERE {columnName} >= $since";
+    command.Parameters.AddWithValue("$since", since.ToString("O"));
+    return Convert.ToInt64(command.ExecuteScalar() ?? 0);
 }
 
 static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, string password)

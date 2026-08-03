@@ -1932,6 +1932,30 @@ async function getServerCreatedExams() {
   return getCreatedExamHistory();
 }
 
+async function getLinkStats() {
+  if (!location.protocol.startsWith("http") || !hasInterviewerSession()) {
+    return null;
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${location.origin}/api/link-stats`, {
+      headers: getAuthHeaders(),
+    }, 9000);
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      expireInterviewerSession(response.status === 403);
+    }
+  } catch {
+    console.warn("No se pudieron cargar las estadísticas de enlaces.");
+  }
+
+  return null;
+}
+
 async function renderCreatedExams() {
   if (!createdExamsSummary || !createdExamsList) {
     return;
@@ -1953,6 +1977,7 @@ async function renderCreatedExams() {
   }
 
   const filteredExams = filterCreatedExams(exams);
+  const linkStats = await getLinkStats();
   const hasFilters = hasActiveFilters(state.createdExamFilters);
   const totalPages = Math.max(1, Math.ceil(filteredExams.length / CREATED_EXAMS_PAGE_SIZE));
   state.createdExamsPage = Math.min(Math.max(1, state.createdExamsPage), totalPages);
@@ -1962,10 +1987,11 @@ async function renderCreatedExams() {
   createdExamsSummary.textContent = "";
   createdExamsSummary.classList.add("hidden");
   createdExamsList.innerHTML = `
+    ${renderLinkStats(linkStats)}
     <div class="answers-tools table-filter-tools">
       <label class="field search-field">
         Correo
-        <input id="createdExamEmailFilter" value="${escapeHtml(state.createdExamFilters.email)}" placeholder="Candidato o quien lo creo" autocomplete="off" />
+        <input id="createdExamEmailFilter" value="${escapeHtml(state.createdExamFilters.email)}" placeholder="Candidato o quien lo creó" autocomplete="off" />
       </label>
       <label class="field search-field">
         Desde
@@ -1982,11 +2008,12 @@ async function renderCreatedExams() {
         <thead>
           <tr>
             <th>Nombre del examen</th>
-            <th>Num preguntas</th>
-            <th>Num links generados</th>
+            <th>Núm. preguntas</th>
+            <th>Núm. links generados</th>
             <th>Generado por</th>
             <th>Correo capturado</th>
-            <th>Link unico de acceso</th>
+            <th>Estado</th>
+            <th>Link único de acceso</th>
           </tr>
         </thead>
         <tbody>
@@ -1999,6 +2026,31 @@ async function renderCreatedExams() {
     ${filteredExams.length > CREATED_EXAMS_PAGE_SIZE ? renderCreatedExamsPagination(filteredExams.length, totalPages) : ""}
   `;
   bindCreatedExamControls();
+}
+
+function renderLinkStats(stats) {
+  if (!stats) {
+    return "";
+  }
+
+  const cards = [
+    ["Hoy", stats.day],
+    ["Últimos 7 días", stats.week],
+    ["Este mes", stats.month],
+  ];
+
+  return `
+    <div class="link-stats-grid" aria-label="Seguimiento de enlaces">
+      ${cards.map(([label, values]) => `
+        <article class="link-stat-card">
+          <span>${label}</span>
+          <strong>${Number(values?.generated || 0)}</strong>
+          <p>links generados</p>
+          <small>${Number(values?.opened || 0)} abiertos · ${Number(values?.completed || 0)} terminados</small>
+        </article>
+      `).join("")}
+    </div>
+  `;
 }
 
 function renderCreatedExamsPagination(totalItems, totalPages) {
@@ -2019,6 +2071,7 @@ function renderCreatedExamsPagination(totalItems, totalPages) {
 
 function renderCreatedExamRow(exam) {
   const createdAt = exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha";
+  const tracking = getExamTrackingStatus(exam);
   return `
     <tr>
       <td>
@@ -2030,6 +2083,10 @@ function renderCreatedExamRow(exam) {
       <td>${escapeHtml(exam.createdBy || exam.creadoPor || "Sin registro")}</td>
       <td>${escapeHtml(exam.candidateEmail || "Sin correo")}</td>
       <td>
+        <span class="tracking-status ${tracking.className}">${tracking.label}</span>
+        <small>${tracking.dateLabel}</small>
+      </td>
+      <td>
         <div class="created-link-cell">
           <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
           <button class="ghost-button copy-created-link-button" type="button" data-link="${escapeHtml(exam.link || "")}">Copiar</button>
@@ -2037,6 +2094,30 @@ function renderCreatedExamRow(exam) {
       </td>
     </tr>
   `;
+}
+
+function getExamTrackingStatus(exam) {
+  if (exam.completedAt) {
+    return {
+      className: "completed",
+      label: "Examen terminado",
+      dateLabel: new Date(exam.completedAt).toLocaleString("es-MX"),
+    };
+  }
+
+  if (exam.openedAt) {
+    return {
+      className: "opened",
+      label: "Link abierto",
+      dateLabel: new Date(exam.openedAt).toLocaleString("es-MX"),
+    };
+  }
+
+  return {
+    className: "generated",
+    label: "Link generado",
+    dateLabel: exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha",
+  };
 }
 
 function bindCreatedExamControls() {
@@ -2115,7 +2196,7 @@ function bindCreatedExamFilterControls() {
 function renderNoSearchResultsRow(hasFilters) {
   return `
     <tr>
-      <td class="empty-table-cell" colspan="6">
+      <td class="empty-table-cell" colspan="7">
         ${hasFilters ? "No se encontraron exámenes con esos filtros." : "No hay exámenes para mostrar."}
       </td>
     </tr>
