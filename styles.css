@@ -567,6 +567,7 @@ textarea {
 }
 
 .question-bank-layout {
+  align-items: start;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 18px;
@@ -574,6 +575,7 @@ textarea {
 }
 
 .question-bank-layout .question-bank {
+  align-self: start;
   margin-top: 0;
 }
 
@@ -635,7 +637,7 @@ textarea {
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  min-height: 120px;
+  min-height: 96px;
   padding: 18px 26px;
 }
 
