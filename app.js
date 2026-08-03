@@ -401,7 +401,7 @@ function renderQuestionBank() {
     updateAreaBankVisibility();
     document.querySelector("#toggleQuestionBankButton").textContent = isHidden
       ? "Ver preguntas"
-      : "Ocultar preguntas activas";
+      : "Ocultar preguntas";
   });
 
   document.querySelectorAll(".question-delete-button").forEach((button) => {
@@ -434,7 +434,7 @@ function renderQuestionBank() {
       renderQuestionBank();
       if (listWasOpen) {
         document.querySelector("#questionBankList")?.classList.remove("hidden");
-        document.querySelector("#toggleQuestionBankButton").textContent = "Ocultar preguntas activas";
+        document.querySelector("#toggleQuestionBankButton").textContent = "Ocultar preguntas";
       }
       updateAreaBankVisibility();
     });
