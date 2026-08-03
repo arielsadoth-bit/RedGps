@@ -1,5 +1,6 @@
 ﻿let questions = [];
 let jobPositions = [];
+let jobPositionsLoaded = false;
 
 const state = {
   activeExam: null,
@@ -158,6 +159,7 @@ async function loadQuestions() {
 async function loadJobPositions() {
   if (!location.protocol.startsWith("http")) {
     jobPositions = DEFAULT_JOB_POSITIONS.map((name) => ({ name }));
+    jobPositionsLoaded = false;
     syncQuestionAreaOptions();
     return;
   }
@@ -165,7 +167,8 @@ async function loadJobPositions() {
   try {
     const response = await fetchWithTimeout(`${location.origin}/api/positions`, {}, 9000);
     const data = response.ok ? await response.json() : [];
-    jobPositions = Array.isArray(data) && data.length
+    jobPositionsLoaded = response.ok;
+    jobPositions = Array.isArray(data)
       ? data
           .map((position) => ({
             id: position.id || position.Id || "",
@@ -177,6 +180,7 @@ async function loadJobPositions() {
       : DEFAULT_JOB_POSITIONS.map((name) => ({ name }));
   } catch {
     jobPositions = DEFAULT_JOB_POSITIONS.map((name) => ({ name }));
+    jobPositionsLoaded = false;
   }
 
   syncQuestionAreaOptions();
@@ -217,11 +221,19 @@ function normalizeAreaText(value) {
 }
 
 function getKnownPositionNames() {
-  const names = (jobPositions.length ? jobPositions : DEFAULT_JOB_POSITIONS.map((name) => ({ name })))
+  const source = jobPositions.length || jobPositionsLoaded
+    ? jobPositions
+    : DEFAULT_JOB_POSITIONS.map((name) => ({ name }));
+  const names = source
     .map((position) => String(position.name || position).trim())
     .filter(Boolean);
 
   return [...new Set(names)];
+}
+
+function isKnownPositionActive(name) {
+  const normalizedName = normalizeAreaText(name);
+  return getKnownPositionNames().some((position) => normalizeAreaText(position) === normalizedName);
 }
 
 function getQuestionBankArea(question) {
@@ -241,14 +253,14 @@ function getQuestionBankArea(question) {
     area.includes("ios") ||
     area.includes("programacion")
   ) {
-    return "Área de Desarrollo";
+    return isKnownPositionActive("Área de Desarrollo") ? "Área de Desarrollo" : "Otras áreas";
   }
 
-  if (area.includes("operacion")) return "Área de Operaciones";
-  if (area.includes("comercial") || area.includes("ventas")) return "Área Comercial";
-  if (area.includes("marketing") || area.includes("mercadotecnia")) return "Área de Marketing";
-  if (area.includes("administrativa") || area.includes("administracion")) return "Área Administrativa";
-  if (area.includes("direccion") || area.includes("directiva")) return "Área de Dirección";
+  if (area.includes("operacion")) return isKnownPositionActive("Área de Operaciones") ? "Área de Operaciones" : "Otras áreas";
+  if (area.includes("comercial") || area.includes("ventas")) return isKnownPositionActive("Área Comercial") ? "Área Comercial" : "Otras áreas";
+  if (area.includes("marketing") || area.includes("mercadotecnia")) return isKnownPositionActive("Área de Marketing") ? "Área de Marketing" : "Otras áreas";
+  if (area.includes("administrativa") || area.includes("administracion")) return isKnownPositionActive("Área Administrativa") ? "Área Administrativa" : "Otras áreas";
+  if (area.includes("direccion") || area.includes("directiva")) return isKnownPositionActive("Área de Dirección") ? "Área de Dirección" : "Otras áreas";
 
   return "Otras áreas";
 }
@@ -262,7 +274,7 @@ function getAvailableBankAreas() {
     }
   });
 
-  return areas.length ? areas : [...DEFAULT_JOB_POSITIONS];
+  return areas.length ? areas : (jobPositionsLoaded ? [] : [...DEFAULT_JOB_POSITIONS]);
 }
 
 function syncQuestionAreaOptions() {
@@ -285,7 +297,7 @@ function syncQuestionAreaOptions() {
 function getQuestionsForSelectedArea() {
   const availableAreas = getAvailableBankAreas();
   if (!availableAreas.includes(state.selectedQuestionArea)) {
-    state.selectedQuestionArea = availableAreas[0] || DEFAULT_JOB_POSITIONS[0];
+    state.selectedQuestionArea = availableAreas[0] || "";
   }
 
   return questions.filter((question) => getQuestionBankArea(question) === state.selectedQuestionArea);
@@ -738,6 +750,7 @@ async function renderPositionManager() {
           <tr>
             <th>Puesto</th>
             <th>Preguntas activas</th>
+            <th>Acción</th>
           </tr>
         </thead>
         <tbody>
@@ -747,6 +760,11 @@ async function renderPositionManager() {
               <tr>
                 <td><strong>${escapeHtml(position)}</strong></td>
                 <td><strong>${count}</strong></td>
+                <td>
+                  <button class="danger-button icon-button position-delete-button" type="button" data-position-name="${escapeHtml(position)}" aria-label="Quitar puesto" title="Quitar puesto">
+                    ${getActionIcon("trash")}
+                  </button>
+                </td>
               </tr>
             `;
           }).join("")}
@@ -754,6 +772,12 @@ async function renderPositionManager() {
       </table>
     </div>
   `;
+
+  positionManagerList.querySelectorAll(".position-delete-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      deletePosition(button.dataset.positionName || "");
+    });
+  });
 }
 
 async function createPositionFromForm(event) {
@@ -795,6 +819,52 @@ async function createPositionFromForm(event) {
   renderQuestionBank();
   await renderPositionManager();
   showPositionManagerStatus("Puesto agregado. Ya puedes crear preguntas para ese puesto.", false);
+}
+
+async function deletePosition(positionName) {
+  if (!isAdminUser()) {
+    expireInterviewerSession(true);
+    return;
+  }
+
+  const name = String(positionName || "").trim();
+  if (!name) {
+    return;
+  }
+
+  const count = questions.filter((question) => getQuestionBankArea(question) === name).length;
+  const message = count
+    ? `Vas a quitar el puesto "${name}". Sus ${count} pregunta(s) se conservan en la base, pero ya no apareceran bajo ese puesto.\n\n¿Continuar?`
+    : `Vas a quitar el puesto "${name}".\n\n¿Continuar?`;
+
+  if (!confirm(message)) {
+    return;
+  }
+
+  const response = await fetchWithTimeout(`${location.origin}/api/positions`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify({ name }),
+  }, 9000);
+
+  if (response.status === 401 || response.status === 403) {
+    expireInterviewerSession(response.status === 403);
+    showPositionManagerStatus("Tu sesión expiró. Inicia sesión.", true);
+    return;
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    showPositionManagerStatus(data.error || "No se pudo quitar el puesto.", true);
+    return;
+  }
+
+  await loadQuestions();
+  const areas = getAvailableBankAreas();
+  state.selectedQuestionArea = areas[0] || "";
+  renderQuestionBank();
+  await renderPositionManager();
+  showPositionManagerStatus("Puesto quitado. Si lo necesitas otra vez, agregalo de nuevo.", false);
 }
 
 function showPositionManagerStatus(message, isError) {

@@ -142,6 +142,26 @@ app.MapPost("/api/positions", async (HttpRequest request) =>
     return Results.Ok(new { ok = true });
 });
 
+app.MapDelete("/api/positions", async (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede quitar puestos." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var name = GetString(document.RootElement, "name").Trim();
+
+    if (name.Length < 3)
+    {
+        return Results.BadRequest(new { error = "Selecciona un puesto valido." });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    var updated = DisableJobPosition(connection, name);
+    return Results.Ok(new { ok = true, updated });
+});
+
 app.MapGet("/api/users", (HttpRequest request) =>
 {
     if (!TryRequireRole(request, sessions, out _, "admin"))
@@ -1188,7 +1208,7 @@ static void SeedJobPositions(SqliteConnection connection)
 {
     foreach (var position in AppData.DefaultJobPositions)
     {
-        SaveJobPosition(connection, position);
+        InsertDefaultJobPosition(connection, position);
     }
 }
 
@@ -1239,6 +1259,45 @@ static void SaveJobPosition(SqliteConnection connection, string name)
     command.Parameters.AddWithValue("$name", name);
     command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
     command.ExecuteNonQuery();
+}
+
+static void InsertDefaultJobPosition(SqliteConnection connection, string name)
+{
+    name = NormalizeJobPositionName(name);
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        return;
+    }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        INSERT OR IGNORE INTO puestos_trabajo
+            (id, nombre, activo, creado_en)
+        VALUES
+            ($id, $name, 1, $createdAt)
+        """;
+    command.Parameters.AddWithValue("$id", $"puesto-{GenerateQuestionId(name)}");
+    command.Parameters.AddWithValue("$name", name);
+    command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
+    command.ExecuteNonQuery();
+}
+
+static int DisableJobPosition(SqliteConnection connection, string name)
+{
+    name = NormalizeJobPositionName(name);
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        return 0;
+    }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        UPDATE puestos_trabajo
+        SET activo = 0
+        WHERE nombre = $name
+        """;
+    command.Parameters.AddWithValue("$name", name);
+    return command.ExecuteNonQuery();
 }
 
 static string NormalizeJobPositionName(string name)
