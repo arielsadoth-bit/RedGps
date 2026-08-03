@@ -1684,6 +1684,26 @@ textarea {
   width: 20px;
 }
 
+.icon-text-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 112px;
+  padding: 0 14px;
+}
+
+.icon-text-button svg {
+  fill: none;
+  height: 19px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+  width: 19px;
+}
+
 .danger-button {
   border: 1px solid rgba(180, 35, 24, 0.22);
   background: #fff7f5;

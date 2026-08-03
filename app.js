@@ -761,8 +761,9 @@ async function renderPositionManager() {
                 <td><strong>${escapeHtml(position)}</strong></td>
                 <td><strong>${count}</strong></td>
                 <td>
-                  <button class="danger-button icon-button position-delete-button" type="button" data-position-name="${escapeHtml(position)}" aria-label="Quitar puesto" title="Quitar puesto">
+                  <button class="danger-button icon-text-button position-delete-button" type="button" data-position-name="${escapeHtml(position)}" aria-label="Borrar puesto" title="Borrar puesto">
                     ${getActionIcon("trash")}
+                    <span>Borrar</span>
                   </button>
                 </td>
               </tr>
@@ -834,8 +835,8 @@ async function deletePosition(positionName) {
 
   const count = questions.filter((question) => getQuestionBankArea(question) === name).length;
   const message = count
-    ? `Vas a quitar el puesto "${name}". Sus ${count} pregunta(s) se conservan en la base, pero ya no apareceran bajo ese puesto.\n\n¿Continuar?`
-    : `Vas a quitar el puesto "${name}".\n\n¿Continuar?`;
+    ? `¿Seguro que quieres borrar el puesto "${name}"?\n\nTiene ${count} pregunta(s) activa(s). Las preguntas se conservan en la base de datos, pero ya no aparecerán bajo este puesto.\n\nEsta acción se puede revertir agregando el puesto otra vez.`
+    : `¿Seguro que quieres borrar el puesto "${name}"?\n\nEsta acción se puede revertir agregando el puesto otra vez.`;
 
   if (!confirm(message)) {
     return;
