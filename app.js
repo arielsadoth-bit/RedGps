@@ -694,6 +694,15 @@ function toggleQuestionSelection() {
   updateQuestionSelectionToggleLabel();
 }
 
+function selectOnlyExamQuestions(examQuestions) {
+  const selectedIds = new Set(examQuestions.map((question) => question.id));
+  document.querySelectorAll("#questionBank input[type='checkbox']").forEach((input) => {
+    input.checked = selectedIds.has(input.value);
+  });
+
+  updateQuestionSelectionToggleLabel();
+}
+
 async function createExam(mode = "random") {
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
@@ -724,6 +733,8 @@ async function createExam(mode = "random") {
   } else {
     examQuestions = pickExamQuestions(questions, questionCount);
   }
+
+  selectOnlyExamQuestions(examQuestions);
 
   state.activeExam = {
     id: createId(),
