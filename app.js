@@ -40,6 +40,8 @@ const answersSummary = document.querySelector("#answersSummary");
 const answersList = document.querySelector("#answersList");
 const createdExamsSummary = document.querySelector("#createdExamsSummary");
 const createdExamsList = document.querySelector("#createdExamsList");
+const linkTrackingSummary = document.querySelector("#linkTrackingSummary");
+const linkTrackingList = document.querySelector("#linkTrackingList");
 const answerKeyList = document.querySelector("#answerKeyList");
 const questionForm = document.querySelector("#questionForm");
 const questionAreaInput = document.querySelector("#questionArea");
@@ -647,6 +649,10 @@ function showUserManagerStatus(message, isError) {
 }
 
 function showView(viewId) {
+  if (viewId === "linkTrackingView" && !isAdminUser()) {
+    viewId = "interviewerView";
+  }
+
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.querySelector(`#${viewId}`).classList.add("active");
 
@@ -657,6 +663,7 @@ function showView(viewId) {
   const labels = {
     interviewerView: "Crear examen",
     createdExamsView: "Exámenes",
+    linkTrackingView: "Seguimiento de enlaces",
     candidateView: "Resultados del candidato",
     resultsView: "Resultados",
     answersView: "Respuestas guardadas",
@@ -1956,6 +1963,31 @@ async function getLinkStats() {
   return null;
 }
 
+async function getServerLinkTracking() {
+  if (!location.protocol.startsWith("http") || !hasInterviewerSession() || !isAdminUser()) {
+    return [];
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${location.origin}/api/link-tracking`, {
+      headers: getAuthHeaders(),
+    }, 9000);
+
+    if (response.ok) {
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      expireInterviewerSession(response.status === 403);
+    }
+  } catch {
+    console.warn("No se pudo cargar el seguimiento de enlaces.");
+  }
+
+  return [];
+}
+
 async function renderCreatedExams() {
   if (!createdExamsSummary || !createdExamsList) {
     return;
@@ -1977,7 +2009,6 @@ async function renderCreatedExams() {
   }
 
   const filteredExams = filterCreatedExams(exams);
-  const linkStats = await getLinkStats();
   const hasFilters = hasActiveFilters(state.createdExamFilters);
   const totalPages = Math.max(1, Math.ceil(filteredExams.length / CREATED_EXAMS_PAGE_SIZE));
   state.createdExamsPage = Math.min(Math.max(1, state.createdExamsPage), totalPages);
@@ -1987,7 +2018,6 @@ async function renderCreatedExams() {
   createdExamsSummary.textContent = "";
   createdExamsSummary.classList.add("hidden");
   createdExamsList.innerHTML = `
-    ${renderLinkStats(linkStats)}
     <div class="answers-tools table-filter-tools">
       <label class="field search-field">
         Correo
@@ -2012,7 +2042,6 @@ async function renderCreatedExams() {
             <th>Núm. links generados</th>
             <th>Generado por</th>
             <th>Correo capturado</th>
-            <th>Estado</th>
             <th>Link único de acceso</th>
           </tr>
         </thead>
@@ -2026,6 +2055,48 @@ async function renderCreatedExams() {
     ${filteredExams.length > CREATED_EXAMS_PAGE_SIZE ? renderCreatedExamsPagination(filteredExams.length, totalPages) : ""}
   `;
   bindCreatedExamControls();
+}
+
+async function renderLinkTracking() {
+  if (!linkTrackingSummary || !linkTrackingList) {
+    return;
+  }
+
+  if (!isAdminUser()) {
+    linkTrackingSummary.classList.remove("hidden");
+    linkTrackingSummary.textContent = "Solo los administradores pueden ver el seguimiento de enlaces.";
+    linkTrackingList.innerHTML = "";
+    return;
+  }
+
+  const [stats, links] = await Promise.all([
+    getLinkStats(),
+    getServerLinkTracking(),
+  ]);
+
+  linkTrackingSummary.textContent = "";
+  linkTrackingSummary.classList.add("hidden");
+  linkTrackingList.innerHTML = `
+    ${renderLinkStats(stats)}
+    <div class="created-exams-table-wrap">
+      <table class="created-exams-table link-tracking-table">
+        <thead>
+          <tr>
+            <th>Examen</th>
+            <th>Preguntas</th>
+            <th>Candidato</th>
+            <th>Generado por</th>
+            <th>Estado</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${links.length ? links.map(renderLinkTrackingRow).join("") : renderNoLinkTrackingRow()}
+        </tbody>
+      </table>
+    </div>
+  `;
+  bindLinkTrackingControls();
 }
 
 function renderLinkStats(stats) {
@@ -2053,6 +2124,44 @@ function renderLinkStats(stats) {
   `;
 }
 
+function renderLinkTrackingRow(exam) {
+  const createdAt = exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha";
+  const tracking = getExamTrackingStatus(exam);
+
+  return `
+    <tr>
+      <td>
+        <strong>${escapeHtml(exam.examName || "Evaluación técnica")}</strong>
+        <small>${escapeHtml(exam.id || "")}</small>
+      </td>
+      <td>${Number(exam.questionCount || 0)}</td>
+      <td>${escapeHtml(exam.candidateEmail || "Sin correo")}</td>
+      <td>
+        <strong>${escapeHtml(exam.createdBy || "Sin registro")}</strong>
+        <small>${createdAt}</small>
+      </td>
+      <td>
+        <span class="tracking-status ${tracking.className}">${tracking.label}</span>
+        <small>${tracking.dateLabel}</small>
+      </td>
+      <td>
+        <div class="created-link-cell">
+          <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
+          <button class="ghost-button copy-tracking-link-button" type="button" data-link="${escapeHtml(exam.link || "")}">Copiar</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderNoLinkTrackingRow() {
+  return `
+    <tr>
+      <td class="empty-table-cell" colspan="6">Aún no hay enlaces generados.</td>
+    </tr>
+  `;
+}
+
 function renderCreatedExamsPagination(totalItems, totalPages) {
   const firstItem = (state.createdExamsPage - 1) * CREATED_EXAMS_PAGE_SIZE + 1;
   const lastItem = Math.min(state.createdExamsPage * CREATED_EXAMS_PAGE_SIZE, totalItems);
@@ -2071,7 +2180,6 @@ function renderCreatedExamsPagination(totalItems, totalPages) {
 
 function renderCreatedExamRow(exam) {
   const createdAt = exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha";
-  const tracking = getExamTrackingStatus(exam);
   return `
     <tr>
       <td>
@@ -2082,10 +2190,6 @@ function renderCreatedExamRow(exam) {
       <td>${Number(exam.linkCount || 1)}</td>
       <td>${escapeHtml(exam.createdBy || exam.creadoPor || "Sin registro")}</td>
       <td>${escapeHtml(exam.candidateEmail || "Sin correo")}</td>
-      <td>
-        <span class="tracking-status ${tracking.className}">${tracking.label}</span>
-        <small>${tracking.dateLabel}</small>
-      </td>
       <td>
         <div class="created-link-cell">
           <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
@@ -2125,6 +2229,23 @@ function bindCreatedExamControls() {
   bindCreatedExamPaginationControls();
 
   createdExamsList?.querySelectorAll(".copy-created-link-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const link = button.dataset.link || "";
+      if (!link) {
+        return;
+      }
+
+      await copyText(link);
+      button.textContent = "Copiado";
+      setTimeout(() => {
+        button.textContent = "Copiar";
+      }, 1400);
+    });
+  });
+}
+
+function bindLinkTrackingControls() {
+  linkTrackingList?.querySelectorAll(".copy-tracking-link-button").forEach((button) => {
     button.addEventListener("click", async () => {
       const link = button.dataset.link || "";
       if (!link) {
@@ -2196,7 +2317,7 @@ function bindCreatedExamFilterControls() {
 function renderNoSearchResultsRow(hasFilters) {
   return `
     <tr>
-      <td class="empty-table-cell" colspan="7">
+      <td class="empty-table-cell" colspan="6">
         ${hasFilters ? "No se encontraron exámenes con esos filtros." : "No hay exámenes para mostrar."}
       </td>
     </tr>
@@ -2734,6 +2855,9 @@ document.querySelectorAll(".nav-button").forEach((button) => {
     if (button.dataset.view === "createdExamsView") {
       await renderCreatedExams();
     }
+    if (button.dataset.view === "linkTrackingView") {
+      await renderLinkTracking();
+    }
     if (button.dataset.view === "answerKeyView") {
       await renderAnswerKey();
     }
@@ -2947,12 +3071,16 @@ function updateSessionBadge() {
 
 function applyRoleVisibility() {
   updateSessionBadge();
-  openQuestionManagerButton?.classList.toggle("hidden", !isAdminUser());
-  openUserManagerButton?.classList.toggle("hidden", !isAdminUser());
+  document.querySelectorAll(".admin-nav-button").forEach((button) => {
+    button.classList.toggle("hidden", !isAdminUser());
+  });
 
   if (!isAdminUser()) {
     closeQuestionManagerModal();
     closeUserManagerModal();
+    if (document.querySelector("#linkTrackingView")?.classList.contains("active")) {
+      showView("interviewerView");
+    }
   }
 }
 

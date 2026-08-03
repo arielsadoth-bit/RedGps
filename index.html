@@ -67,6 +67,7 @@
           <button class="nav-button active" data-view="interviewerView">Crear examen</button>
           <button class="nav-button admin-nav-button" id="openQuestionManagerButton" type="button">Crear preguntas</button>
           <button class="nav-button" data-view="createdExamsView">Exámenes creados</button>
+          <button class="nav-button admin-nav-button" data-view="linkTrackingView">Seguimiento de enlaces</button>
           <button class="nav-button" data-view="candidateView">Resultados del candidato</button>
           <button class="nav-button" data-view="answersView">Respuestas guardadas</button>
           <button class="nav-button" data-view="answerKeyView">Respuestas correctas</button>
@@ -130,6 +131,20 @@
               Aún no hay exámenes creados.
             </div>
             <div class="result-list" id="createdExamsList"></div>
+          </section>
+
+          <section class="view" id="linkTrackingView">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">AdministraciÃ³n</p>
+                <h2>Seguimiento de enlaces</h2>
+              </div>
+            </div>
+
+            <div class="result-summary" id="linkTrackingSummary">
+              Solo los administradores pueden ver este apartado.
+            </div>
+            <div class="result-list" id="linkTrackingList"></div>
           </section>
 
           <div class="modal-overlay hidden" id="questionManagerModal">

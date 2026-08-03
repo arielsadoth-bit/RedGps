@@ -285,11 +285,61 @@ app.MapGet("/api/exams", (HttpRequest request) =>
     return Results.Json(exams);
 });
 
+app.MapGet("/api/link-tracking", (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede ver el seguimiento de enlaces." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var connection = OpenConnection(databasePath);
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT
+            e.id,
+            e.nombre_examen,
+            e.cantidad_preguntas,
+            e.cantidad_links,
+            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, '') AS correo_candidato,
+            e.link_acceso,
+            e.creado_por,
+            e.creado_en,
+            COALESCE(l.tomado_en, '') AS abierto_en,
+            COALESCE(r.finalizado_en, '') AS completado_en
+        FROM examenes_creados e
+        LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
+        LEFT JOIN resultados_examenes r ON r.id = e.id
+        ORDER BY e.creado_en DESC
+        LIMIT 300
+        """;
+
+    using var reader = command.ExecuteReader();
+    var links = new List<object>();
+    while (reader.Read())
+    {
+        links.Add(new
+        {
+            id = reader.GetString(0),
+            examName = reader.GetString(1),
+            questionCount = reader.GetInt32(2),
+            linkCount = reader.GetInt32(3),
+            candidateEmail = reader.GetString(4),
+            link = reader.GetString(5),
+            createdBy = reader.GetString(6),
+            createdAt = reader.GetString(7),
+            openedAt = GetDbString(reader, 8),
+            completedAt = GetDbString(reader, 9)
+        });
+    }
+
+    return Results.Json(links);
+});
+
 app.MapGet("/api/link-stats", (HttpRequest request) =>
 {
-    if (!TryGetInterviewer(request, sessions, out _))
+    if (!TryRequireRole(request, sessions, out _, "admin"))
     {
-        return Results.Unauthorized();
+        return Results.Json(new { error = "Solo un administrador puede ver las estadisticas de enlaces." }, statusCode: StatusCodes.Status403Forbidden);
     }
 
     using var connection = OpenConnection(databasePath);
