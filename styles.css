@@ -759,6 +759,26 @@ textarea {
   color: var(--ink);
 }
 
+.unanswered-notice {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(185, 28, 28, 0.24);
+  border-left: 4px solid #b91c1c;
+  border-radius: 6px;
+  background: #fff7ed;
+  color: #7f1d1d;
+  padding: 14px 16px;
+}
+
+.unanswered-notice strong {
+  color: #991b1b;
+}
+
+.unanswered-notice span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .exam-pagination {
   margin-top: 0;
 }
@@ -1133,6 +1153,14 @@ textarea {
   padding-bottom: 18px;
 }
 
+.answer-card.missing-answer {
+  border: 1px solid rgba(185, 28, 28, 0.32);
+  border-left: 5px solid #b91c1c;
+  border-radius: 8px;
+  background: #fff7ed;
+  padding: 18px;
+}
+
 .answer-card:last-child {
   border-bottom: 0;
 }
@@ -1147,6 +1175,12 @@ textarea {
   color: var(--muted);
   font-weight: 500;
   line-height: 1.5;
+}
+
+.missing-answer-note {
+  margin: 0;
+  color: #991b1b;
+  font-weight: 800;
 }
 
 .option-list {

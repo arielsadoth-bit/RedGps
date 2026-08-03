@@ -29,6 +29,7 @@ const state = {
   isFinishingExam: false,
   securityFinishTriggered: false,
   securityFinishReason: "",
+  unansweredQuestionIds: new Set(),
 };
 
 const questionBank = document.querySelector("#questionBank");
@@ -1312,19 +1313,83 @@ function getUnansweredQuestions() {
   });
 }
 
-function confirmFinishWithUnansweredQuestions(unansweredQuestions) {
-  const preview = unansweredQuestions
-    .slice(0, 5)
-    .map((question) => `- ${question.title || question.prompt || "Pregunta sin titulo"}`)
-    .join("\n");
-  const extra = unansweredQuestions.length > 5
-    ? `\n...y ${unansweredQuestions.length - 5} pregunta(s) más.`
-    : "";
+function renderUnansweredNotice() {
+  const count = state.unansweredQuestionIds.size;
 
-  return confirm(
-    `Te faltan ${unansweredQuestions.length} pregunta(s) por contestar:\n\n${preview}${extra}\n\n` +
-    "Si continuas, el examen se entregara con esas respuestas vacias. ¿Quieres finalizar de todos modos?"
-  );
+  if (!count) {
+    return "";
+  }
+
+  return `
+    <div class="unanswered-notice" id="unansweredNotice">
+      <strong>Faltan ${count} pregunta(s) por responder.</strong>
+      <span>Las preguntas pendientes están marcadas para que puedas contestarlas antes de finalizar.</span>
+    </div>
+  `;
+}
+
+function updateUnansweredNotice() {
+  const notice = document.querySelector("#unansweredNotice");
+
+  if (!notice) {
+    return;
+  }
+
+  const count = state.unansweredQuestionIds.size;
+
+  if (!count) {
+    notice.remove();
+    return;
+  }
+
+  notice.innerHTML = `
+    <strong>Faltan ${count} pregunta(s) por responder.</strong>
+    <span>Las preguntas pendientes están marcadas para que puedas contestarlas antes de finalizar.</span>
+  `;
+}
+
+function markUnansweredQuestions(unansweredQuestions) {
+  state.unansweredQuestionIds = new Set(unansweredQuestions.map((question) => question.id));
+}
+
+function clearAnsweredQuestionMark(field) {
+  if (!field?.name || !state.unansweredQuestionIds.has(field.name)) {
+    return;
+  }
+
+  const formData = new FormData(examForm);
+  const answer = String(formData.get(field.name) || "").trim();
+
+  if (!answer) {
+    return;
+  }
+
+  state.unansweredQuestionIds.delete(field.name);
+  field.closest(".answer-card")?.classList.remove("missing-answer");
+  field.closest(".answer-card")?.querySelector(".missing-answer-note")?.remove();
+  updateUnansweredNotice();
+}
+
+function focusUnansweredQuestion(question) {
+  if (!state.activeExam || !question) {
+    return;
+  }
+
+  const firstMissingIndex = state.activeExam.questions.findIndex((item) => item.id === question.id);
+  const pageSize = 5;
+  state.candidateExamPage = Math.floor(firstMissingIndex / pageSize) + 1;
+  renderExam();
+
+  setTimeout(() => {
+    const textField = document.querySelector(`#answer-${CSS.escape(question.id)}`);
+    const optionField = Array.from(examForm.querySelectorAll("input, textarea"))
+      .find((field) => field.name === question.id);
+    const field = textField || optionField;
+    const card = field?.closest(".answer-card");
+
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+    field?.focus({ preventScroll: true });
+  }, 0);
 }
 
 function updateFinishExamButtonState() {
@@ -1413,6 +1478,7 @@ function renderExam() {
       <strong>${rangeLabel}</strong>
       <span>Página ${state.candidateExamPage} de ${totalPages}</span>
     </div>
+    ${renderUnansweredNotice()}
     ${state.activeExam.questions
       .map((question, index) => `
         <div class="exam-question-page ${Math.floor(index / pageSize) + 1 === state.candidateExamPage ? "" : "hidden"}">
@@ -1512,10 +1578,15 @@ function getExamStartTime(examId) {
 }
 
 function renderAnswerField(question, index) {
+  const isMissing = state.unansweredQuestionIds.has(question.id);
+  const missingClass = isMissing ? " missing-answer" : "";
+  const missingMessage = isMissing ? `<p class="missing-answer-note">Falta responder esta pregunta.</p>` : "";
+
   if (question.type === "closed") {
     return `
-      <article class="answer-card">
+      <article class="answer-card${missingClass}" data-question-id="${question.id}">
         <label>${index + 1}. ${question.prompt}<span>${question.area} | ${getQuestionTypeLabel(question)}</span></label>
+        ${missingMessage}
         <div class="option-list">
           ${question.options
             .map(
@@ -1545,11 +1616,12 @@ function renderAnswerField(question, index) {
       : "";
 
     return `
-      <article class="answer-card code-answer-card">
+      <article class="answer-card code-answer-card${missingClass}" data-question-id="${question.id}">
         <label for="answer-${question.id}">
           ${index + 1}. ${question.prompt}
           <span>${question.area} | ${getQuestionTypeLabel(question)} | Lenguaje: ${language}</span>
         </label>
+        ${missingMessage}
         <textarea class="code-editor" id="answer-${question.id}" name="${question.id}" spellcheck="false" placeholder="Escribe aquí tu solución en ${language}."></textarea>
         ${runner}
       </article>
@@ -1557,11 +1629,12 @@ function renderAnswerField(question, index) {
   }
 
   return `
-    <article class="answer-card">
+    <article class="answer-card${missingClass}" data-question-id="${question.id}">
       <label for="answer-${question.id}">
         ${index + 1}. ${question.prompt}
         <span>${question.area} | ${getQuestionTypeLabel(question)}</span>
       </label>
+      ${missingMessage}
       <textarea id="answer-${question.id}" name="${question.id}" placeholder="Escribe aquí tu respuesta"></textarea>
     </article>
   `;
@@ -1721,9 +1794,13 @@ function restoreDraftAnswers() {
 
 function bindDraftSaving() {
   examForm.querySelectorAll("textarea, input").forEach((field) => {
-    field.addEventListener("input", saveDraftAnswers);
+    field.addEventListener("input", () => {
+      saveDraftAnswers();
+      clearAnsweredQuestionMark(field);
+    });
     field.addEventListener("change", () => {
       saveDraftAnswers();
+      clearAnsweredQuestionMark(field);
       flushLiveExamUpdate();
     });
   });
@@ -2055,20 +2132,15 @@ async function finishExam(options = {}) {
     if (!forced) {
       const unansweredQuestions = getUnansweredQuestions();
       if (unansweredQuestions.length > 0) {
-        const shouldFinish = confirmFinishWithUnansweredQuestions(unansweredQuestions);
-        if (!shouldFinish) {
-          const firstMissingIndex = state.activeExam.questions.findIndex((question) => question.id === unansweredQuestions[0].id);
-          const pageSize = 5;
-          state.candidateExamPage = Math.floor(firstMissingIndex / pageSize) + 1;
-          renderExam();
-          document.querySelector(`#answer-${CSS.escape(unansweredQuestions[0].id)}`)?.focus();
-          return;
-        }
+        markUnansweredQuestions(unansweredQuestions);
+        focusUnansweredQuestion(unansweredQuestions[0]);
+        return;
       }
     }
 
     clearInterval(state.timerId);
     document.querySelector("#finishExamButton").disabled = true;
+    state.unansweredQuestionIds.clear();
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
     await sendLiveExamUpdate(forced ? "Finalizado automatico" : "Finalizado", forced);
