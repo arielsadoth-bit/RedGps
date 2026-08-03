@@ -323,19 +323,29 @@ function renderAreaBankSidebar() {
 
   const areas = getAvailableBankAreas();
   areaBankSidebar.innerHTML = `
-    <p>Banco por puesto</p>
-    ${areas
-      .map((area) => {
-        const count = questions.filter((question) => getQuestionBankArea(question) === area).length;
-        return `
-          <button class="area-bank-button ${area === state.selectedQuestionArea ? "active" : ""}" type="button" data-area="${escapeHtml(area)}">
-            <span>${escapeHtml(area)}</span>
-            <strong>${count}</strong>
-          </button>
-        `;
-      })
-      .join("")}
+    <button class="ghost-button icon-button area-bank-menu-button" id="toggleAreaBankButton" type="button" aria-label="Banco por puesto" title="Banco por puesto">
+      ${getActionIcon("menu")}
+    </button>
+    <div class="area-bank-panel">
+      <p>Banco por puesto</p>
+      ${areas
+        .map((area) => {
+          const count = questions.filter((question) => getQuestionBankArea(question) === area).length;
+          return `
+            <button class="area-bank-button ${area === state.selectedQuestionArea ? "active" : ""}" type="button" data-area="${escapeHtml(area)}">
+              <span>${escapeHtml(area)}</span>
+              <strong>${count}</strong>
+            </button>
+          `;
+        })
+        .join("")}
+    </div>
   `;
+
+  areaBankSidebar.querySelector("#toggleAreaBankButton")?.addEventListener("click", () => {
+    state.areaBankVisible = !state.areaBankVisible;
+    updateAreaBankVisibility();
+  });
 
   areaBankSidebar.querySelectorAll(".area-bank-button").forEach((button) => {
     button.addEventListener("click", () => {
@@ -370,12 +380,7 @@ function renderQuestionBank() {
           <small>${selectedCount} de ${bankQuestions.length} seleccionada(s) para el examen</small>
         </div>
       </div>
-      <div class="question-bank-toggle-actions">
-        <button class="ghost-button icon-button area-bank-menu-button" id="toggleAreaBankButton" type="button" aria-label="Banco por puesto" title="Banco por puesto">
-          ${getActionIcon("menu")}
-        </button>
-        <button class="ghost-button" id="toggleQuestionBankButton" type="button">${state.questionBankOpen ? "Ocultar preguntas" : "Ver preguntas"}</button>
-      </div>
+      <button class="ghost-button" id="toggleQuestionBankButton" type="button">${state.questionBankOpen ? "Ocultar preguntas" : "Ver preguntas"}</button>
     </div>
     <div class="question-bank-list ${state.questionBankOpen ? "" : "hidden"}" id="questionBankList">
       <div class="question-bank-toolbar">
@@ -419,11 +424,6 @@ function renderQuestionBank() {
     document.querySelector("#toggleQuestionBankButton").textContent = state.questionBankOpen
       ? "Ocultar preguntas"
       : "Ver preguntas";
-  });
-
-  document.querySelector("#toggleAreaBankButton")?.addEventListener("click", () => {
-    state.areaBankVisible = !state.areaBankVisible;
-    updateAreaBankVisibility();
   });
 
   document.querySelectorAll(".question-delete-button").forEach((button) => {
