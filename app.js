@@ -219,8 +219,8 @@ function toggleQuestionFormFields() {
   if (questionExpectedInput) {
     questionExpectedInput.required = type !== "closed";
     questionExpectedInput.placeholder = type === "closed"
-      ? "Opcional. Si lo dejas vacio, se usara el texto del inciso correcto."
-      : "Respuesta correcta o explicacion esperada";
+      ? "Opcional. Si lo dejas vacío, se usará el texto del inciso correcto."
+      : "Respuesta correcta o explicación esperada";
   }
 }
 
@@ -281,7 +281,7 @@ async function saveQuestionFromForm(event) {
   try {
     runner = type === "code" ? parseQuestionRunner() : null;
   } catch {
-    showQuestionManagerStatus("Las pruebas de codigo deben estar en formato JSON valido.", true);
+    showQuestionManagerStatus("Las pruebas de código deben estar en formato JSON válido.", true);
     questionTestsInput?.focus();
     return;
   }
@@ -308,7 +308,7 @@ async function saveQuestionFromForm(event) {
 
   if (response.status === 401 || response.status === 403) {
     expireInterviewerSession(response.status === 403);
-    showQuestionManagerStatus("Tu sesion expiro. Inicia sesion.", true);
+    showQuestionManagerStatus("Tu sesión expiró. Inicia sesión.", true);
     return;
   }
 
@@ -352,7 +352,7 @@ async function deleteQuestionById(questionId) {
   }
 
   const confirmed = confirm(
-    `Vas a borrar la pregunta "${question.title}". Ya no aparecera para crear examenes nuevos.`
+    `Vas a borrar la pregunta "${question.title}". Ya no aparecerá para crear exámenes nuevos.`
   );
 
   if (!confirmed) {
@@ -474,8 +474,8 @@ async function renderUserManager(users = null) {
             <th>Correo</th>
             <th>Rol</th>
             <th>Acceso</th>
-            <th>Nueva contrasena</th>
-            <th>Accion</th>
+            <th>Nueva contraseña</th>
+            <th>Acción</th>
           </tr>
         </thead>
         <tbody>
@@ -543,7 +543,7 @@ function bindUserManagerControls() {
       const row = button.closest("tr");
       const password = row.querySelector(".user-password-input").value.trim();
       if (password && !isValidInterviewerPassword(password)) {
-        showUserManagerStatus("La contrasena debe tener entre 6 y 8 caracteres.", true);
+        showUserManagerStatus("La contraseña debe tener entre 6 y 8 caracteres.", true);
         row.querySelector(".user-password-input").focus();
         return;
       }
@@ -595,7 +595,7 @@ async function createUserFromForm(event) {
   };
 
   if (!isValidInterviewerPassword(payload.password)) {
-    showUserManagerStatus("La contrasena debe tener entre 6 y 8 caracteres.", true);
+    showUserManagerStatus("La contraseña debe tener entre 6 y 8 caracteres.", true);
     newUserPasswordInput.focus();
     return;
   }
@@ -614,7 +614,7 @@ async function createUserFromForm(event) {
 
   userForm.reset();
   newUserRoleInput.value = "entrevistador";
-  showUserManagerStatus("Usuario agregado y contrasena protegida.", false);
+  showUserManagerStatus("Usuario agregado y contraseña protegida.", false);
   await renderUserManager();
 }
 
@@ -643,7 +643,7 @@ function showView(viewId) {
 
   const labels = {
     interviewerView: "Crear examen",
-    createdExamsView: "Examenes",
+    createdExamsView: "Exámenes",
     candidateView: "Candidato",
     resultsView: "Resultados",
     answersView: "Respuestas guardadas",
@@ -773,7 +773,7 @@ function updateFinishExamButtonState() {
 
   finishButton.disabled = Boolean(state.activeExam) && !hasValidCandidateIdentity();
   finishButton.title = finishButton.disabled
-    ? "Captura nombre y correo valido para finalizar."
+    ? "Captura nombre y correo válido para finalizar."
     : "";
 }
 
@@ -801,9 +801,9 @@ function pickExamQuestions(source, count) {
 
 function getQuestionTypeLabel(question) {
   const labels = {
-    closed: "Teorica cerrada",
-    open: "Teorica abierta",
-    code: "Practica",
+    closed: "Teórica cerrada",
+    open: "Teórica abierta",
+    code: "Práctica",
   };
 
   return labels[question.type] || "Pregunta";
@@ -835,7 +835,7 @@ function renderExam() {
   state.activeExam = state.activeExam || (savedExam ? JSON.parse(savedExam) : null);
 
   if (!state.activeExam) {
-    examForm.innerHTML = "<p>No hay examen generado todavia.</p>";
+    examForm.innerHTML = "<p>No hay examen generado todavía.</p>";
     timer.textContent = "--:--";
     return;
   }
@@ -924,7 +924,7 @@ function renderAnswerField(question, index) {
     const runner = question.runner
       ? `
         <div class="code-runner-bar">
-          <span>Lenguaje: <strong>${language}</strong> | Funcion esperada: <strong>${question.runner.functionName}</strong></span>
+          <span>Lenguaje: <strong>${language}</strong> | Función esperada: <strong>${question.runner.functionName}</strong></span>
           <button class="secondary-button run-code-button" type="button" data-question-id="${question.id}">Ejecutar pruebas</button>
         </div>
         <div class="code-test-output" id="test-output-${question.id}"></div>
@@ -937,7 +937,7 @@ function renderAnswerField(question, index) {
           ${index + 1}. ${question.prompt}
           <span>${question.area} | ${getQuestionTypeLabel(question)} | Lenguaje: ${language}</span>
         </label>
-        <textarea class="code-editor" id="answer-${question.id}" name="${question.id}" spellcheck="false" placeholder="Escribe aqui tu solucion en ${language}."></textarea>
+        <textarea class="code-editor" id="answer-${question.id}" name="${question.id}" spellcheck="false" placeholder="Escribe aquí tu solución en ${language}."></textarea>
         ${runner}
       </article>
     `;
@@ -949,7 +949,7 @@ function renderAnswerField(question, index) {
         ${index + 1}. ${question.prompt}
         <span>${question.area} | ${getQuestionTypeLabel(question)}</span>
       </label>
-      <textarea id="answer-${question.id}" name="${question.id}" placeholder="Escribe aqui tu respuesta"></textarea>
+      <textarea id="answer-${question.id}" name="${question.id}" placeholder="Escribe aquí tu respuesta"></textarea>
     </article>
   `;
 }
@@ -1114,7 +1114,7 @@ function executeCodeRunner(code, runner) {
     const worker = new Worker(URL.createObjectURL(blob));
     const timeout = setTimeout(() => {
       worker.terminate();
-      reject(new Error("El codigo tardo demasiado. Revisa ciclos infinitos."));
+      reject(new Error("El código tardó demasiado. Revisa ciclos infinitos."));
     }, 2500);
 
     worker.onmessage = (event) => {
@@ -1240,18 +1240,18 @@ function bindCandidateSecurityRules() {
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      triggerSecurityFinish("El candidato cambio de pestana, minimizo o salio de la pagina.");
+      triggerSecurityFinish("El candidato cambió de pestaña, minimizó o salió de la página.");
     }
   });
 
   window.addEventListener("pagehide", () => {
-    triggerSecurityFinish("El candidato cerro o abandono la pagina del examen.");
+    triggerSecurityFinish("El candidato cerró o abandonó la página del examen.");
   });
 
   window.addEventListener("blur", () => {
     setTimeout(() => {
       if (!document.hasFocus()) {
-        triggerSecurityFinish("El candidato salio del foco de la ventana del examen.");
+        triggerSecurityFinish("El candidato salió del foco de la ventana del examen.");
       }
     }, 500);
   });
@@ -1283,7 +1283,7 @@ async function finishExam(options = {}) {
     }
 
     if (!forced && !isValidEmail(candidateEmail)) {
-      alert("Escribe un correo valido antes de finalizar el examen.");
+      alert("Escribe un correo válido antes de finalizar el examen.");
       candidateEmailInput.focus();
       return;
     }
@@ -1304,7 +1304,7 @@ async function finishExam(options = {}) {
     showView("resultsView");
     markServerSaveStatus(
       forced
-        ? "El examen se finalizo automaticamente porque saliste de la pantalla del examen."
+        ? "El examen se finalizó automáticamente porque saliste de la pantalla del examen."
         : "Resultado guardado para el entrevistador."
     );
   } catch (error) {
@@ -1466,7 +1466,7 @@ async function saveResultOnServer(result) {
         keepalive: true,
       }, 9000);
     } catch {
-      markServerSaveStatus("Resultado guardado en este telefono, pero no se pudo enviar al entrevistador.");
+      markServerSaveStatus("Resultado guardado en este teléfono, pero no se pudo enviar al entrevistador.");
       console.warn("No se pudo guardar el resultado en el servidor local.");
     }
   }
@@ -1528,7 +1528,7 @@ async function renderResults() {
   if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
     state.lastResult = null;
     scoreLabel.textContent = "0/100";
-    resultSummary.textContent = "Inicia sesion para cargar los resultados guardados en la base de datos.";
+    resultSummary.textContent = "Inicia sesión para cargar los resultados guardados en la base de datos.";
     resultList.innerHTML = "";
     return;
   }
@@ -1548,7 +1548,7 @@ async function renderResults() {
   }
 
   if (!state.lastResult) {
-    resultSummary.textContent = "Aun no hay respuestas evaluadas.";
+    resultSummary.textContent = "Aún no hay respuestas evaluadas.";
     resultList.innerHTML = "";
     scoreLabel.textContent = "0/100";
     return;
@@ -1558,13 +1558,13 @@ async function renderResults() {
   const displayName = state.lastResult.candidateName || "Candidato sin nombre";
   const manualLabel =
     state.lastResult.manualScore !== null && state.lastResult.manualScore !== undefined
-      ? ` Calificacion ajustada por entrevistador: ${state.lastResult.manualScore}/100.`
+      ? ` Calificación ajustada por entrevistador: ${state.lastResult.manualScore}/100.`
       : "";
   resultSummary.textContent = isCandidateLink
     ? `Obtuviste ${state.lastResult.earnedPoints} de ${state.lastResult.totalPoints} puntos. Estamos guardando tu resultado para el entrevistador.`
-    : `${displayName} obtuvo ${state.lastResult.earnedPoints} de ${state.lastResult.totalPoints} puntos. Calificacion automatica: ${state.lastResult.automaticScore ?? state.lastResult.score}/100.${manualLabel}`;
+    : `${displayName} obtuvo ${state.lastResult.earnedPoints} de ${state.lastResult.totalPoints} puntos. Calificación automática: ${state.lastResult.automaticScore ?? state.lastResult.score}/100.${manualLabel}`;
   if (!isCandidateLink && state.lastResult.securityReason) {
-    resultSummary.textContent += ` Finalizacion automatica: ${state.lastResult.securityReason}`;
+    resultSummary.textContent += ` Finalización automática: ${state.lastResult.securityReason}`;
   }
   resultList.innerHTML = state.lastResult.evaluated.map(renderResultCard).join("");
 }
@@ -1615,7 +1615,7 @@ function renderReviewResultCard(result, item, index) {
     getQuestionType(item) === "code" && runner
       ? `
         <div class="code-runner-bar review-code-runner">
-          <span>Lenguaje: <strong>${escapeHtml(getRunnerLanguage(runner))}</strong> | Funcion esperada: <strong>${escapeHtml(runner.functionName || runner.FunctionName || "")}</strong></span>
+          <span>Lenguaje: <strong>${escapeHtml(getRunnerLanguage(runner))}</strong> | Función esperada: <strong>${escapeHtml(runner.functionName || runner.FunctionName || "")}</strong></span>
           <button class="secondary-button review-run-code-button" type="button">Ejecutar pruebas</button>
         </div>
         <div class="code-test-output review-code-output"></div>
@@ -1799,7 +1799,7 @@ function filterCreatedExams(exams) {
 async function renderSavedAnswers() {
   if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
     answersSummary.classList.remove("hidden");
-    answersSummary.textContent = "Inicia sesion para cargar los examenes guardados en la base de datos.";
+    answersSummary.textContent = "Inicia sesión para cargar los exámenes guardados en la base de datos.";
     answersList.innerHTML = "";
     return;
   }
@@ -1808,7 +1808,7 @@ async function renderSavedAnswers() {
 
   if (!history.length) {
     answersSummary.classList.remove("hidden");
-    answersSummary.textContent = "Aun no hay examenes guardados.";
+    answersSummary.textContent = "Aún no hay exámenes guardados.";
     answersList.innerHTML = "";
     return;
   }
@@ -1835,8 +1835,8 @@ async function renderSavedAnswers() {
         <thead>
           <tr>
             <th>Candidato</th>
-            <th>Calificacion</th>
-            <th>Automatica</th>
+            <th>Calificación</th>
+            <th>Automática</th>
             <th>Finalizado</th>
             <th>Respuestas</th>
             <th>Acciones</th>
@@ -1901,7 +1901,7 @@ async function getServerCreatedExams() {
         expireInterviewerSession(response.status === 403);
       }
     } catch {
-      console.warn("No se pudieron cargar los examenes creados del servidor.");
+      console.warn("No se pudieron cargar los exámenes creados del servidor.");
     }
 
     return [];
@@ -1917,7 +1917,7 @@ async function renderCreatedExams() {
 
   if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
     createdExamsSummary.classList.remove("hidden");
-    createdExamsSummary.textContent = "Inicia sesion para cargar los examenes creados.";
+    createdExamsSummary.textContent = "Inicia sesión para cargar los exámenes creados.";
     createdExamsList.innerHTML = "";
     return;
   }
@@ -1925,7 +1925,7 @@ async function renderCreatedExams() {
   const exams = await getServerCreatedExams();
   if (!exams.length) {
     createdExamsSummary.classList.remove("hidden");
-    createdExamsSummary.textContent = "Aun no hay examenes creados.";
+    createdExamsSummary.textContent = "Aún no hay exámenes creados.";
     createdExamsList.innerHTML = "";
     return;
   }
@@ -1988,7 +1988,7 @@ function renderCreatedExamsPagination(totalItems, totalPages) {
       <span>Mostrando ${firstItem}-${lastItem} de ${totalItems}</span>
       <div class="pagination-actions">
         <button class="ghost-button created-page-button" type="button" data-page="${state.createdExamsPage - 1}" ${state.createdExamsPage <= 1 ? "disabled" : ""}>Anterior</button>
-        <strong>Pagina ${state.createdExamsPage} de ${totalPages}</strong>
+        <strong>Página ${state.createdExamsPage} de ${totalPages}</strong>
         <button class="ghost-button created-page-button" type="button" data-page="${state.createdExamsPage + 1}" ${state.createdExamsPage >= totalPages ? "disabled" : ""}>Siguiente</button>
       </div>
     </div>
@@ -2000,7 +2000,7 @@ function renderCreatedExamRow(exam) {
   return `
     <tr>
       <td>
-        <strong>${escapeHtml(exam.examName || "Evaluacion tecnica")}</strong>
+        <strong>${escapeHtml(exam.examName || "Evaluación técnica")}</strong>
         <small>${createdAt}</small>
       </td>
       <td>${Number(exam.questionCount || 0)}</td>
@@ -2094,7 +2094,7 @@ function renderNoSearchResultsRow(hasFilters) {
   return `
     <tr>
       <td class="empty-table-cell" colspan="6">
-        ${hasFilters ? "No se encontraron examenes con esos filtros." : "No hay examenes para mostrar."}
+        ${hasFilters ? "No se encontraron exámenes con esos filtros." : "No hay exámenes para mostrar."}
       </td>
     </tr>
   `;
@@ -2209,9 +2209,9 @@ function renderSavedAnswerDetail(result) {
           <button class="ghost-button close-answer-detail-button" type="button">Cerrar</button>
         </div>
       </div>
-      <p>Calificacion automatica: ${result.automaticScore ?? result.score}/100</p>
+      <p>Calificación automática: ${result.automaticScore ?? result.score}/100</p>
       <p>Finalizado: ${finishedAt}</p>
-      ${result.securityReason ? `<p class="security-note">Finalizacion automatica: ${escapeHtml(result.securityReason)}</p>` : ""}
+      ${result.securityReason ? `<p class="security-note">Finalización automática: ${escapeHtml(result.securityReason)}</p>` : ""}
       <div class="manual-score-panel">
         <div class="manual-score-grid">
           <label class="field">
@@ -2219,7 +2219,7 @@ function renderSavedAnswerDetail(result) {
             <input class="reviewer-name-input" value="${escapeHtml(currentUser)}" readonly />
           </label>
           <label class="field">
-            Calificacion final
+            Calificación final
             <input class="manual-score-input" type="number" min="0" max="100" value="${getDisplayScore(result)}" />
           </label>
           <label class="field">
@@ -2266,7 +2266,7 @@ function bindCandidateTableControls() {
       const resultId = button.dataset.resultId;
       const candidateName = button.dataset.candidateName || "este candidato";
 
-      if (!confirm(`Vas a borrar el examen de ${candidateName}. Esta accion tambien lo quitara de la base de datos. ¿Continuar?`)) {
+      if (!confirm(`Vas a borrar el examen de ${candidateName}. Esta acción también lo quitará de la base de datos. ¿Continuar?`)) {
         return;
       }
 
@@ -2428,7 +2428,7 @@ async function renderAnswerKey() {
     }, 9000);
 
     if (!response.ok) {
-      answerKeyList.innerHTML = "<p>Inicia sesion para ver las respuestas correctas.</p>";
+      answerKeyList.innerHTML = "<p>Inicia sesión para ver las respuestas correctas.</p>";
       return;
     }
 
@@ -2499,7 +2499,7 @@ function expireInterviewerSession(showIntruderAlert = false) {
   openUserManagerButton?.classList.remove("active");
   updateSessionBadge();
   loginScreen.classList.remove("hidden");
-  loginError.textContent = "Tu sesion expiro. Inicia sesion.";
+  loginError.textContent = "Tu sesión expiró. Inicia sesión.";
   loginError.classList.remove("hidden");
 
   if (showIntruderAlert) {
@@ -2673,7 +2673,7 @@ togglePasswordButton?.addEventListener("click", () => {
   const isPasswordHidden = loginPassword.type === "password";
   loginPassword.type = isPasswordHidden ? "text" : "password";
   togglePasswordButton.textContent = isPasswordHidden ? "Ocultar" : "Ver";
-  togglePasswordButton.setAttribute("aria-label", isPasswordHidden ? "Ocultar contrasena" : "Mostrar contrasena");
+  togglePasswordButton.setAttribute("aria-label", isPasswordHidden ? "Ocultar contraseña" : "Mostrar contraseña");
 });
 
 closeIntruderAlertButton?.addEventListener("click", closeIntruderAccessAlert);
@@ -2690,7 +2690,7 @@ document.querySelector("#copyLinkButton").addEventListener("click", async () => 
     }, 1400);
   } catch {
     examLink.select();
-    alert("No se pudo copiar automaticamente. El enlace ya quedo seleccionado para copiarlo con Ctrl + C.");
+    alert("No se pudo copiar automáticamente. El enlace ya quedó seleccionado para copiarlo con Ctrl + C.");
   }
 });
 
@@ -2698,7 +2698,7 @@ document.querySelector("#finishExamButton").addEventListener("click", finishExam
 
 document.querySelector("#clearHistoryButton").addEventListener("click", async () => {
   const confirmed = confirm(
-    "Vas a eliminar todo el historial de examenes guardados. Esto tambien borrara las respuestas de la base de datos. ¿Estas seguro?"
+    "Vas a eliminar todo el historial de exámenes guardados. Esto también borrará las respuestas de la base de datos. ¿Estás seguro?"
   );
 
   if (!confirmed) {
@@ -2753,7 +2753,7 @@ loginForm.addEventListener("submit", async (event) => {
     sessionStorage.setItem(TOKEN_KEY, session.token);
     loginUser.value = "";
     loginPassword.value = "";
-    loginError.textContent = "Correo o contrasena incorrectos.";
+    loginError.textContent = "Correo o contraseña incorrectos.";
     loginError.classList.add("hidden");
     loginScreen.classList.add("hidden");
     applyRoleVisibility();
@@ -2764,7 +2764,7 @@ loginForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  loginError.textContent = "Correo o contrasena incorrectos.";
+  loginError.textContent = "Correo o contraseña incorrectos.";
   loginError.classList.remove("hidden");
   loginPassword.select();
 });
@@ -2825,7 +2825,7 @@ function updateSessionBadge() {
   }
 
   if (!hasInterviewerSession()) {
-    modeLabel.textContent = "Sin sesion";
+    modeLabel.textContent = "Sin sesión";
     modeLabel.removeAttribute("title");
     if (sessionUserLabel) {
       sessionUserLabel.textContent = "";

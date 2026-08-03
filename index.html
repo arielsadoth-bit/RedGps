@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Evaluador Tecnico</title>
+    <title>Evaluador Técnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
     <link rel="stylesheet" href="styles.css?v=20260730-answers-table-width" />
   </head>
@@ -12,19 +12,19 @@
       <form class="login-panel" id="loginForm">
         <img class="login-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
         <p class="eyebrow">Acceso entrevistador</p>
-        <h2>Centro de Evaluacion</h2>
+        <h2>Centro de Evaluación</h2>
         <label class="field">
           Correo autorizado
           <input id="loginUser" type="email" autocomplete="username" placeholder="correo@redgps.com" />
         </label>
         <label class="field">
-          Contrasena
+          Contraseña
           <div class="password-field">
-            <input id="loginPassword" type="password" autocomplete="current-password" maxlength="8" placeholder="Ingresa la contrasena" />
-            <button id="togglePasswordButton" type="button" aria-label="Mostrar contrasena">Ver</button>
+            <input id="loginPassword" type="password" autocomplete="current-password" maxlength="8" placeholder="Ingresa la contraseña" />
+            <button id="togglePasswordButton" type="button" aria-label="Mostrar contraseña">Ver</button>
           </div>
         </label>
-        <p class="login-error hidden" id="loginError">Correo o contrasena incorrectos.</p>
+        <p class="login-error hidden" id="loginError">Correo o contraseña incorrectos.</p>
         <button class="primary-button" type="submit">Entrar</button>
       </form>
     </section>
@@ -34,7 +34,7 @@
         <div class="intruder-icon">!</div>
         <p class="eyebrow">Acceso bloqueado</p>
         <h2 id="intruderAlertTitle">Alerta de intruso</h2>
-        <p>Se detecto un intento de entrar a funciones sin permiso. La sesion fue cerrada por seguridad.</p>
+        <p>Se detectó un intento de entrar a funciones sin permiso. La sesión fue cerrada por seguridad.</p>
         <button class="primary-button" id="closeIntruderAlertButton" type="button">Entendido</button>
       </div>
     </div>
@@ -44,8 +44,8 @@
         <div class="brand-block">
           <img class="brand-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
           <div>
-            <p class="eyebrow">Puebla | Reclutamiento tecnico</p>
-            <h1>Centro de Evaluacion</h1>
+            <p class="eyebrow">Puebla | Reclutamiento técnico</p>
+            <h1>Centro de Evaluación</h1>
           </div>
         </div>
         <div class="topbar-meta">
@@ -54,7 +54,7 @@
             <div class="status-pill" id="modeLabel">Entrevistador</div>
             <small id="sessionUserLabel"></small>
           </div>
-          <button class="logout-button" id="logoutButton" type="button">Cerrar sesion</button>
+          <button class="logout-button" id="logoutButton" type="button">Cerrar sesión</button>
         </div>
       </section>
 
@@ -66,7 +66,7 @@
           </div>
           <button class="nav-button active" data-view="interviewerView">Crear examen</button>
           <button class="nav-button admin-nav-button" id="openQuestionManagerButton" type="button">Crear preguntas</button>
-          <button class="nav-button" data-view="createdExamsView">Examenes creados</button>
+          <button class="nav-button" data-view="createdExamsView">Exámenes creados</button>
           <button class="nav-button" data-view="candidateView">Responder examen</button>
           <button class="nav-button" data-view="answersView">Respuestas guardadas</button>
           <button class="nav-button" data-view="answerKeyView">Respuestas correctas</button>
@@ -83,7 +83,7 @@
               <div class="exam-config-grid">
                 <label class="field">
                   Nombre del examen
-                  <input id="examName" value="Evaluacion tecnica RedGPS" placeholder="Ej. Evaluacion Full Stack" />
+                  <input id="examName" value="Evaluación técnica RedGPS" placeholder="Ej. Evaluación Full Stack" />
                 </label>
                 <label class="field">
                   Preguntas
@@ -121,13 +121,13 @@
             <div class="section-heading">
               <div>
                 <p class="eyebrow">Evaluaciones activas</p>
-                <h2>Examenes creados</h2>
+                <h2>Exámenes creados</h2>
               </div>
               <button class="primary-button" id="newExamShortcutButton" type="button">Crear nuevo examen</button>
             </div>
 
             <div class="result-summary" id="createdExamsSummary">
-              Aun no hay examenes creados.
+              Aún no hay exámenes creados.
             </div>
             <div class="result-list" id="createdExamsList"></div>
           </section>
@@ -146,15 +146,15 @@
             <form class="question-editor" id="questionForm">
               <div class="question-editor-grid">
                 <label class="field">
-                  Area
+                  Área
                   <input id="questionArea" placeholder="Ej. Desarrollo de Software" required />
                 </label>
                 <label class="field">
                   Tipo
                   <select id="questionType">
-                    <option value="closed">Teorica cerrada</option>
-                    <option value="open">Teorica abierta</option>
-                    <option value="code">Practica de codigo</option>
+                    <option value="closed">Teórica cerrada</option>
+                    <option value="open">Teórica abierta</option>
+                    <option value="code">Práctica de código</option>
                   </select>
                 </label>
                 <label class="field">
@@ -170,13 +170,13 @@
 
               <label class="field">
                 Pregunta
-                <textarea id="questionPrompt" placeholder="Escribe aqui la pregunta que vera el candidato" required></textarea>
+                <textarea id="questionPrompt" placeholder="Escribe aquí la pregunta que verá el candidato" required></textarea>
               </label>
 
               <div class="question-type-fields" id="closedQuestionFields">
                 <label class="field">
                   Opciones
-                  <textarea id="questionOptions" placeholder="A|Primera opcion&#10;B|Segunda opcion&#10;C|Tercera opcion&#10;D|Cuarta opcion"></textarea>
+                  <textarea id="questionOptions" placeholder="A|Primera opción&#10;B|Segunda opción&#10;C|Tercera opción&#10;D|Cuarta opción"></textarea>
                 </label>
                 <label class="field small-field">
                   Respuesta correcta
@@ -186,7 +186,7 @@
 
               <label class="field">
                 Respuesta esperada
-                <textarea id="questionExpected" placeholder="Opcional para preguntas cerradas. Obligatoria para abiertas y practicas."></textarea>
+                <textarea id="questionExpected" placeholder="Opcional para preguntas cerradas. Obligatoria para abiertas y prácticas."></textarea>
               </label>
 
               <label class="field">
@@ -196,7 +196,7 @@
 
               <div class="question-type-fields hidden" id="codeQuestionFields">
                 <label class="field">
-                  Funcion esperada
+                  Función esperada
                   <input id="questionFunctionName" placeholder="Ej. validarLogin" />
                 </label>
                 <label class="field">
@@ -205,7 +205,7 @@
                 </label>
                 <label class="field">
                   Pruebas
-                  <textarea id="questionTests" placeholder='[{"name":"Caso valido","args":["correo@redgps.com","12345678"],"expected":true}]'></textarea>
+                  <textarea id="questionTests" placeholder='[{"name":"Caso válido","args":["correo@redgps.com","12345678"],"expected":true}]'></textarea>
                 </label>
               </div>
 
@@ -235,7 +235,7 @@
                   <input id="newUserEmail" type="email" placeholder="usuario@redgps.com" required />
                 </label>
                 <label class="field">
-                  Contrasena
+                  Contraseña
                   <input id="newUserPassword" type="password" minlength="6" maxlength="8" placeholder="6 a 8 caracteres" required />
                 </label>
                 <label class="field">
@@ -260,7 +260,7 @@
             <div class="exam-header">
               <div>
                 <p class="eyebrow">Examen activo</p>
-                <h2 id="examTitle">Evaluacion tecnica RedGPS</h2>
+                <h2 id="examTitle">Evaluación técnica RedGPS</h2>
               </div>
               <div class="timer" id="timer">--:--</div>
             </div>
@@ -285,14 +285,14 @@
           <section class="view" id="resultsView">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">Evaluacion</p>
+                <p class="eyebrow">Evaluación</p>
                 <h2>Resultado del candidato</h2>
               </div>
               <div class="score" id="scoreLabel">0/100</div>
             </div>
 
             <div class="result-summary" id="resultSummary">
-              Aun no hay respuestas evaluadas.
+              Aún no hay respuestas evaluadas.
             </div>
             <div class="result-list" id="resultList"></div>
           </section>
@@ -307,7 +307,7 @@
             </div>
 
             <div class="result-summary" id="answersSummary">
-              Aun no hay examenes guardados.
+              Aún no hay exámenes guardados.
             </div>
             <div class="result-list" id="answersList"></div>
           </section>
@@ -315,7 +315,7 @@
           <section class="view" id="answerKeyView">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">Guia del entrevistador</p>
+                <p class="eyebrow">Guía del entrevistador</p>
                 <h2>Respuestas correctas</h2>
               </div>
             </div>
@@ -327,6 +327,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260803-toggle-question-selection"></script>
+    <script src="app.js?v=20260803-textos-acentos"></script>
   </body>
 </html>
