@@ -1312,7 +1312,7 @@ function getUnansweredQuestions() {
   });
 }
 
-function showUnansweredQuestionsAlert(unansweredQuestions) {
+function confirmFinishWithUnansweredQuestions(unansweredQuestions) {
   const preview = unansweredQuestions
     .slice(0, 5)
     .map((question) => `- ${question.title || question.prompt || "Pregunta sin titulo"}`)
@@ -1321,7 +1321,10 @@ function showUnansweredQuestionsAlert(unansweredQuestions) {
     ? `\n...y ${unansweredQuestions.length - 5} pregunta(s) más.`
     : "";
 
-  alert(`Te faltan ${unansweredQuestions.length} pregunta(s) por contestar:\n\n${preview}${extra}`);
+  return confirm(
+    `Te faltan ${unansweredQuestions.length} pregunta(s) por contestar:\n\n${preview}${extra}\n\n` +
+    "Si continuas, el examen se entregara con esas respuestas vacias. ¿Quieres finalizar de todos modos?"
+  );
 }
 
 function updateFinishExamButtonState() {
@@ -2032,13 +2035,15 @@ async function finishExam(options = {}) {
     if (!forced) {
       const unansweredQuestions = getUnansweredQuestions();
       if (unansweredQuestions.length > 0) {
-        showUnansweredQuestionsAlert(unansweredQuestions);
-        const firstMissingIndex = state.activeExam.questions.findIndex((question) => question.id === unansweredQuestions[0].id);
-        const pageSize = 5;
-        state.candidateExamPage = Math.floor(firstMissingIndex / pageSize) + 1;
-        renderExam();
-        document.querySelector(`#answer-${CSS.escape(unansweredQuestions[0].id)}`)?.focus();
-        return;
+        const shouldFinish = confirmFinishWithUnansweredQuestions(unansweredQuestions);
+        if (!shouldFinish) {
+          const firstMissingIndex = state.activeExam.questions.findIndex((question) => question.id === unansweredQuestions[0].id);
+          const pageSize = 5;
+          state.candidateExamPage = Math.floor(firstMissingIndex / pageSize) + 1;
+          renderExam();
+          document.querySelector(`#answer-${CSS.escape(unansweredQuestions[0].id)}`)?.focus();
+          return;
+        }
       }
     }
 
