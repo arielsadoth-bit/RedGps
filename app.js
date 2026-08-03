@@ -1333,8 +1333,8 @@ function updateFinishExamButtonState() {
     return;
   }
 
-  finishButton.disabled = Boolean(state.activeExam) && !hasValidCandidateIdentity();
-  finishButton.title = finishButton.disabled
+  finishButton.disabled = false;
+  finishButton.title = Boolean(state.activeExam) && !hasValidCandidateIdentity()
     ? "Captura nombre y correo válido para finalizar."
     : "";
 }
@@ -1946,6 +1946,8 @@ function triggerSecurityFinish(reason) {
 
   state.securityFinishTriggered = true;
   state.securityFinishReason = reason;
+  timer.textContent = "Finalizado";
+  document.querySelector("#finishExamButton").disabled = true;
   finishExam({ forced: true });
 }
 
@@ -1955,6 +1957,7 @@ function bindCandidateSecurityRules() {
   }
 
   const devtoolsThreshold = 160;
+  let devtoolsCheckTimer = null;
   const detectDevTools = () => {
     const widthGap = Math.abs(window.outerWidth - window.innerWidth);
     const heightGap = Math.abs(window.outerHeight - window.innerHeight);
@@ -1963,21 +1966,22 @@ function bindCandidateSecurityRules() {
     }
   };
 
-  let visibilityTimeout = null;
+  const finishForLostFocus = () => {
+    triggerSecurityFinish("El candidato cambió de pestaña, minimizó o salió de la página.");
+  };
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      visibilityTimeout = setTimeout(() => {
-        if (document.visibilityState === "hidden") {
-          triggerSecurityFinish("El candidato cambió de pestaña, minimizó o salió de la página.");
-        }
-      }, 700);
-      return;
+      finishForLostFocus();
     }
+  });
 
-    if (visibilityTimeout) {
-      clearTimeout(visibilityTimeout);
-      visibilityTimeout = null;
-    }
+  window.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      if (!document.hasFocus()) {
+        finishForLostFocus();
+      }
+    }, 120);
   });
 
   window.addEventListener("pagehide", () => {
@@ -1995,6 +1999,22 @@ function bindCandidateSecurityRules() {
       triggerSecurityFinish("El candidato intentó abrir las herramientas de inspección del navegador.");
     }
   });
+
+  devtoolsCheckTimer = window.setInterval(() => {
+    if (!shouldAutoFinishForSecurity()) {
+      window.clearInterval(devtoolsCheckTimer);
+      return;
+    }
+
+    const startedAt = performance.now();
+    debugger;
+    if (performance.now() - startedAt > 120) {
+      triggerSecurityFinish("El candidato abrió las herramientas de inspección del navegador.");
+      return;
+    }
+
+    detectDevTools();
+  }, 1000);
 
   detectDevTools();
 }
