@@ -1446,7 +1446,7 @@ textarea {
 
 .created-exams-table {
   width: 100%;
-  min-width: 1220px;
+  min-width: 1060px;
   border-collapse: collapse;
 }
 
@@ -1483,10 +1483,7 @@ textarea {
 }
 
 .created-link-cell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
+  max-width: 360px;
 }
 
 .created-link-cell a {

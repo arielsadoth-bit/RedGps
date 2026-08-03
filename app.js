@@ -2715,10 +2715,10 @@ async function renderCreatedExams() {
           <tr>
             <th>Nombre del examen</th>
             <th>Núm. preguntas</th>
-            <th>Núm. links generados</th>
             <th>Generado por</th>
             <th>Correo capturado</th>
             <th>Link único de acceso</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -2945,14 +2945,15 @@ function renderCreatedExamRow(exam) {
         <small>${createdAt}</small>
       </td>
       <td>${Number(exam.questionCount || 0)}</td>
-      <td>${Number(exam.linkCount || 1)}</td>
       <td>${escapeHtml(exam.createdBy || exam.creadoPor || "Sin registro")}</td>
       <td>${escapeHtml(exam.candidateEmail || "Sin correo")}</td>
       <td>
         <div class="created-link-cell">
           <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
-          <button class="ghost-button copy-created-link-button" type="button" data-link="${escapeHtml(exam.link || "")}">Copiar</button>
         </div>
+      </td>
+      <td>
+        <button class="ghost-button copy-created-link-button" type="button" data-link="${escapeHtml(exam.link || "")}">Copiar</button>
       </td>
     </tr>
   `;
