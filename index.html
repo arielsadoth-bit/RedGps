@@ -68,7 +68,8 @@
           <button class="nav-button admin-nav-button" id="openQuestionManagerButton" type="button">Crear preguntas</button>
           <button class="nav-button" data-view="createdExamsView">Exámenes creados</button>
           <button class="nav-button admin-nav-button" data-view="linkTrackingView">Seguimiento de enlaces</button>
-          <button class="nav-button" data-view="candidateView">Resultados del candidato</button>
+          <button class="nav-button" data-view="candidateView">Responder examen</button>
+          <button class="nav-button" data-view="resultsView">Resultados del candidato</button>
           <button class="nav-button" data-view="answersView">Respuestas guardadas</button>
           <button class="nav-button" data-view="answerKeyView">Respuestas correctas</button>
           <button class="nav-button admin-nav-button" id="openUserManagerButton" type="button">Administrar usuarios</button>
@@ -237,6 +238,10 @@
                 <label class="field">
                   Pruebas
                   <textarea id="questionTests" placeholder='[{"name":"Caso válido","args":["correo@redgps.com","12345678"],"expected":true}]'></textarea>
+                </label>
+                <label class="field">
+                  Codigo de solucion
+                  <textarea id="questionSolution" class="code-editor" spellcheck="false" placeholder="Escribe una solucion ejemplo para respuestas correctas."></textarea>
                 </label>
               </div>
 

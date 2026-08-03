@@ -17,6 +17,10 @@ const state = {
     dateTo: "",
   },
   createdExamsPage: 1,
+  questionBankPage: 1,
+  candidateExamPage: 1,
+  selectedQuestionIds: new Set(),
+  questionSelectionInitialized: false,
   isFinishingExam: false,
   securityFinishTriggered: false,
   securityFinishReason: "",
@@ -56,6 +60,7 @@ const questionKeywordsInput = document.querySelector("#questionKeywords");
 const questionFunctionNameInput = document.querySelector("#questionFunctionName");
 const questionLanguageInput = document.querySelector("#questionLanguage");
 const questionTestsInput = document.querySelector("#questionTests");
+const questionSolutionInput = document.querySelector("#questionSolution");
 const questionManagerStatus = document.querySelector("#questionManagerStatus");
 const closedQuestionFields = document.querySelector("#closedQuestionFields");
 const codeQuestionFields = document.querySelector("#codeQuestionFields");
@@ -150,21 +155,37 @@ function getActionIcon(name) {
 }
 
 function renderQuestionBank() {
+  syncSelectedQuestionsWithBank();
+  const pageSize = 5;
+  const totalPages = Math.max(1, Math.ceil(questions.length / pageSize));
+  state.questionBankPage = Math.min(Math.max(1, state.questionBankPage), totalPages);
+  const pageStart = (state.questionBankPage - 1) * pageSize;
+  const pageQuestions = questions.slice(pageStart, pageStart + pageSize);
+  const selectedCount = state.selectedQuestionIds.size;
+  const rangeLabel = questions.length
+    ? `Mostrando ${pageStart + 1}-${Math.min(pageStart + pageSize, questions.length)} de ${questions.length}`
+    : "Sin preguntas activas";
+
   questionBank.innerHTML = `
     <div class="question-bank-toggle">
       <div>
         <strong>${questions.length}</strong>
-        <span>pregunta(s) disponibles para seleccionar</span>
+        <span>pregunta(s) disponibles</span>
+        <small>${selectedCount} seleccionada(s) para el examen</small>
       </div>
       <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas</button>
     </div>
     <div class="question-bank-list hidden" id="questionBankList">
-      ${questions
+      <div class="question-bank-toolbar">
+        <strong>Banco de preguntas</strong>
+        <span>${rangeLabel}</span>
+      </div>
+      ${pageQuestions
         .map(
           (question) => `
           <article class="question-card">
             <div class="question-top">
-              <input type="checkbox" id="${question.id}" value="${question.id}" checked />
+              <input type="checkbox" id="${question.id}" value="${question.id}" ${state.selectedQuestionIds.has(question.id) ? "checked" : ""} />
               <div class="question-content">
                 <h3>${question.title}</h3>
                 <p>${question.prompt}</p>
@@ -185,6 +206,7 @@ function renderQuestionBank() {
         `
         )
         .join("")}
+      ${renderQuestionBankPagination(totalPages)}
     </div>
   `;
 
@@ -203,10 +225,78 @@ function renderQuestionBank() {
   });
 
   document.querySelectorAll("#questionBank input[type='checkbox']").forEach((input) => {
-    input.addEventListener("change", updateQuestionSelectionToggleLabel);
+    input.addEventListener("change", () => {
+      if (input.checked) {
+        state.selectedQuestionIds.add(input.value);
+      } else {
+        state.selectedQuestionIds.delete(input.value);
+      }
+      updateQuestionSelectionToggleLabel();
+      updateQuestionBankSelectionCount();
+    });
+  });
+
+  document.querySelectorAll(".question-bank-page-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const page = Number(button.dataset.page);
+      if (!Number.isInteger(page) || page < 1 || page > totalPages) {
+        return;
+      }
+
+      state.questionBankPage = page;
+      const listWasOpen = !document.querySelector("#questionBankList")?.classList.contains("hidden");
+      renderQuestionBank();
+      if (listWasOpen) {
+        document.querySelector("#questionBankList")?.classList.remove("hidden");
+        document.querySelector("#toggleQuestionBankButton").textContent = "Ocultar preguntas activas";
+      }
+    });
   });
 
   updateQuestionSelectionToggleLabel();
+}
+
+function syncSelectedQuestionsWithBank() {
+  const activeIds = new Set(questions.map((question) => question.id));
+
+  if (!(state.selectedQuestionIds instanceof Set)) {
+    state.selectedQuestionIds = new Set();
+  }
+
+  if (!state.questionSelectionInitialized) {
+    questions.forEach((question) => state.selectedQuestionIds.add(question.id));
+    state.questionSelectionInitialized = true;
+    return;
+  }
+
+  [...state.selectedQuestionIds].forEach((id) => {
+    if (!activeIds.has(id)) {
+      state.selectedQuestionIds.delete(id);
+    }
+  });
+}
+
+function renderQuestionBankPagination(totalPages) {
+  if (totalPages <= 1) {
+    return "";
+  }
+
+  return `
+    <div class="pagination-bar question-bank-pagination">
+      <span>Página ${state.questionBankPage} de ${totalPages}</span>
+      <div class="pagination-actions">
+        <button class="ghost-button question-bank-page-button" type="button" data-page="${state.questionBankPage - 1}" ${state.questionBankPage <= 1 ? "disabled" : ""}>Anterior</button>
+        <button class="ghost-button question-bank-page-button" type="button" data-page="${state.questionBankPage + 1}" ${state.questionBankPage >= totalPages ? "disabled" : ""}>Siguiente</button>
+      </div>
+    </div>
+  `;
+}
+
+function updateQuestionBankSelectionCount() {
+  const counter = questionBank?.querySelector(".question-bank-toggle small");
+  if (counter) {
+    counter.textContent = `${state.selectedQuestionIds.size} seleccionada(s) para el examen`;
+  }
 }
 
 function syncQuestionCountLimit() {
@@ -269,8 +359,9 @@ function parseQuestionRunner() {
   const functionName = questionFunctionNameInput?.value.trim() || "";
   const language = questionLanguageInput?.value.trim() || "JavaScript";
   const testsText = questionTestsInput?.value.trim() || "";
+  const solutionCode = questionSolutionInput?.value.trim() || "";
 
-  if (!functionName && !testsText) {
+  if (!functionName && !testsText && !solutionCode) {
     return null;
   }
 
@@ -279,7 +370,7 @@ function parseQuestionRunner() {
     tests = JSON.parse(testsText);
   }
 
-  return { functionName, language, tests };
+  return { functionName, language, tests, solutionCode };
 }
 
 async function saveQuestionFromForm(event) {
@@ -336,6 +427,9 @@ async function saveQuestionFromForm(event) {
   questionForm.reset();
   questionPointsInput.value = "20";
   questionLanguageInput.value = "JavaScript";
+  if (questionSolutionInput) {
+    questionSolutionInput.value = "";
+  }
   toggleQuestionFormFields();
 
   await loadQuestions();
@@ -664,8 +758,8 @@ function showView(viewId) {
     interviewerView: "Crear examen",
     createdExamsView: "Exámenes",
     linkTrackingView: "Seguimiento de enlaces",
-    candidateView: "Resultados del candidato",
-    resultsView: "Resultados",
+    candidateView: "Responder examen",
+    resultsView: "Resultados del candidato",
     answersView: "Respuestas guardadas",
     answerKeyView: "Respuestas correctas",
   };
@@ -675,8 +769,9 @@ function showView(viewId) {
 }
 
 function getSelectedQuestions() {
-  return [...document.querySelectorAll("#questionBank input:checked")]
-    .map((input) => questions.find((question) => question.id === input.value))
+  syncSelectedQuestionsWithBank();
+  return [...state.selectedQuestionIds]
+    .map((id) => questions.find((question) => question.id === id))
     .filter(Boolean);
 }
 
@@ -685,28 +780,27 @@ function updateQuestionSelectionToggleLabel() {
     return;
   }
 
-  const checkboxes = [...document.querySelectorAll("#questionBank input[type='checkbox']")];
-  const allSelected = checkboxes.length > 0 && checkboxes.every((input) => input.checked);
+  syncSelectedQuestionsWithBank();
+  const allSelected = questions.length > 0 && state.selectedQuestionIds.size === questions.length;
   toggleQuestionSelectionButton.textContent = allSelected ? "Deseleccionar todo" : "Seleccionar todo";
+  updateQuestionBankSelectionCount();
 }
 
 function toggleQuestionSelection() {
-  const checkboxes = [...document.querySelectorAll("#questionBank input[type='checkbox']")];
-  const allSelected = checkboxes.length > 0 && checkboxes.every((input) => input.checked);
+  syncSelectedQuestionsWithBank();
+  const allSelected = questions.length > 0 && state.selectedQuestionIds.size === questions.length;
 
-  checkboxes.forEach((input) => {
-    input.checked = !allSelected;
-  });
+  state.selectedQuestionIds = allSelected
+    ? new Set()
+    : new Set(questions.map((question) => question.id));
 
+  renderQuestionBank();
   updateQuestionSelectionToggleLabel();
 }
 
 function selectOnlyExamQuestions(examQuestions) {
-  const selectedIds = new Set(examQuestions.map((question) => question.id));
-  document.querySelectorAll("#questionBank input[type='checkbox']").forEach((input) => {
-    input.checked = selectedIds.has(input.value);
-  });
-
+  state.selectedQuestionIds = new Set(examQuestions.map((question) => question.id));
+  renderQuestionBank();
   updateQuestionSelectionToggleLabel();
 }
 
@@ -736,12 +830,19 @@ async function createExam(mode = "random") {
       return;
     }
 
+    if (selectedQuestions.length < questionCount) {
+      alert(`Seleccionaste ${selectedQuestions.length} pregunta(s), pero pediste ${questionCount}. Selecciona más preguntas o baja la cantidad.`);
+      questionCountInput.focus();
+      return;
+    }
+
     examQuestions = selectedQuestions.slice(0, questionCount);
   } else {
     examQuestions = pickExamQuestions(questions, questionCount);
   }
 
   selectOnlyExamQuestions(examQuestions);
+  state.candidateExamPage = 1;
 
   state.activeExam = {
     id: createId(),
@@ -869,13 +970,63 @@ function renderExam() {
     return;
   }
 
-  examForm.innerHTML = state.activeExam.questions
-    .map((question, index) => renderAnswerField(question, index))
-    .join("");
+  const pageSize = 5;
+  const totalPages = Math.max(1, Math.ceil(state.activeExam.questions.length / pageSize));
+  state.candidateExamPage = Math.min(Math.max(1, state.candidateExamPage), totalPages);
+  const pageStart = (state.candidateExamPage - 1) * pageSize;
+  const rangeLabel = `Preguntas ${pageStart + 1}-${Math.min(pageStart + pageSize, state.activeExam.questions.length)} de ${state.activeExam.questions.length}`;
+
+  examForm.innerHTML = `
+    <div class="exam-page-toolbar">
+      <strong>${rangeLabel}</strong>
+      <span>Página ${state.candidateExamPage} de ${totalPages}</span>
+    </div>
+    ${state.activeExam.questions
+      .map((question, index) => `
+        <div class="exam-question-page ${Math.floor(index / pageSize) + 1 === state.candidateExamPage ? "" : "hidden"}">
+          ${renderAnswerField(question, index)}
+        </div>
+      `)
+      .join("")}
+    ${renderCandidateExamPagination(totalPages)}
+  `;
   restoreCandidateName();
   restoreDraftAnswers();
   bindDraftSaving();
+  bindCandidateExamPagination(totalPages);
   updateFinishExamButtonState();
+}
+
+function renderCandidateExamPagination(totalPages) {
+  if (totalPages <= 1) {
+    return "";
+  }
+
+  return `
+    <div class="pagination-bar exam-pagination">
+      <span>Avanza por secciones. Tus respuestas se guardan mientras contestas.</span>
+      <div class="pagination-actions">
+        <button class="ghost-button exam-page-button" type="button" data-page="${state.candidateExamPage - 1}" ${state.candidateExamPage <= 1 ? "disabled" : ""}>Anterior</button>
+        <button class="ghost-button exam-page-button" type="button" data-page="${state.candidateExamPage + 1}" ${state.candidateExamPage >= totalPages ? "disabled" : ""}>Siguiente</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindCandidateExamPagination(totalPages) {
+  document.querySelectorAll(".exam-page-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const page = Number(button.dataset.page);
+      if (!Number.isInteger(page) || page < 1 || page > totalPages) {
+        return;
+      }
+
+      saveDraftAnswers();
+      state.candidateExamPage = page;
+      renderExam();
+      examForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 }
 
 function showExamBlockedMessage() {
@@ -2668,10 +2819,12 @@ async function renderAnswerKey() {
     const answerKey = await response.json();
     answerKeyList.innerHTML = answerKey
     .map((question) => {
+      const runner = getQuestionRunner(question);
       const correctAnswer =
         question.type === "closed"
           ? `${question.correctAnswer}) ${question.expected}`
           : question.expected;
+      const solutionCode = question.solutionCode || question.SolutionCode || runner?.solutionCode || runner?.SolutionCode || "";
 
       return `
         <article class="result-card">
@@ -2679,12 +2832,16 @@ async function renderAnswerKey() {
           <div class="tag-row">
             <span class="tag">${question.area}</span>
             <span class="tag">${getQuestionTypeLabel(question)}</span>
-            ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(getQuestionRunner(question)))}</span>` : ""}
+            ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(runner))}</span>` : ""}
             <span class="tag">${question.points} pts</span>
           </div>
           <p><strong>Pregunta:</strong> ${question.prompt}</p>
           <p><strong>Respuesta correcta:</strong></p>
           <code>${escapeHtml(correctAnswer)}</code>
+          ${question.type === "code" && solutionCode ? `
+            <p><strong>Código de solución:</strong></p>
+            <code>${escapeHtml(solutionCode)}</code>
+          ` : ""}
         </article>
       `;
     })

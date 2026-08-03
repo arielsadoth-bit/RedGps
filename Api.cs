@@ -196,7 +196,9 @@ app.MapGet("/api/answer-key", (HttpRequest request) =>
         question.Points,
         question.Expected,
         CorrectAnswer = question.CorrectAnswer,
-        question.Options
+        question.Options,
+        Runner = ToPublicRunner(question.Runner),
+        SolutionCode = question.Runner?.SolutionCode ?? ""
     }));
 });
 
@@ -212,6 +214,7 @@ app.MapGet("/api/results", (HttpRequest request) =>
     command.CommandText = """
         SELECT datos_json
         FROM resultados_examenes
+        WHERE COALESCE(eliminado, 0) = 0
         ORDER BY finalizado_en DESC
         LIMIT 50
         """;
@@ -253,7 +256,7 @@ app.MapGet("/api/exams", (HttpRequest request) =>
             COALESCE(r.finalizado_en, '') AS completado_en
         FROM examenes_creados e
         LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
-        LEFT JOIN resultados_examenes r ON r.id = e.id
+        LEFT JOIN resultados_examenes r ON r.id = e.id AND COALESCE(r.eliminado, 0) = 0
         ORDER BY e.creado_en DESC
         LIMIT 200
         """;
@@ -308,7 +311,7 @@ app.MapGet("/api/link-tracking", (HttpRequest request) =>
             COALESCE(r.finalizado_en, '') AS completado_en
         FROM examenes_creados e
         LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
-        LEFT JOIN resultados_examenes r ON r.id = e.id
+        LEFT JOIN resultados_examenes r ON r.id = e.id AND COALESCE(r.eliminado, 0) = 0
         ORDER BY e.creado_en DESC
         LIMIT 300
         """;
@@ -578,7 +581,7 @@ static void SaveCreatedExam(SqliteConnection connection, JsonElement rootElement
 
 app.MapDelete("/api/results", (HttpRequest request) =>
 {
-    if (!TryGetInterviewer(request, sessions, out _))
+    if (!TryGetInterviewer(request, sessions, out var interviewer))
     {
         return Results.Unauthorized();
     }
@@ -586,10 +589,14 @@ app.MapDelete("/api/results", (HttpRequest request) =>
     using var connection = OpenConnection(databasePath);
     using var command = connection.CreateCommand();
     command.CommandText = """
-        DELETE FROM respuestas_examenes;
-        DELETE FROM resultados_examenes;
-        DELETE FROM enlaces_examenes;
+        UPDATE resultados_examenes
+        SET eliminado = 1,
+            eliminado_por = $deletedBy,
+            eliminado_en = $deletedAt
+        WHERE COALESCE(eliminado, 0) = 0;
         """;
+    command.Parameters.AddWithValue("$deletedBy", interviewer);
+    command.Parameters.AddWithValue("$deletedAt", DateTime.UtcNow.ToString("O"));
     command.ExecuteNonQuery();
 
     return Results.Ok(new { ok = true });
@@ -597,7 +604,7 @@ app.MapDelete("/api/results", (HttpRequest request) =>
 
 app.MapDelete("/api/results/{id}", (string id, HttpRequest request) =>
 {
-    if (!TryGetInterviewer(request, sessions, out _))
+    if (!TryGetInterviewer(request, sessions, out var interviewer))
     {
         return Results.Unauthorized();
     }
@@ -608,30 +615,19 @@ app.MapDelete("/api/results/{id}", (string id, HttpRequest request) =>
     }
 
     using var connection = OpenConnection(databasePath);
-    using var transaction = connection.BeginTransaction();
-
-    using (var answersCommand = connection.CreateCommand())
-    {
-        answersCommand.Transaction = transaction;
-        answersCommand.CommandText = "DELETE FROM respuestas_examenes WHERE id_resultado = $id";
-        answersCommand.Parameters.AddWithValue("$id", id);
-        answersCommand.ExecuteNonQuery();
-    }
-
-    using (var linksCommand = connection.CreateCommand())
-    {
-        linksCommand.Transaction = transaction;
-        linksCommand.CommandText = "DELETE FROM enlaces_examenes WHERE id_examen = $id";
-        linksCommand.Parameters.AddWithValue("$id", id);
-        linksCommand.ExecuteNonQuery();
-    }
-
     using var resultCommand = connection.CreateCommand();
-    resultCommand.Transaction = transaction;
-    resultCommand.CommandText = "DELETE FROM resultados_examenes WHERE id = $id";
+    resultCommand.CommandText = """
+        UPDATE resultados_examenes
+        SET eliminado = 1,
+            eliminado_por = $deletedBy,
+            eliminado_en = $deletedAt
+        WHERE id = $id
+            AND COALESCE(eliminado, 0) = 0
+        """;
     resultCommand.Parameters.AddWithValue("$id", id);
+    resultCommand.Parameters.AddWithValue("$deletedBy", interviewer);
+    resultCommand.Parameters.AddWithValue("$deletedAt", DateTime.UtcNow.ToString("O"));
     var deleted = resultCommand.ExecuteNonQuery();
-    transaction.Commit();
 
     return deleted > 0
         ? Results.Ok(new { ok = true })
@@ -706,6 +702,9 @@ static void InitializeDatabase(string databasePath)
             nota_manual TEXT NOT NULL DEFAULT '',
             modificado_por TEXT NOT NULL DEFAULT '',
             modificado_en TEXT NOT NULL DEFAULT '',
+            eliminado INTEGER NOT NULL DEFAULT 0,
+            eliminado_por TEXT NOT NULL DEFAULT '',
+            eliminado_en TEXT NOT NULL DEFAULT '',
             datos_json TEXT NOT NULL
         );
 
@@ -805,7 +804,8 @@ static void InitializeDatabase(string databasePath)
             nota_manual,
             modificado_por,
             modificado_en
-        FROM resultados_examenes;
+        FROM resultados_examenes
+        WHERE COALESCE(eliminado, 0) = 0;
 
         DROP VIEW IF EXISTS vista_respuestas;
         CREATE VIEW vista_respuestas AS
@@ -828,7 +828,8 @@ static void InitializeDatabase(string databasePath)
             r.modificado_por,
             r.modificado_en
         FROM respuestas_examenes r
-        LEFT JOIN resultados_examenes e ON e.id = r.id_resultado;
+        LEFT JOIN resultados_examenes e ON e.id = r.id_resultado
+        WHERE COALESCE(e.eliminado, 0) = 0;
 
         DROP VIEW IF EXISTS vista_enlaces_usados;
         CREATE VIEW vista_enlaces_usados AS
@@ -858,7 +859,7 @@ static void InitializeDatabase(string databasePath)
             END AS estado
         FROM examenes_creados e
         LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
-        LEFT JOIN resultados_examenes r ON r.id = e.id;
+        LEFT JOIN resultados_examenes r ON r.id = e.id AND COALESCE(r.eliminado, 0) = 0;
 
         DROP VIEW IF EXISTS vista_seguimiento_enlaces;
         CREATE VIEW vista_seguimiento_enlaces AS
@@ -877,7 +878,7 @@ static void InitializeDatabase(string databasePath)
             END AS estado
         FROM examenes_creados e
         LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
-        LEFT JOIN resultados_examenes r ON r.id = e.id;
+        LEFT JOIN resultados_examenes r ON r.id = e.id AND COALESCE(r.eliminado, 0) = 0;
 
         DROP VIEW IF EXISTS vista_usuarios_entrevistadores;
         CREATE VIEW vista_usuarios_entrevistadores AS
@@ -923,6 +924,9 @@ static void InitializeDatabase(string databasePath)
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "modificado_en", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "correo_candidato", "TEXT NOT NULL DEFAULT ''");
+    EnsureColumn(connection, "resultados_examenes", "eliminado", "INTEGER NOT NULL DEFAULT 0");
+    EnsureColumn(connection, "resultados_examenes", "eliminado_por", "TEXT NOT NULL DEFAULT ''");
+    EnsureColumn(connection, "resultados_examenes", "eliminado_en", "TEXT NOT NULL DEFAULT ''");
     MigrateOldResultsTable(connection);
     BackfillAnswerRows(connection);
 }
@@ -1223,6 +1227,10 @@ static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonEleme
     {
         runner = null;
     }
+    else if (runner is null)
+    {
+        return (null, "Configura la funcion y al menos una prueba JSON para una pregunta practica.");
+    }
 
     if (string.IsNullOrWhiteSpace(id))
     {
@@ -1263,7 +1271,7 @@ static object BuildLinkStats(SqliteConnection connection, DateTime since)
     {
         generated = CountRowsSince(connection, "examenes_creados", "creado_en", since),
         opened = CountRowsSince(connection, "enlaces_examenes", "tomado_en", since),
-        completed = CountRowsSince(connection, "resultados_examenes", "finalizado_en", since)
+        completed = CountActiveResultsSince(connection, since)
     };
 }
 
@@ -1271,6 +1279,19 @@ static long CountRowsSince(SqliteConnection connection, string tableName, string
 {
     using var command = connection.CreateCommand();
     command.CommandText = $"SELECT COUNT(*) FROM {tableName} WHERE {columnName} >= $since";
+    command.Parameters.AddWithValue("$since", since.ToString("O"));
+    return Convert.ToInt64(command.ExecuteScalar() ?? 0);
+}
+
+static long CountActiveResultsSince(SqliteConnection connection, DateTime since)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT COUNT(*)
+        FROM resultados_examenes
+        WHERE finalizado_en >= $since
+            AND COALESCE(eliminado, 0) = 0
+        """;
     command.Parameters.AddWithValue("$since", since.ToString("O"));
     return Convert.ToInt64(command.ExecuteScalar() ?? 0);
 }
@@ -1645,6 +1666,7 @@ static CodeRunner? GetQuestionRunnerFromRequest(JsonElement element)
 
     var functionName = GetFirstString(runnerElement, "functionName", "FunctionName").Trim();
     var language = GetFirstString(runnerElement, "language", "Language").Trim();
+    var solutionCode = GetFirstString(runnerElement, "solutionCode", "SolutionCode", "codigoSolucion").Trim();
     var tests = GetCodeTestsFromRequest(runnerElement);
 
     if (string.IsNullOrWhiteSpace(functionName) || tests.Count == 0)
@@ -1652,7 +1674,7 @@ static CodeRunner? GetQuestionRunnerFromRequest(JsonElement element)
         return null;
     }
 
-    return new CodeRunner(functionName, string.IsNullOrWhiteSpace(language) ? "JavaScript" : language, tests);
+    return new CodeRunner(functionName, string.IsNullOrWhiteSpace(language) ? "JavaScript" : language, tests, solutionCode);
 }
 
 static List<CodeTest> GetCodeTestsFromRequest(JsonElement runnerElement)
@@ -1774,8 +1796,23 @@ static object ToPublicQuestion(ExamQuestion question) => new
     question.Prompt,
     question.Points,
     question.Options,
-    question.Runner
+    Runner = ToPublicRunner(question.Runner)
 };
+
+static object? ToPublicRunner(CodeRunner? runner)
+{
+    if (runner is null)
+    {
+        return null;
+    }
+
+    return new
+    {
+        runner.FunctionName,
+        runner.Language,
+        runner.Tests
+    };
+}
 
 static object ToResultQuestion(ExamQuestion question, bool includeExpected)
 {
@@ -1794,7 +1831,7 @@ static object ToResultQuestion(ExamQuestion question, bool includeExpected)
         question.Points,
         question.Options,
         question.Expected,
-        question.Runner
+        Runner = ToPublicRunner(question.Runner)
     };
 }
 
@@ -2114,7 +2151,7 @@ record ExamQuestion(
     CodeRunner? Runner = null
 );
 
-record CodeRunner(string FunctionName, string Language, List<CodeTest> Tests);
+record CodeRunner(string FunctionName, string Language, List<CodeTest> Tests, string SolutionCode = "");
 
 record CodeTest(string Name, object[] Args, object Expected);
 
