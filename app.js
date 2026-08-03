@@ -84,9 +84,32 @@ const SESSION_KEY = "redgpsInterviewerSession";
 const USER_KEY = "redgpsInterviewerUser";
 const TOKEN_KEY = "redgpsInterviewToken";
 const ROLE_KEY = "redgpsInterviewerRole";
+const DELIVERY_RESET_KEY = "redgpsDeliveryResetVersion";
+const DELIVERY_RESET_VERSION = "20260803-entrega-limpia";
 const CREATED_EXAMS_PAGE_SIZE = 5;
 let intruderAudioContext = null;
 let intruderAlarmTimer = null;
+
+function clearDeliveryLocalDataOnce() {
+  if (localStorage.getItem(DELIVERY_RESET_KEY) === DELIVERY_RESET_VERSION) {
+    return;
+  }
+
+  const keysToRemove = [
+    "activeExam",
+    "lastResult",
+    "examHistory",
+    "createdExamHistory",
+  ];
+
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith("examDraft:") || key.startsWith("examFinished:") || keysToRemove.includes(key)) {
+      localStorage.removeItem(key);
+    }
+  });
+
+  localStorage.setItem(DELIVERY_RESET_KEY, DELIVERY_RESET_VERSION);
+}
 
 async function loadQuestions() {
   if (!location.protocol.startsWith("http")) {
@@ -2844,6 +2867,7 @@ function applyRoleVisibility() {
 }
 
 async function initializeApp() {
+  clearDeliveryLocalDataOnce();
   await loadQuestions();
   renderQuestionBank();
   toggleQuestionFormFields();
