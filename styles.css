@@ -574,6 +574,14 @@ textarea {
   margin-top: 22px;
 }
 
+.question-bank-layout.area-bank-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.question-bank-layout.area-bank-hidden .area-bank-sidebar {
+  display: none;
+}
+
 .question-bank-layout .question-bank {
   align-self: start;
   margin-top: 0;

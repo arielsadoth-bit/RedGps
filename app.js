@@ -24,18 +24,21 @@ const state = {
   selectedQuestionArea: "Área de Desarrollo",
   selectedQuestionIds: new Set(),
   questionSelectionInitialized: false,
+  areaBankVisible: false,
   isFinishingExam: false,
   securityFinishTriggered: false,
   securityFinishReason: "",
 };
 
 const questionBank = document.querySelector("#questionBank");
+const questionBankLayout = document.querySelector("#questionBankLayout");
 const areaBankSidebar = document.querySelector("#areaBankSidebar");
 const examNameInput = document.querySelector("#examName");
 const candidateEmailInput = document.querySelector("#candidateEmail");
 const questionCountInput = document.querySelector("#questionCount");
 const createManualExamButton = document.querySelector("#createManualExamButton");
 const toggleQuestionSelectionButton = document.querySelector("#toggleQuestionSelectionButton");
+const toggleAreaBankButton = document.querySelector("#toggleAreaBankButton");
 const examForm = document.querySelector("#examForm");
 const resultList = document.querySelector("#resultList");
 const resultSummary = document.querySelector("#resultSummary");
@@ -438,6 +441,16 @@ function renderQuestionBank() {
   });
 
   updateQuestionSelectionToggleLabel();
+  updateAreaBankVisibility();
+}
+
+function updateAreaBankVisibility() {
+  questionBankLayout?.classList.toggle("area-bank-hidden", !state.areaBankVisible);
+  if (toggleAreaBankButton) {
+    toggleAreaBankButton.textContent = state.areaBankVisible
+      ? "Ocultar banco por puesto"
+      : "Ver banco por puesto";
+  }
 }
 
 function syncSelectedQuestionsWithBank() {
@@ -3592,6 +3605,11 @@ createManualExamButton?.addEventListener("click", () => {
 });
 
 toggleQuestionSelectionButton?.addEventListener("click", toggleQuestionSelection);
+
+toggleAreaBankButton?.addEventListener("click", () => {
+  state.areaBankVisible = !state.areaBankVisible;
+  updateAreaBankVisibility();
+});
 
 document.querySelector("#newExamShortcutButton")?.addEventListener("click", () => {
   showView("interviewerView");
