@@ -108,7 +108,10 @@
               </div>
             </div>
 
-            <div class="question-bank" id="questionBank"></div>
+            <div class="question-bank-layout">
+              <aside class="area-bank-sidebar" id="areaBankSidebar"></aside>
+              <div class="question-bank" id="questionBank"></div>
+            </div>
 
             <div class="link-box hidden" id="examLinkBox">
               <p>Enlace para enviar al candidato</p>
@@ -162,7 +165,15 @@
               <div class="question-editor-grid">
                 <label class="field">
                   Área
-                  <input id="questionArea" placeholder="Ej. Desarrollo de Software" required />
+                  <input id="questionArea" list="questionAreaOptions" placeholder="Ej. Area de Desarrollo" required />
+                  <datalist id="questionAreaOptions">
+                    <option value="Area de Desarrollo"></option>
+                    <option value="Area de Operaciones"></option>
+                    <option value="Area Comercial"></option>
+                    <option value="Area de Marketing"></option>
+                    <option value="Area Administrativa"></option>
+                    <option value="Area de Direccion"></option>
+                  </datalist>
                 </label>
                 <label class="field">
                   Tipo

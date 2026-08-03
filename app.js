@@ -19,6 +19,7 @@ const state = {
   createdExamsPage: 1,
   questionBankPage: 1,
   candidateExamPage: 1,
+  selectedQuestionArea: "Área de Desarrollo",
   selectedQuestionIds: new Set(),
   questionSelectionInitialized: false,
   isFinishingExam: false,
@@ -27,6 +28,7 @@ const state = {
 };
 
 const questionBank = document.querySelector("#questionBank");
+const areaBankSidebar = document.querySelector("#areaBankSidebar");
 const examNameInput = document.querySelector("#examName");
 const candidateEmailInput = document.querySelector("#candidateEmail");
 const questionCountInput = document.querySelector("#questionCount");
@@ -94,6 +96,14 @@ const ROLE_KEY = "redgpsInterviewerRole";
 const DELIVERY_RESET_KEY = "redgpsDeliveryResetVersion";
 const DELIVERY_RESET_VERSION = "20260803-entrega-limpia";
 const CREATED_EXAMS_PAGE_SIZE = 5;
+const QUESTION_BANK_AREAS = [
+  "Área de Desarrollo",
+  "Área de Operaciones",
+  "Área Comercial",
+  "Área de Marketing",
+  "Área Administrativa",
+  "Área de Dirección",
+];
 let intruderAudioContext = null;
 let intruderAlarmTimer = null;
 
@@ -154,23 +164,101 @@ function getActionIcon(name) {
   `;
 }
 
+function normalizeAreaText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getQuestionBankArea(question) {
+  const area = normalizeAreaText(question.area);
+
+  if (
+    area.includes("desarrollo") ||
+    area.includes("software") ||
+    area.includes("mobile") ||
+    area.includes("android") ||
+    area.includes("ios") ||
+    area.includes("programacion")
+  ) {
+    return "Área de Desarrollo";
+  }
+
+  if (area.includes("operacion")) return "Área de Operaciones";
+  if (area.includes("comercial") || area.includes("ventas")) return "Área Comercial";
+  if (area.includes("marketing") || area.includes("mercadotecnia")) return "Área de Marketing";
+  if (area.includes("administrativa") || area.includes("administracion")) return "Área Administrativa";
+  if (area.includes("direccion") || area.includes("directiva")) return "Área de Dirección";
+
+  return "Otras áreas";
+}
+
+function getAvailableBankAreas() {
+  const hasOtherQuestions = questions.some((question) => getQuestionBankArea(question) === "Otras áreas");
+  return hasOtherQuestions ? [...QUESTION_BANK_AREAS, "Otras áreas"] : QUESTION_BANK_AREAS;
+}
+
+function getQuestionsForSelectedArea() {
+  const availableAreas = getAvailableBankAreas();
+  if (!availableAreas.includes(state.selectedQuestionArea)) {
+    state.selectedQuestionArea = availableAreas[0] || QUESTION_BANK_AREAS[0];
+  }
+
+  return questions.filter((question) => getQuestionBankArea(question) === state.selectedQuestionArea);
+}
+
+function renderAreaBankSidebar() {
+  if (!areaBankSidebar) {
+    return;
+  }
+
+  const areas = getAvailableBankAreas();
+  areaBankSidebar.innerHTML = `
+    <p>Banco por área</p>
+    ${areas
+      .map((area) => {
+        const count = questions.filter((question) => getQuestionBankArea(question) === area).length;
+        return `
+          <button class="area-bank-button ${area === state.selectedQuestionArea ? "active" : ""}" type="button" data-area="${escapeHtml(area)}">
+            <span>${escapeHtml(area)}</span>
+            <strong>${count}</strong>
+          </button>
+        `;
+      })
+      .join("")}
+  `;
+
+  areaBankSidebar.querySelectorAll(".area-bank-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedQuestionArea = button.dataset.area || QUESTION_BANK_AREAS[0];
+      state.questionBankPage = 1;
+      renderQuestionBank();
+      syncQuestionCountLimit();
+    });
+  });
+}
+
 function renderQuestionBank() {
   syncSelectedQuestionsWithBank();
+  renderAreaBankSidebar();
+  const bankQuestions = getQuestionsForSelectedArea();
   const pageSize = 5;
-  const totalPages = Math.max(1, Math.ceil(questions.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(bankQuestions.length / pageSize));
   state.questionBankPage = Math.min(Math.max(1, state.questionBankPage), totalPages);
   const pageStart = (state.questionBankPage - 1) * pageSize;
-  const pageQuestions = questions.slice(pageStart, pageStart + pageSize);
-  const selectedCount = state.selectedQuestionIds.size;
-  const rangeLabel = questions.length
-    ? `Mostrando ${pageStart + 1}-${Math.min(pageStart + pageSize, questions.length)} de ${questions.length}`
+  const pageQuestions = bankQuestions.slice(pageStart, pageStart + pageSize);
+  const selectedCount = bankQuestions.filter((question) => state.selectedQuestionIds.has(question.id)).length;
+  const rangeLabel = bankQuestions.length
+    ? `Mostrando ${pageStart + 1}-${Math.min(pageStart + pageSize, bankQuestions.length)} de ${bankQuestions.length}`
     : "Sin preguntas activas";
 
   questionBank.innerHTML = `
     <div class="question-bank-toggle">
       <div>
-        <strong>${questions.length}</strong>
-        <span>pregunta(s) disponibles</span>
+        <strong>${bankQuestions.length}</strong>
+        <span>${escapeHtml(state.selectedQuestionArea)}</span>
         <small>${selectedCount} seleccionada(s) para el examen</small>
       </div>
       <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas</button>
@@ -295,7 +383,8 @@ function renderQuestionBankPagination(totalPages) {
 function updateQuestionBankSelectionCount() {
   const counter = questionBank?.querySelector(".question-bank-toggle small");
   if (counter) {
-    counter.textContent = `${state.selectedQuestionIds.size} seleccionada(s) para el examen`;
+    const selectedCount = getQuestionsForSelectedArea().filter((question) => state.selectedQuestionIds.has(question.id)).length;
+    counter.textContent = `${selectedCount} seleccionada(s) para el examen`;
   }
 }
 
@@ -304,7 +393,7 @@ function syncQuestionCountLimit() {
     return;
   }
 
-  const maxQuestions = Math.max(1, questions.length);
+  const maxQuestions = Math.max(1, getQuestionsForSelectedArea().length);
   questionCountInput.max = String(maxQuestions);
 
   const currentValue = Number(questionCountInput.value);
@@ -770,9 +859,7 @@ function showView(viewId) {
 
 function getSelectedQuestions() {
   syncSelectedQuestionsWithBank();
-  return [...state.selectedQuestionIds]
-    .map((id) => questions.find((question) => question.id === id))
-    .filter(Boolean);
+  return getQuestionsForSelectedArea().filter((question) => state.selectedQuestionIds.has(question.id));
 }
 
 function updateQuestionSelectionToggleLabel() {
@@ -781,18 +868,22 @@ function updateQuestionSelectionToggleLabel() {
   }
 
   syncSelectedQuestionsWithBank();
-  const allSelected = questions.length > 0 && state.selectedQuestionIds.size === questions.length;
+  const bankQuestions = getQuestionsForSelectedArea();
+  const allSelected = bankQuestions.length > 0 && bankQuestions.every((question) => state.selectedQuestionIds.has(question.id));
   toggleQuestionSelectionButton.textContent = allSelected ? "Deseleccionar todo" : "Seleccionar todo";
   updateQuestionBankSelectionCount();
 }
 
 function toggleQuestionSelection() {
   syncSelectedQuestionsWithBank();
-  const allSelected = questions.length > 0 && state.selectedQuestionIds.size === questions.length;
+  const bankQuestions = getQuestionsForSelectedArea();
+  const allSelected = bankQuestions.length > 0 && bankQuestions.every((question) => state.selectedQuestionIds.has(question.id));
 
-  state.selectedQuestionIds = allSelected
-    ? new Set()
-    : new Set(questions.map((question) => question.id));
+  if (allSelected) {
+    bankQuestions.forEach((question) => state.selectedQuestionIds.delete(question.id));
+  } else {
+    bankQuestions.forEach((question) => state.selectedQuestionIds.add(question.id));
+  }
 
   renderQuestionBank();
   updateQuestionSelectionToggleLabel();
@@ -805,14 +896,20 @@ function selectOnlyExamQuestions(examQuestions) {
 }
 
 async function createExam(mode = "random") {
+  const bankQuestions = getQuestionsForSelectedArea();
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
   const examName = examNameInput.value.trim();
-  const maxQuestions = Math.max(1, questions.length);
+  const maxQuestions = bankQuestions.length;
 
   if (!examName) {
     alert("Escribe el nombre del examen.");
     examNameInput.focus();
+    return;
+  }
+
+  if (maxQuestions < 1) {
+    alert(`No hay preguntas activas en ${state.selectedQuestionArea}. Agrega preguntas o cambia de area.`);
     return;
   }
 
@@ -838,7 +935,7 @@ async function createExam(mode = "random") {
 
     examQuestions = selectedQuestions.slice(0, questionCount);
   } else {
-    examQuestions = pickExamQuestions(questions, questionCount);
+    examQuestions = pickExamQuestions(bankQuestions, questionCount);
   }
 
   selectOnlyExamQuestions(examQuestions);
@@ -849,6 +946,7 @@ async function createExam(mode = "random") {
     name: examName,
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
+    area: state.selectedQuestionArea,
     questions: examQuestions,
   };
 
