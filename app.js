@@ -1,4 +1,5 @@
 ﻿let questions = [];
+let jobPositions = [];
 
 const state = {
   activeExam: null,
@@ -72,6 +73,13 @@ const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
 const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
 const closeQuestionManagerButton = document.querySelector("#closeQuestionManagerButton");
+const positionManagerModal = document.querySelector("#positionManagerModal");
+const openPositionManagerButton = document.querySelector("#openPositionManagerButton");
+const closePositionManagerButton = document.querySelector("#closePositionManagerButton");
+const positionForm = document.querySelector("#positionForm");
+const newPositionNameInput = document.querySelector("#newPositionName");
+const positionManagerStatus = document.querySelector("#positionManagerStatus");
+const positionManagerList = document.querySelector("#positionManagerList");
 const userManagerModal = document.querySelector("#userManagerModal");
 const openUserManagerButton = document.querySelector("#openUserManagerButton");
 const closeUserManagerButton = document.querySelector("#closeUserManagerButton");
@@ -99,7 +107,7 @@ const ROLE_KEY = "redgpsInterviewerRole";
 const DELIVERY_RESET_KEY = "redgpsDeliveryResetVersion";
 const DELIVERY_RESET_VERSION = "20260803-entrega-limpia";
 const CREATED_EXAMS_PAGE_SIZE = 5;
-const QUESTION_BANK_AREAS = [
+const DEFAULT_JOB_POSITIONS = [
   "Área de Desarrollo",
   "Área de Operaciones",
   "Área Comercial",
@@ -138,9 +146,40 @@ async function loadQuestions() {
     return;
   }
 
-  const response = await fetchWithTimeout(`${location.origin}/api/questions`, {}, 9000);
-  questions = await response.json();
+  const [questionsResponse] = await Promise.all([
+    fetchWithTimeout(`${location.origin}/api/questions`, {}, 9000),
+    loadJobPositions(),
+  ]);
+  questions = await questionsResponse.json();
+  syncQuestionAreaOptions();
   syncQuestionCountLimit();
+}
+
+async function loadJobPositions() {
+  if (!location.protocol.startsWith("http")) {
+    jobPositions = DEFAULT_JOB_POSITIONS.map((name) => ({ name }));
+    syncQuestionAreaOptions();
+    return;
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${location.origin}/api/positions`, {}, 9000);
+    const data = response.ok ? await response.json() : [];
+    jobPositions = Array.isArray(data) && data.length
+      ? data
+          .map((position) => ({
+            id: position.id || position.Id || "",
+            name: String(position.name || position.Name || position.nombre || position.puesto || "").trim(),
+            active: position.active ?? position.Active ?? true,
+            createdAt: position.createdAt || position.creado_en || "",
+          }))
+          .filter((position) => position.name)
+      : DEFAULT_JOB_POSITIONS.map((name) => ({ name }));
+  } catch {
+    jobPositions = DEFAULT_JOB_POSITIONS.map((name) => ({ name }));
+  }
+
+  syncQuestionAreaOptions();
 }
 
 function getAuthHeaders() {
@@ -177,8 +216,22 @@ function normalizeAreaText(value) {
     .trim();
 }
 
+function getKnownPositionNames() {
+  const names = (jobPositions.length ? jobPositions : DEFAULT_JOB_POSITIONS.map((name) => ({ name })))
+    .map((position) => String(position.name || position).trim())
+    .filter(Boolean);
+
+  return [...new Set(names)];
+}
+
 function getQuestionBankArea(question) {
-  const area = normalizeAreaText(question.area);
+  const rawArea = String(question.area || "").trim();
+  const area = normalizeAreaText(rawArea);
+  const exactPosition = getKnownPositionNames().find((position) => normalizeAreaText(position) === area);
+
+  if (exactPosition) {
+    return exactPosition;
+  }
 
   if (
     area.includes("desarrollo") ||
@@ -201,14 +254,38 @@ function getQuestionBankArea(question) {
 }
 
 function getAvailableBankAreas() {
-  const hasOtherQuestions = questions.some((question) => getQuestionBankArea(question) === "Otras áreas");
-  return hasOtherQuestions ? [...QUESTION_BANK_AREAS, "Otras áreas"] : QUESTION_BANK_AREAS;
+  const areas = [...getKnownPositionNames()];
+  questions.forEach((question) => {
+    const area = getQuestionBankArea(question);
+    if (area && !areas.includes(area)) {
+      areas.push(area);
+    }
+  });
+
+  return areas.length ? areas : [...DEFAULT_JOB_POSITIONS];
+}
+
+function syncQuestionAreaOptions() {
+  if (!questionAreaInput) {
+    return;
+  }
+
+  const areas = getAvailableBankAreas();
+  const previousValue = questionAreaInput.value || state.selectedQuestionArea;
+  questionAreaInput.innerHTML = areas
+    .map((area) => `<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`)
+    .join("");
+  const selectedArea = areas.find((area) => area === previousValue)
+    || areas.find((area) => area === state.selectedQuestionArea)
+    || areas[0]
+    || "";
+  questionAreaInput.value = selectedArea;
 }
 
 function getQuestionsForSelectedArea() {
   const availableAreas = getAvailableBankAreas();
   if (!availableAreas.includes(state.selectedQuestionArea)) {
-    state.selectedQuestionArea = availableAreas[0] || QUESTION_BANK_AREAS[0];
+    state.selectedQuestionArea = availableAreas[0] || DEFAULT_JOB_POSITIONS[0];
   }
 
   return questions.filter((question) => getQuestionBankArea(question) === state.selectedQuestionArea);
@@ -221,7 +298,7 @@ function renderAreaBankSidebar() {
 
   const areas = getAvailableBankAreas();
   areaBankSidebar.innerHTML = `
-    <p>Banco por área</p>
+    <p>Banco por puesto</p>
     ${areas
       .map((area) => {
         const count = questions.filter((question) => getQuestionBankArea(question) === area).length;
@@ -237,7 +314,7 @@ function renderAreaBankSidebar() {
 
   areaBankSidebar.querySelectorAll(".area-bank-button").forEach((button) => {
     button.addEventListener("click", () => {
-      state.selectedQuestionArea = button.dataset.area || QUESTION_BANK_AREAS[0];
+      state.selectedQuestionArea = button.dataset.area || DEFAULT_JOB_POSITIONS[0];
       state.questionBankPage = 1;
       renderQuestionBank();
       syncQuestionCountLimit();
@@ -520,6 +597,10 @@ async function saveQuestionFromForm(event) {
   questionForm.reset();
   questionPointsInput.value = "20";
   questionLanguageInput.value = "JavaScript";
+  syncQuestionAreaOptions();
+  if (questionAreaInput && state.selectedQuestionArea) {
+    questionAreaInput.value = state.selectedQuestionArea;
+  }
   if (questionSolutionInput) {
     questionSolutionInput.value = "";
   }
@@ -600,12 +681,128 @@ async function openQuestionManagerModal() {
   }
 
   toggleQuestionFormFields();
+  await loadJobPositions();
+  syncQuestionAreaOptions();
+  if (questionAreaInput && state.selectedQuestionArea) {
+    questionAreaInput.value = state.selectedQuestionArea;
+  }
   questionManagerModal?.classList.remove("hidden");
   questionTitleInput?.focus();
 }
 
 function closeQuestionManagerModal() {
   questionManagerModal?.classList.add("hidden");
+}
+
+async function openPositionManagerModal() {
+  if (!isAdminUser()) {
+    expireInterviewerSession(true);
+    return;
+  }
+
+  await renderPositionManager();
+  document.querySelectorAll(".nav-button").forEach((button) => button.classList.remove("active"));
+  openPositionManagerButton?.classList.add("active");
+  positionManagerModal?.classList.remove("hidden");
+  newPositionNameInput?.focus();
+}
+
+function closePositionManagerModal() {
+  positionManagerModal?.classList.add("hidden");
+  openPositionManagerButton?.classList.remove("active");
+  const activeView = document.querySelector(".view.active");
+  if (activeView?.id) {
+    document.querySelector(`.nav-button[data-view="${activeView.id}"]`)?.classList.add("active");
+  }
+}
+
+async function renderPositionManager() {
+  if (!positionManagerList) {
+    return;
+  }
+
+  await loadJobPositions();
+  const positions = getKnownPositionNames();
+
+  if (!positions.length) {
+    positionManagerList.innerHTML = "<p>No hay puestos registrados.</p>";
+    return;
+  }
+
+  positionManagerList.innerHTML = `
+    <div class="user-table-wrap">
+      <table class="user-table position-table">
+        <thead>
+          <tr>
+            <th>Puesto</th>
+            <th>Preguntas activas</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${positions.map((position) => {
+            const count = questions.filter((question) => getQuestionBankArea(question) === position).length;
+            return `
+              <tr>
+                <td><strong>${escapeHtml(position)}</strong></td>
+                <td><strong>${count}</strong></td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function createPositionFromForm(event) {
+  event.preventDefault();
+
+  if (!isAdminUser()) {
+    showPositionManagerStatus("Solo un administrador puede crear puestos.", true);
+    return;
+  }
+
+  const name = newPositionNameInput.value.trim().replace(/\s+/g, " ");
+  if (name.length < 3) {
+    showPositionManagerStatus("Escribe un nombre de puesto válido.", true);
+    newPositionNameInput.focus();
+    return;
+  }
+
+  const response = await fetchWithTimeout(`${location.origin}/api/positions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify({ name }),
+  }, 9000);
+
+  if (response.status === 401 || response.status === 403) {
+    expireInterviewerSession(response.status === 403);
+    showPositionManagerStatus("Tu sesión expiró. Inicia sesión.", true);
+    return;
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    showPositionManagerStatus(data.error || "No se pudo guardar el puesto.", true);
+    return;
+  }
+
+  positionForm.reset();
+  state.selectedQuestionArea = name;
+  await loadQuestions();
+  renderQuestionBank();
+  await renderPositionManager();
+  showPositionManagerStatus("Puesto agregado. Ya puedes crear preguntas para ese puesto.", false);
+}
+
+function showPositionManagerStatus(message, isError) {
+  if (!positionManagerStatus) {
+    return;
+  }
+
+  positionManagerStatus.textContent = message;
+  positionManagerStatus.classList.remove("hidden");
+  positionManagerStatus.classList.toggle("error-summary", Boolean(isError));
 }
 
 async function openUserManagerModal() {
@@ -3156,7 +3353,9 @@ function expireInterviewerSession(showIntruderAlert = false) {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(ROLE_KEY);
   questionManagerModal?.classList.add("hidden");
+  positionManagerModal?.classList.add("hidden");
   userManagerModal?.classList.add("hidden");
+  openPositionManagerButton?.classList.remove("active");
   openUserManagerButton?.classList.remove("active");
   updateSessionBadge();
   loginScreen.classList.remove("hidden");
@@ -3325,6 +3524,13 @@ questionManagerModal?.addEventListener("click", (event) => {
     closeQuestionManagerModal();
   }
 });
+openPositionManagerButton?.addEventListener("click", openPositionManagerModal);
+closePositionManagerButton?.addEventListener("click", closePositionManagerModal);
+positionManagerModal?.addEventListener("click", (event) => {
+  if (event.target === positionManagerModal) {
+    closePositionManagerModal();
+  }
+});
 openUserManagerButton?.addEventListener("click", openUserManagerModal);
 closeUserManagerButton?.addEventListener("click", closeUserManagerModal);
 userManagerModal?.addEventListener("click", (event) => {
@@ -3334,6 +3540,7 @@ userManagerModal?.addEventListener("click", (event) => {
 });
 questionTypeInput?.addEventListener("change", toggleQuestionFormFields);
 questionForm?.addEventListener("submit", saveQuestionFromForm);
+positionForm?.addEventListener("submit", createPositionFromForm);
 userForm?.addEventListener("submit", createUserFromForm);
 
 togglePasswordButton?.addEventListener("click", () => {
@@ -3518,6 +3725,7 @@ function applyRoleVisibility() {
 
   if (!isAdminUser()) {
     closeQuestionManagerModal();
+    closePositionManagerModal();
     closeUserManagerModal();
     if (document.querySelector("#linkTrackingView")?.classList.contains("active")) {
       showView("interviewerView");
@@ -3568,5 +3776,6 @@ async function initializeApp() {
 }
 
 initializeApp();
+
 
 

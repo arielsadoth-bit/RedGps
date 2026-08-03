@@ -71,6 +71,7 @@ app.MapPost("/api/questions", async (HttpRequest request) =>
     }
 
     using var connection = OpenConnection(databasePath);
+    SaveJobPosition(connection, question.Area);
     SaveQuestion(connection, question);
 
     return Results.Json(ToPublicQuestion(question));
@@ -113,6 +114,32 @@ app.MapDelete("/api/questions", async (HttpRequest request) =>
 
     transaction.Commit();
     return Results.Json(new { ok = true, deleted });
+});
+
+app.MapGet("/api/positions", () =>
+{
+    using var connection = OpenConnection(databasePath);
+    return Results.Json(LoadJobPositions(connection));
+});
+
+app.MapPost("/api/positions", async (HttpRequest request) =>
+{
+    if (!TryRequireRole(request, sessions, out _, "admin"))
+    {
+        return Results.Json(new { error = "Solo un administrador puede agregar puestos." }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    using var document = await JsonDocument.ParseAsync(request.Body);
+    var name = GetString(document.RootElement, "name").Trim();
+
+    if (name.Length < 3)
+    {
+        return Results.BadRequest(new { error = "Escribe un nombre de puesto valido." });
+    }
+
+    using var connection = OpenConnection(databasePath);
+    SaveJobPosition(connection, name);
+    return Results.Ok(new { ok = true });
 });
 
 app.MapGet("/api/users", (HttpRequest request) =>
@@ -786,6 +813,13 @@ static void InitializeDatabase(string databasePath)
             creado_en TEXT NOT NULL DEFAULT ''
         );
 
+        CREATE TABLE IF NOT EXISTS puestos_trabajo (
+            id TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL UNIQUE,
+            activo INTEGER NOT NULL DEFAULT 1,
+            creado_en TEXT NOT NULL DEFAULT ''
+        );
+
         CREATE TABLE IF NOT EXISTS banco_preguntas (
             id TEXT PRIMARY KEY,
             area TEXT NOT NULL DEFAULT '',
@@ -827,6 +861,9 @@ static void InitializeDatabase(string databasePath)
 
         CREATE INDEX IF NOT EXISTS idx_usuarios_entrevistadores_activo
         ON usuarios_entrevistadores(activo);
+
+        CREATE INDEX IF NOT EXISTS idx_puestos_trabajo_activo
+        ON puestos_trabajo(activo);
 
         CREATE INDEX IF NOT EXISTS idx_banco_preguntas_activo
         ON banco_preguntas(activo);
@@ -961,6 +998,16 @@ static void InitializeDatabase(string databasePath)
         FROM banco_preguntas
         ORDER BY area, tipo, titulo;
 
+        DROP VIEW IF EXISTS vista_puestos_trabajo;
+        CREATE VIEW vista_puestos_trabajo AS
+        SELECT
+            id AS id_puesto,
+            nombre AS puesto,
+            CASE activo WHEN 1 THEN 'Activo' ELSE 'Inactivo' END AS estado,
+            creado_en
+        FROM puestos_trabajo
+        ORDER BY nombre;
+
         DROP VIEW IF EXISTS vista_monitoreo_en_vivo;
         CREATE VIEW vista_monitoreo_en_vivo AS
         SELECT
@@ -986,6 +1033,7 @@ static void InitializeDatabase(string databasePath)
     MigratePlaintextPasswords(connection);
     BackfillUserCreatedDates(connection);
     SeedQuestions(connection);
+    SeedJobPositions(connection);
     EnsureColumn(connection, "resultados_examenes", "modificado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "modificado_en", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "correo_candidato", "TEXT NOT NULL DEFAULT ''");
@@ -1134,6 +1182,68 @@ static void SeedQuestions(SqliteConnection connection)
         command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
         command.ExecuteNonQuery();
     }
+}
+
+static void SeedJobPositions(SqliteConnection connection)
+{
+    foreach (var position in AppData.DefaultJobPositions)
+    {
+        SaveJobPosition(connection, position);
+    }
+}
+
+static List<object> LoadJobPositions(SqliteConnection connection)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        SELECT id, nombre, activo, creado_en
+        FROM puestos_trabajo
+        WHERE activo = 1
+        ORDER BY nombre
+        """;
+
+    using var reader = command.ExecuteReader();
+    var positions = new List<object>();
+    while (reader.Read())
+    {
+        positions.Add(new
+        {
+            id = GetDbString(reader, 0),
+            name = GetDbString(reader, 1),
+            active = reader.GetInt32(2) == 1,
+            createdAt = GetDbString(reader, 3)
+        });
+    }
+
+    return positions;
+}
+
+static void SaveJobPosition(SqliteConnection connection, string name)
+{
+    name = NormalizeJobPositionName(name);
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        return;
+    }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        INSERT INTO puestos_trabajo
+            (id, nombre, activo, creado_en)
+        VALUES
+            ($id, $name, 1, $createdAt)
+        ON CONFLICT(nombre) DO UPDATE SET
+            activo = 1
+        """;
+    command.Parameters.AddWithValue("$id", $"puesto-{GenerateQuestionId(name)}");
+    command.Parameters.AddWithValue("$name", name);
+    command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
+    command.ExecuteNonQuery();
+}
+
+static string NormalizeJobPositionName(string name)
+{
+    return string.Join(" ", name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
 }
 
 static void SaveQuestion(SqliteConnection connection, ExamQuestion question)
@@ -2394,6 +2504,16 @@ public static readonly Dictionary<string, string> DefaultInterviewers = new(Stri
     ["juan@redgps.com"] = "12345",
     ["arielsadoth@gmail.com"] = "12345",
 };
+
+public static readonly List<string> DefaultJobPositions =
+[
+    "Área de Desarrollo",
+    "Área de Operaciones",
+    "Área Comercial",
+    "Área de Marketing",
+    "Área Administrativa",
+    "Área de Dirección",
+];
 
 public static string GetDefaultRole(string user)
 {

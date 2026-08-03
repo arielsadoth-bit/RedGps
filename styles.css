@@ -836,6 +836,17 @@ textarea {
   align-items: end;
 }
 
+.position-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.position-table {
+  min-width: 520px;
+}
+
 .question-type-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);

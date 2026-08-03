@@ -66,6 +66,7 @@
           </div>
           <button class="nav-button active" data-view="interviewerView">Crear examen</button>
           <button class="nav-button admin-nav-button" id="openQuestionManagerButton" type="button">Crear preguntas</button>
+          <button class="nav-button admin-nav-button" id="openPositionManagerButton" type="button">Administrar puestos</button>
           <button class="nav-button" data-view="createdExamsView">Exámenes creados</button>
           <button class="nav-button admin-nav-button" data-view="linkTrackingView">Seguimiento de enlaces</button>
           <button class="nav-button admin-nav-button" data-view="liveMonitorView">Monitoreo en vivo</button>
@@ -179,16 +180,8 @@
             <form class="question-editor" id="questionForm">
               <div class="question-editor-grid">
                 <label class="field">
-                  Área
-                  <input id="questionArea" list="questionAreaOptions" placeholder="Ej. Area de Desarrollo" required />
-                  <datalist id="questionAreaOptions">
-                    <option value="Area de Desarrollo"></option>
-                    <option value="Area de Operaciones"></option>
-                    <option value="Area Comercial"></option>
-                    <option value="Area de Marketing"></option>
-                    <option value="Area Administrativa"></option>
-                    <option value="Area de Direccion"></option>
-                  </datalist>
+                  Puesto
+                  <select id="questionArea" required></select>
                 </label>
                 <label class="field">
                   Tipo
@@ -277,6 +270,31 @@
             </form>
 
             <div class="result-summary hidden" id="questionManagerStatus"></div>
+          </section>
+          </div>
+
+          <div class="modal-overlay hidden" id="positionManagerModal">
+          <section class="question-modal" id="positionManagerView" role="dialog" aria-modal="true" aria-labelledby="positionManagerTitle">
+            <div class="section-heading modal-heading">
+              <div>
+                <h2 id="positionManagerTitle">Administrar puestos</h2>
+              </div>
+              <img class="modal-center-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
+              <button class="ghost-button" id="closePositionManagerButton" type="button">Cerrar</button>
+            </div>
+
+            <form class="question-editor" id="positionForm">
+              <div class="position-editor-grid">
+                <label class="field">
+                  Nombre del puesto
+                  <input id="newPositionName" placeholder="Ej. Soporte tecnico GPS" required />
+                </label>
+                <button class="primary-button" type="submit">Agregar puesto</button>
+              </div>
+            </form>
+
+            <div class="result-summary hidden" id="positionManagerStatus"></div>
+            <div class="result-list" id="positionManagerList"></div>
           </section>
           </div>
 
