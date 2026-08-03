@@ -635,14 +635,21 @@ textarea {
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  padding: 16px 20px;
+  min-height: 120px;
+  padding: 18px 26px;
 }
 
-.question-bank-toggle div {
+.question-bank-toggle-main {
   align-items: center;
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 18px;
+  min-width: 0;
+}
+
+.question-bank-toggle-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
 }
 
 .question-bank-toggle strong {
@@ -650,22 +657,30 @@ textarea {
   border-radius: 6px;
   color: #fff;
   display: inline-grid;
-  font-size: 1.05rem;
-  min-width: 58px;
-  padding: 11px 14px;
+  flex: 0 0 64px;
+  font-size: 1.1rem;
+  height: 64px;
+  min-width: 64px;
   place-items: center;
 }
 
 .question-bank-toggle span {
   color: #9a3412;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 900;
+  line-height: 1.25;
 }
 
 .question-bank-toggle small {
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 800;
+}
+
+.question-bank-toggle .ghost-button {
+  flex: 0 0 150px;
+  min-height: 52px;
+  padding-inline: 18px;
 }
 
 .question-bank-toolbar {
@@ -1824,7 +1839,7 @@ code {
   }
 
   .question-bank-toggle,
-  .question-bank-toggle div {
+  .question-bank-toggle-main {
     align-items: stretch;
     flex-direction: column;
   }

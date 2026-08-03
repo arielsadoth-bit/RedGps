@@ -338,10 +338,12 @@ function renderQuestionBank() {
 
   questionBank.innerHTML = `
     <div class="question-bank-toggle">
-      <div>
+      <div class="question-bank-toggle-main">
         <strong>${bankQuestions.length}</strong>
-        <span>${escapeHtml(state.selectedQuestionArea)}</span>
-        <small>${selectedCount} seleccionada(s) para el examen</small>
+        <div class="question-bank-toggle-copy">
+          <span>${escapeHtml(state.selectedQuestionArea)}</span>
+          <small>${selectedCount} seleccionada(s) para el examen</small>
+        </div>
       </div>
       <button class="ghost-button" id="toggleQuestionBankButton" type="button">Ver preguntas</button>
     </div>
