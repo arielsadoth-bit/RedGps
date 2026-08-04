@@ -27,6 +27,7 @@ const state = {
   questionBankOpen: false,
   areaBankVisible: false,
   isFinishingExam: false,
+  examLocked: false,
   securityFinishTriggered: false,
   securityFinishReason: "",
   unansweredQuestionIds: new Set(),
@@ -1400,7 +1401,7 @@ function focusUnansweredQuestion(question) {
 
 function updateFinishExamButtonState() {
   const finishButton = document.querySelector("#finishExamButton");
-  if (!finishButton || state.isFinishingExam || state.candidateAccessDenied) {
+  if (!finishButton || state.isFinishingExam || state.candidateAccessDenied || state.examLocked) {
     return;
   }
 
@@ -1499,7 +1500,28 @@ function renderExam() {
   bindDraftSaving();
   bindCandidateExamPagination(totalPages);
   updateFinishExamButtonState();
+  if (state.examLocked || getFinishedResult()) {
+    lockCandidateExam();
+  }
   queueLiveExamUpdate();
+}
+
+function lockCandidateExam() {
+  state.examLocked = true;
+  clearInterval(state.timerId);
+  timer.textContent = "Finalizado";
+  candidateNameInput.disabled = true;
+  candidateEmailInput.disabled = true;
+
+  examForm.querySelectorAll("input, textarea, select, button").forEach((field) => {
+    field.disabled = true;
+  });
+
+  const finishButton = document.querySelector("#finishExamButton");
+  if (finishButton) {
+    finishButton.disabled = true;
+    finishButton.textContent = "Examen finalizado";
+  }
 }
 
 function renderCandidateExamPagination(totalPages) {
@@ -1536,6 +1558,7 @@ function bindCandidateExamPagination(totalPages) {
 
 function showExamBlockedMessage() {
   clearInterval(state.timerId);
+  state.examLocked = true;
   timer.textContent = "Bloqueado";
   candidateNameInput.disabled = true;
   candidateEmailInput.disabled = true;
@@ -1966,6 +1989,7 @@ function startTimer() {
   if (finishedResult) {
     state.lastResult = finishedResult;
     renderResults();
+    lockCandidateExam();
     showView("resultsView");
     return;
   }
@@ -1975,7 +1999,7 @@ function startTimer() {
   updateTimerLabel();
 
   if (state.remainingSeconds <= 0) {
-    finishExam();
+    triggerSecurityFinish("El tiempo del examen se terminó.");
     return;
   }
 
@@ -1984,7 +2008,7 @@ function startTimer() {
     updateTimerLabel();
 
     if (state.remainingSeconds <= 0) {
-      finishExam();
+      triggerSecurityFinish("El tiempo del examen se terminó.");
     }
   }, 1000);
 }
@@ -2029,8 +2053,7 @@ function triggerSecurityFinish(reason) {
 
   state.securityFinishTriggered = true;
   state.securityFinishReason = reason;
-  timer.textContent = "Finalizado";
-  document.querySelector("#finishExamButton").disabled = true;
+  lockCandidateExam();
   finishExam({ forced: true });
 }
 
@@ -2144,8 +2167,7 @@ async function finishExam(options = {}) {
       }
     }
 
-    clearInterval(state.timerId);
-    document.querySelector("#finishExamButton").disabled = true;
+    lockCandidateExam();
     state.unansweredQuestionIds.clear();
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
