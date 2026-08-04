@@ -328,6 +328,7 @@ app.MapGet("/api/exams", (HttpRequest request) =>
             createdAt = reader.GetString(8),
             openedAt = GetDbString(reader, 10),
             completedAt = GetDbString(reader, 11),
+            candidateName = GetString(rootElement, "candidateName"),
             questionIds = GetStringArray(rootElement, "questionIds")
         });
     }

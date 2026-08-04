@@ -36,6 +36,8 @@ const questionBank = document.querySelector("#questionBank");
 const questionBankLayout = document.querySelector("#questionBankLayout");
 const areaBankSidebar = document.querySelector("#areaBankSidebar");
 const examNameInput = document.querySelector("#examName");
+const examCandidateNameInput = document.querySelector("#examCandidateName");
+const examCandidateEmailInput = document.querySelector("#examCandidateEmail");
 const candidateEmailInput = document.querySelector("#candidateEmail");
 const questionCountInput = document.querySelector("#questionCount");
 const createManualExamButton = document.querySelector("#createManualExamButton");
@@ -1209,11 +1211,25 @@ async function createExam(mode = "random") {
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
   const examName = examNameInput.value.trim();
+  const examCandidateName = examCandidateNameInput.value.trim();
+  const examCandidateEmail = examCandidateEmailInput.value.trim().toLowerCase();
   const maxQuestions = bankQuestions.length;
 
   if (!examName) {
     alert("Escribe el nombre del examen.");
     examNameInput.focus();
+    return;
+  }
+
+  if (examCandidateName.length < 3) {
+    alert("Escribe el nombre completo del candidato.");
+    examCandidateNameInput.focus();
+    return;
+  }
+
+  if (!isValidEmail(examCandidateEmail)) {
+    alert("Escribe un correo válido del candidato.");
+    examCandidateEmailInput.focus();
     return;
   }
 
@@ -1251,12 +1267,21 @@ async function createExam(mode = "random") {
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
     area: state.selectedQuestionArea,
+    candidateName: examCandidateName,
+    candidateEmail: examCandidateEmail,
     questions: examQuestions,
   };
 
   localStorage.setItem("activeExam", JSON.stringify(state.activeExam));
   const questionIds = state.activeExam.questions.map((question) => question.id).join(",");
-  const link = `${getExamBaseUrl()}${location.pathname}?exam=${state.activeExam.id}&time=${state.activeExam.timeLimit}&q=${questionIds}`;
+  const linkParams = new URLSearchParams({
+    exam: state.activeExam.id,
+    time: String(state.activeExam.timeLimit),
+    q: questionIds,
+    cn: examCandidateName,
+    ce: examCandidateEmail,
+  });
+  const link = `${getExamBaseUrl()}${location.pathname}?${linkParams.toString()}`;
   document.querySelector("#examLink").value = link;
   document.querySelector("#examLinkBox").classList.remove("hidden");
   state.questionBankOpen = false;
@@ -1266,7 +1291,8 @@ async function createExam(mode = "random") {
   await saveCreatedExam({
     id: state.activeExam.id,
     examName,
-    candidateEmail: "",
+    candidateName: examCandidateName,
+    candidateEmail: examCandidateEmail,
     questionCount: state.activeExam.questions.length,
     linkCount: 1,
     link,
@@ -1560,6 +1586,8 @@ function getExamFromLink() {
     id: urlParams.get("exam"),
     createdAt: getExamStartTime(urlParams.get("exam")),
     timeLimit: Number(urlParams.get("time") || 20),
+    candidateName: urlParams.get("cn") || "",
+    candidateEmail: urlParams.get("ce") || "",
     questions: selectedQuestions,
   };
 }
@@ -1937,8 +1965,8 @@ function restoreCandidateName() {
   const parsedDraft = savedDraft ? JSON.parse(savedDraft) : {};
   const savedName = parsedDraft.__candidateName || "";
   const savedEmail = parsedDraft.__candidateEmail || "";
-  candidateNameInput.value = savedName || "";
-  candidateEmailInput.value = savedEmail || "";
+  candidateNameInput.value = savedName || state.activeExam?.candidateName || "";
+  candidateEmailInput.value = savedEmail || state.activeExam?.candidateEmail || "";
 }
 
 function startTimer() {
@@ -2639,12 +2667,13 @@ function filterCreatedExams(exams) {
 
   return exams
     .filter((exam) => {
-    const candidateEmail = exam.candidateEmail || "";
-    const createdBy = exam.createdBy || exam.creadoPor || "";
-    const searchableEmail = normalizeText(`${candidateEmail} ${createdBy}`);
+      const candidateName = exam.candidateName || "";
+      const candidateEmail = exam.candidateEmail || "";
+      const createdBy = exam.createdBy || exam.creadoPor || "";
+      const searchableEmail = normalizeText(`${candidateName} ${candidateEmail} ${createdBy}`);
 
-    return (!emailTerm || searchableEmail.includes(emailTerm))
-      && isWithinDateRange(exam.createdAt, filters.dateFrom, filters.dateTo);
+      return (!emailTerm || searchableEmail.includes(emailTerm))
+        && isWithinDateRange(exam.createdAt, filters.dateFrom, filters.dateTo);
     })
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
@@ -2864,7 +2893,7 @@ async function renderCreatedExams() {
             <th>Nombre del examen</th>
             <th>Núm. preguntas</th>
             <th>Generado por</th>
-            <th>Correo capturado</th>
+            <th>Candidato</th>
             <th>Link único de acceso</th>
             <th>Acciones</th>
           </tr>
@@ -3086,6 +3115,8 @@ function renderCreatedExamsPagination(totalItems, totalPages) {
 
 function renderCreatedExamRow(exam) {
   const createdAt = exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha";
+  const candidateName = exam.candidateName || "";
+  const candidateEmail = exam.candidateEmail || "";
   return `
     <tr>
       <td>
@@ -3094,7 +3125,10 @@ function renderCreatedExamRow(exam) {
       </td>
       <td>${Number(exam.questionCount || 0)}</td>
       <td>${escapeHtml(exam.createdBy || exam.creadoPor || "Sin registro")}</td>
-      <td>${escapeHtml(exam.candidateEmail || "Sin correo")}</td>
+      <td>
+        <strong>${escapeHtml(candidateName || "Sin nombre")}</strong>
+        <small>${escapeHtml(candidateEmail || "Sin correo")}</small>
+      </td>
       <td>
         <div class="created-link-cell">
           <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
