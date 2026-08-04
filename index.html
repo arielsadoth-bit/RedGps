@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Técnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
-    <link rel="stylesheet" href="styles.css?v=20260804-correo-candidato" />
+    <link rel="stylesheet" href="styles.css?v=20260804-correo-link" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -86,6 +86,14 @@
                 <label class="field">
                   Nombre del examen
                   <input id="examName" value="Evaluación técnica RedGPS" placeholder="Ej. Evaluación Full Stack" />
+                </label>
+                <label class="field">
+                  Nombre del candidato
+                  <input id="examCandidateName" placeholder="Nombre completo" />
+                </label>
+                <label class="field">
+                  Correo del candidato
+                  <input id="examCandidateEmail" type="email" placeholder="correo@ejemplo.com" />
                 </label>
                 <label class="field">
                   Preguntas
@@ -405,6 +413,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260804-correo-candidato"></script>
+    <script src="app.js?v=20260804-correo-link"></script>
   </body>
 </html>

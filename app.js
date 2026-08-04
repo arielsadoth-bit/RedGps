@@ -37,6 +37,8 @@ const questionBank = document.querySelector("#questionBank");
 const questionBankLayout = document.querySelector("#questionBankLayout");
 const areaBankSidebar = document.querySelector("#areaBankSidebar");
 const examNameInput = document.querySelector("#examName");
+const examCandidateNameInput = document.querySelector("#examCandidateName");
+const examCandidateEmailInput = document.querySelector("#examCandidateEmail");
 const candidateEmailInput = document.querySelector("#candidateEmail");
 const questionCountInput = document.querySelector("#questionCount");
 const createManualExamButton = document.querySelector("#createManualExamButton");
@@ -1210,11 +1212,25 @@ async function createExam(mode = "random") {
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
   const examName = examNameInput.value.trim();
+  const examCandidateName = examCandidateNameInput.value.trim();
+  const examCandidateEmail = examCandidateEmailInput.value.trim().toLowerCase();
   const maxQuestions = bankQuestions.length;
 
   if (!examName) {
     alert("Escribe el nombre del examen.");
     examNameInput.focus();
+    return;
+  }
+
+  if (examCandidateName.length < 3) {
+    alert("Escribe el nombre completo del candidato.");
+    examCandidateNameInput.focus();
+    return;
+  }
+
+  if (!isValidEmail(examCandidateEmail)) {
+    alert("Escribe un correo valido para el candidato.");
+    examCandidateEmailInput.focus();
     return;
   }
 
@@ -1252,6 +1268,8 @@ async function createExam(mode = "random") {
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
     area: state.selectedQuestionArea,
+    candidateName: examCandidateName,
+    candidateEmail: examCandidateEmail,
     questions: examQuestions,
   };
 
@@ -1261,6 +1279,8 @@ async function createExam(mode = "random") {
     exam: state.activeExam.id,
     time: String(state.activeExam.timeLimit),
     q: questionIds,
+    cn: examCandidateName,
+    ce: examCandidateEmail,
   });
   const link = `${getExamBaseUrl()}${location.pathname}?${linkParams.toString()}`;
   document.querySelector("#examLink").value = link;
@@ -1272,8 +1292,8 @@ async function createExam(mode = "random") {
   await saveCreatedExam({
     id: state.activeExam.id,
     examName,
-    candidateName: "",
-    candidateEmail: "",
+    candidateName: examCandidateName,
+    candidateEmail: examCandidateEmail,
     questionCount: state.activeExam.questions.length,
     linkCount: 1,
     link,
@@ -1589,6 +1609,8 @@ function getExamFromLink() {
     id: urlParams.get("exam"),
     createdAt: getExamStartTime(urlParams.get("exam")),
     timeLimit: Number(urlParams.get("time") || 20),
+    candidateName: urlParams.get("cn") || "",
+    candidateEmail: urlParams.get("ce") || "",
     questions: selectedQuestions,
   };
 }
@@ -1968,6 +1990,7 @@ function restoreCandidateName() {
   const savedEmail = parsedDraft.__candidateEmail || "";
   candidateNameInput.value = savedName || state.activeExam?.candidateName || "";
   candidateEmailInput.value = savedEmail || state.activeExam?.candidateEmail || "";
+  candidateNameInput.readOnly = Boolean(state.activeExam?.candidateName);
 }
 
 function startTimer() {
