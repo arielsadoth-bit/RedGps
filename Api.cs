@@ -293,17 +293,19 @@ app.MapGet("/api/exams", (HttpRequest request) =>
             e.nombre_examen,
             e.cantidad_preguntas,
             e.cantidad_links,
-            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, '') AS correo_candidato,
+            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, m.correo_candidato, '') AS correo_candidato,
             e.link_acceso,
             e.tiempo_minutos,
             e.creado_por,
             e.creado_en,
             e.datos_json,
             COALESCE(l.tomado_en, '') AS abierto_en,
-            COALESCE(r.finalizado_en, '') AS completado_en
+            COALESCE(r.finalizado_en, '') AS completado_en,
+            COALESCE(m.nombre_candidato, '') AS nombre_candidato_monitoreo
         FROM examenes_creados e
         LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
         LEFT JOIN resultados_examenes r ON r.id = e.id AND COALESCE(r.eliminado, 0) = 0
+        LEFT JOIN monitoreo_examenes m ON m.id_examen = e.id
         ORDER BY e.creado_en DESC
         LIMIT 200
         """;
@@ -328,7 +330,9 @@ app.MapGet("/api/exams", (HttpRequest request) =>
             createdAt = reader.GetString(8),
             openedAt = GetDbString(reader, 10),
             completedAt = GetDbString(reader, 11),
-            candidateName = GetString(rootElement, "candidateName"),
+            candidateName = GetString(rootElement, "candidateName") is var savedName && !string.IsNullOrWhiteSpace(savedName)
+                ? savedName
+                : GetDbString(reader, 12),
             questionIds = GetStringArray(rootElement, "questionIds")
         });
     }
@@ -351,7 +355,7 @@ app.MapGet("/api/link-tracking", (HttpRequest request) =>
             e.nombre_examen,
             e.cantidad_preguntas,
             e.cantidad_links,
-            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, '') AS correo_candidato,
+            COALESCE(NULLIF(e.correo_candidato, ''), r.correo_candidato, m.correo_candidato, '') AS correo_candidato,
             e.link_acceso,
             e.creado_por,
             e.creado_en,
@@ -360,6 +364,7 @@ app.MapGet("/api/link-tracking", (HttpRequest request) =>
         FROM examenes_creados e
         LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
         LEFT JOIN resultados_examenes r ON r.id = e.id AND COALESCE(r.eliminado, 0) = 0
+        LEFT JOIN monitoreo_examenes m ON m.id_examen = e.id
         ORDER BY e.creado_en DESC
         LIMIT 300
         """;
@@ -1607,8 +1612,10 @@ static void SaveLiveExamProgress(SqliteConnection connection, string examId, str
         """;
     command.Parameters.AddWithValue("$examId", examId);
     command.Parameters.AddWithValue("$token", token);
-    command.Parameters.AddWithValue("$candidateName", GetString(rootElement, "candidateName"));
-    command.Parameters.AddWithValue("$candidateEmail", GetString(rootElement, "candidateEmail"));
+    var candidateName = GetString(rootElement, "candidateName");
+    var candidateEmail = GetString(rootElement, "candidateEmail");
+    command.Parameters.AddWithValue("$candidateName", candidateName);
+    command.Parameters.AddWithValue("$candidateEmail", candidateEmail);
     command.Parameters.AddWithValue("$status", status);
     command.Parameters.AddWithValue("$remainingSeconds", GetInt(rootElement, "remainingSeconds"));
     command.Parameters.AddWithValue("$answeredCount", GetInt(rootElement, "answeredCount"));
@@ -1616,6 +1623,38 @@ static void SaveLiveExamProgress(SqliteConnection connection, string examId, str
     command.Parameters.AddWithValue("$updatedAt", updatedAt);
     command.Parameters.AddWithValue("$finishedAt", finishedAt);
     command.Parameters.AddWithValue("$payload", payload);
+    command.ExecuteNonQuery();
+
+    UpdateCreatedExamCandidateIdentity(connection, examId, candidateName, candidateEmail);
+}
+
+static void UpdateCreatedExamCandidateIdentity(SqliteConnection connection, string examId, string candidateName, string candidateEmail)
+{
+    if (string.IsNullOrWhiteSpace(candidateName) && string.IsNullOrWhiteSpace(candidateEmail))
+    {
+        return;
+    }
+
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        UPDATE examenes_creados
+        SET
+            correo_candidato = CASE
+                WHEN $candidateEmail <> '' THEN $candidateEmail
+                ELSE correo_candidato
+            END,
+            datos_json = json_set(
+                datos_json,
+                '$.candidateName',
+                CASE WHEN $candidateName <> '' THEN $candidateName ELSE COALESCE(json_extract(datos_json, '$.candidateName'), '') END,
+                '$.candidateEmail',
+                CASE WHEN $candidateEmail <> '' THEN $candidateEmail ELSE COALESCE(json_extract(datos_json, '$.candidateEmail'), '') END
+            )
+        WHERE id = $examId
+        """;
+    command.Parameters.AddWithValue("$examId", examId);
+    command.Parameters.AddWithValue("$candidateName", candidateName.Trim());
+    command.Parameters.AddWithValue("$candidateEmail", candidateEmail.Trim().ToLowerInvariant());
     command.ExecuteNonQuery();
 }
 
