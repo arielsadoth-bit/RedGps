@@ -1288,19 +1288,10 @@ async function createExam(mode = "random") {
   });
   await renderCreatedExams();
   renderExam();
-  alert(getExamCreatedMessage());
 }
 
 function getExamBaseUrl() {
   return location.origin;
-}
-
-function getExamCreatedMessage() {
-  if (["localhost", "127.0.0.1"].includes(location.hostname)) {
-    return "Examen generado. Este link de localhost funciona en esta computadora. Para abrirlo en un celular de la misma red, entra al sistema usando la IP de esta computadora y genera el examen desde ahi.";
-  }
-
-  return "Examen generado con link listo para enviar.";
 }
 
 function isValidEmail(value) {
