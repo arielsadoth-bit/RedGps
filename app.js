@@ -1203,12 +1203,6 @@ function toggleQuestionSelection() {
   updateQuestionSelectionToggleLabel();
 }
 
-function selectOnlyExamQuestions(examQuestions) {
-  state.selectedQuestionIds = new Set(examQuestions.map((question) => question.id));
-  renderQuestionBank();
-  updateQuestionSelectionToggleLabel();
-}
-
 async function createExam(mode = "random") {
   const bankQuestions = getQuestionsForSelectedArea();
   const selectedQuestions = getSelectedQuestions();
@@ -1247,7 +1241,6 @@ async function createExam(mode = "random") {
     examQuestions = pickRandomQuestions(bankQuestions, questionCount);
   }
 
-  selectOnlyExamQuestions(examQuestions);
   state.candidateExamPage = 1;
 
   state.activeExam = {
