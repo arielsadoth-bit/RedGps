@@ -70,6 +70,19 @@
       </div>
     </div>
 
+    <div class="exam-confirm-overlay hidden" id="deletePositionConfirm" role="dialog" aria-modal="true" aria-labelledby="deletePositionConfirmTitle">
+      <div class="exam-confirm-panel">
+        <img class="exam-confirm-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
+        <p class="eyebrow">Confirmacion requerida</p>
+        <h2 id="deletePositionConfirmTitle">Eliminar puesto</h2>
+        <p id="deletePositionConfirmMessage">Este puesto dejara de aparecer en el banco de preguntas.</p>
+        <div class="exam-confirm-actions">
+          <button class="ghost-button" id="cancelDeletePositionButton" type="button">Cancelar</button>
+          <button class="primary-button danger-confirm-button" id="confirmDeletePositionButton" type="button">Eliminar puesto</button>
+        </div>
+      </div>
+    </div>
+
     <main class="app-shell">
       <section class="topbar">
         <div class="brand-block">

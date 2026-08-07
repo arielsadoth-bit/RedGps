@@ -116,6 +116,10 @@ const reviewPendingButton = document.querySelector("#reviewPendingButton");
 const clearHistoryConfirm = document.querySelector("#clearHistoryConfirm");
 const confirmClearHistoryButton = document.querySelector("#confirmClearHistoryButton");
 const cancelClearHistoryButton = document.querySelector("#cancelClearHistoryButton");
+const deletePositionConfirm = document.querySelector("#deletePositionConfirm");
+const deletePositionConfirmMessage = document.querySelector("#deletePositionConfirmMessage");
+const confirmDeletePositionButton = document.querySelector("#confirmDeletePositionButton");
+const cancelDeletePositionButton = document.querySelector("#cancelDeletePositionButton");
 const logoutButton = document.querySelector("#logoutButton");
 const urlParams = new URLSearchParams(location.search);
 const isCandidateLink = urlParams.has("exam");
@@ -945,6 +949,51 @@ async function createPositionFromForm(event) {
   showPositionManagerStatus("Puesto agregado. Ya puedes crear preguntas para ese puesto.", false);
 }
 
+function showDeletePositionConfirmation(name, count) {
+  const fallbackMessage = count
+    ? `El puesto "${name}" tiene ${count} pregunta(s) activa(s). ¿Deseas eliminarlo?`
+    : `¿Deseas eliminar el puesto "${name}"?`;
+
+  if (!deletePositionConfirm || !confirmDeletePositionButton || !cancelDeletePositionButton || !deletePositionConfirmMessage) {
+    return Promise.resolve(confirm(fallbackMessage));
+  }
+
+  deletePositionConfirmMessage.textContent = count
+    ? `El puesto "${name}" dejara de aparecer en el banco. Sus ${count} pregunta(s) se conservaran en la base de datos.`
+    : `El puesto "${name}" dejara de aparecer en el banco de preguntas.`;
+  deletePositionConfirm.classList.remove("hidden");
+  cancelDeletePositionButton.focus();
+
+  return new Promise((resolve) => {
+    const close = (confirmed) => {
+      deletePositionConfirm.classList.add("hidden");
+      confirmDeletePositionButton.removeEventListener("click", onConfirm);
+      cancelDeletePositionButton.removeEventListener("click", onCancel);
+      deletePositionConfirm.removeEventListener("click", onOverlayClick);
+      document.removeEventListener("keydown", onKeyDown);
+      resolve(confirmed);
+    };
+
+    const onConfirm = () => close(true);
+    const onCancel = () => close(false);
+    const onOverlayClick = (event) => {
+      if (event.target === deletePositionConfirm) {
+        close(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        close(false);
+      }
+    };
+
+    confirmDeletePositionButton.addEventListener("click", onConfirm);
+    cancelDeletePositionButton.addEventListener("click", onCancel);
+    deletePositionConfirm.addEventListener("click", onOverlayClick);
+    document.addEventListener("keydown", onKeyDown);
+  });
+}
+
 async function deletePosition(positionName) {
   if (!isAdminUser()) {
     expireInterviewerSession(true);
@@ -957,11 +1006,9 @@ async function deletePosition(positionName) {
   }
 
   const count = questions.filter((question) => getQuestionBankArea(question) === name).length;
-  const message = count
-    ? `¿Seguro que quieres borrar el puesto "${name}"?\n\nTiene ${count} pregunta(s) activa(s). Las preguntas se conservan en la base de datos, pero ya no aparecerán bajo este puesto.\n\nEsta acción se puede revertir agregando el puesto otra vez.`
-    : `¿Seguro que quieres borrar el puesto "${name}"?\n\nEsta acción se puede revertir agregando el puesto otra vez.`;
+  const confirmed = await showDeletePositionConfirmation(name, count);
 
-  if (!confirm(message)) {
+  if (!confirmed) {
     return;
   }
 
