@@ -1099,6 +1099,15 @@ textarea {
   font-weight: 800;
 }
 
+.field-help {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .code-config-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px);

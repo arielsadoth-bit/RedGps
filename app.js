@@ -76,6 +76,7 @@ const questionCodeKeywordsInput = document.querySelector("#questionCodeKeywords"
 const questionFunctionNameInput = document.querySelector("#questionFunctionName");
 const questionLanguageInput = document.querySelector("#questionLanguage");
 const questionTestsInput = document.querySelector("#questionTests");
+const questionTestsHelp = document.querySelector("#questionTestsHelp");
 const questionSolutionInput = document.querySelector("#questionSolution");
 const questionManagerStatus = document.querySelector("#questionManagerStatus");
 const closedQuestionFields = document.querySelector("#closedQuestionFields");
@@ -546,6 +547,60 @@ function syncQuestionCountLimit() {
   }
 }
 
+function getCodeSolutionPlaceholder(language) {
+  const selectedLanguage = String(language || "JavaScript").toLowerCase();
+
+  if (selectedLanguage === "python") {
+    return "def validar_login(correo, contrasena):\n    return \"@\" in correo and len(contrasena) >= 8";
+  }
+
+  if (selectedLanguage === "java") {
+    return "public static boolean validarLogin(String correo, String contrasena) {\n    return correo.contains(\"@\") && contrasena.length() >= 8;\n}";
+  }
+
+  if (selectedLanguage === "c#") {
+    return "public static bool ValidarLogin(string correo, string contrasena) {\n    return correo.Contains(\"@\") && contrasena.Length >= 8;\n}";
+  }
+
+  if (selectedLanguage === "kotlin") {
+    return "fun validarLogin(correo: String, contrasena: String): Boolean {\n    return correo.contains(\"@\") && contrasena.length >= 8\n}";
+  }
+
+  if (selectedLanguage === "swift") {
+    return "func validarLogin(correo: String, contrasena: String) -> Bool {\n    return correo.contains(\"@\") && contrasena.count >= 8\n}";
+  }
+
+  if (selectedLanguage === "php") {
+    return "function validarLogin($correo, $contrasena) {\n    return strpos($correo, '@') !== false && strlen($contrasena) >= 8;\n}";
+  }
+
+  if (selectedLanguage === "sql") {
+    return "SELECT * FROM usuarios WHERE activo = 1;";
+  }
+
+  if (selectedLanguage === "dart") {
+    return "bool validarLogin(String correo, String contrasena) {\n  return correo.contains('@') && contrasena.length >= 8;\n}";
+  }
+
+  return "function validarLogin(correo, contrasena) {\n  return correo.includes('@') && contrasena.length >= 8;\n}";
+}
+
+function updateCodeQuestionLanguageGuide() {
+  const language = questionLanguageInput?.value || "JavaScript";
+
+  if (questionTestsInput) {
+    questionTestsInput.placeholder = '[{"name":"Caso valido","args":["correo@redgps.com","12345678"],"expected":true}]';
+  }
+
+  if (questionTestsHelp) {
+    questionTestsHelp.textContent = `Las pruebas se capturan en JSON y no cambian por lenguaje. Define los argumentos de entrada y el resultado esperado para ${language}.`;
+  }
+
+  if (questionSolutionInput) {
+    questionSolutionInput.placeholder = getCodeSolutionPlaceholder(language);
+  }
+}
+
 function toggleQuestionFormFields() {
   const type = questionTypeInput?.value || "closed";
   closedQuestionFields?.classList.toggle("hidden", type !== "closed");
@@ -580,6 +635,8 @@ function toggleQuestionFormFields() {
   if (questionTestsInput) {
     questionTestsInput.required = type === "code";
   }
+
+  updateCodeQuestionLanguageGuide();
 }
 
 function parseQuestionOptions() {
@@ -3962,6 +4019,7 @@ userManagerModal?.addEventListener("click", (event) => {
   }
 });
 questionTypeInput?.addEventListener("change", toggleQuestionFormFields);
+questionLanguageInput?.addEventListener("change", updateCodeQuestionLanguageGuide);
 questionForm?.addEventListener("submit", saveQuestionFromForm);
 positionForm?.addEventListener("submit", createPositionFromForm);
 userForm?.addEventListener("submit", createUserFromForm);
