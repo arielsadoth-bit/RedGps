@@ -2103,7 +2103,6 @@ function triggerSecurityFinish(reason) {
 
   state.securityFinishTriggered = true;
   state.securityFinishReason = reason;
-  lockCandidateExam();
   finishExam({ forced: true });
 }
 
@@ -2217,10 +2216,10 @@ async function finishExam(options = {}) {
       }
     }
 
-    lockCandidateExam();
     state.unansweredQuestionIds.clear();
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
+    lockCandidateExam();
     await sendLiveExamUpdate(forced ? "Finalizado automatico" : "Finalizado", forced);
     state.lastResult = await evaluateAnswersOnServer(
       candidateName,
