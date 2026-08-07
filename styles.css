@@ -914,6 +914,15 @@ textarea {
   min-height: 56px;
 }
 
+.danger-confirm-button {
+  background: #b91c1c;
+  box-shadow: 0 18px 34px rgba(185, 28, 28, 0.22);
+}
+
+.danger-confirm-button:hover {
+  background: #991b1b;
+}
+
 .exam-pagination {
   margin-top: 0;
 }

@@ -57,6 +57,19 @@
       </div>
     </div>
 
+    <div class="exam-confirm-overlay hidden" id="clearHistoryConfirm" role="dialog" aria-modal="true" aria-labelledby="clearHistoryConfirmTitle">
+      <div class="exam-confirm-panel">
+        <img class="exam-confirm-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
+        <p class="eyebrow">Confirmacion requerida</p>
+        <h2 id="clearHistoryConfirmTitle">Limpiar historial</h2>
+        <p>Esta accion eliminara de forma permanente los resultados y respuestas guardadas en la base de datos. Antes de continuar, confirma que ya no necesitas conservar esta informacion.</p>
+        <div class="exam-confirm-actions">
+          <button class="ghost-button" id="cancelClearHistoryButton" type="button">Cancelar</button>
+          <button class="primary-button danger-confirm-button" id="confirmClearHistoryButton" type="button">Eliminar historial</button>
+        </div>
+      </div>
+    </div>
+
     <main class="app-shell">
       <section class="topbar">
         <div class="brand-block">

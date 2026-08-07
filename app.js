@@ -113,6 +113,9 @@ const finishExamConfirm = document.querySelector("#finishExamConfirm");
 const finishExamConfirmMessage = document.querySelector("#finishExamConfirmMessage");
 const confirmFinishExamButton = document.querySelector("#confirmFinishExamButton");
 const reviewPendingButton = document.querySelector("#reviewPendingButton");
+const clearHistoryConfirm = document.querySelector("#clearHistoryConfirm");
+const confirmClearHistoryButton = document.querySelector("#confirmClearHistoryButton");
+const cancelClearHistoryButton = document.querySelector("#cancelClearHistoryButton");
 const logoutButton = document.querySelector("#logoutButton");
 const urlParams = new URLSearchParams(location.search);
 const isCandidateLink = urlParams.has("exam");
@@ -2217,6 +2220,46 @@ function showFinishExamConfirmation(unansweredCount) {
   });
 }
 
+function showClearHistoryConfirmation() {
+  const fallbackMessage = "Esta accion eliminara de forma permanente los resultados y respuestas guardadas en la base de datos. ¿Deseas continuar?";
+
+  if (!clearHistoryConfirm || !confirmClearHistoryButton || !cancelClearHistoryButton) {
+    return Promise.resolve(confirm(fallbackMessage));
+  }
+
+  clearHistoryConfirm.classList.remove("hidden");
+  cancelClearHistoryButton.focus();
+
+  return new Promise((resolve) => {
+    const close = (confirmed) => {
+      clearHistoryConfirm.classList.add("hidden");
+      confirmClearHistoryButton.removeEventListener("click", onConfirm);
+      cancelClearHistoryButton.removeEventListener("click", onCancel);
+      clearHistoryConfirm.removeEventListener("click", onOverlayClick);
+      document.removeEventListener("keydown", onKeyDown);
+      resolve(confirmed);
+    };
+
+    const onConfirm = () => close(true);
+    const onCancel = () => close(false);
+    const onOverlayClick = (event) => {
+      if (event.target === clearHistoryConfirm) {
+        close(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        close(false);
+      }
+    };
+
+    confirmClearHistoryButton.addEventListener("click", onConfirm);
+    cancelClearHistoryButton.addEventListener("click", onCancel);
+    clearHistoryConfirm.addEventListener("click", onOverlayClick);
+    document.addEventListener("keydown", onKeyDown);
+  });
+}
+
 function bindCandidateSecurityRules() {
   if (!isCandidateLink) {
     return;
@@ -4082,9 +4125,7 @@ document.querySelector("#copyLinkButton").addEventListener("click", async () => 
 document.querySelector("#finishExamButton").addEventListener("click", finishExam);
 
 document.querySelector("#clearHistoryButton").addEventListener("click", async () => {
-  const confirmed = confirm(
-    "Vas a eliminar todo el historial de exámenes guardados. Esto también borrará las respuestas de la base de datos. ¿Estás seguro?"
-  );
+  const confirmed = await showClearHistoryConfirmation();
 
   if (!confirmed) {
     return;
