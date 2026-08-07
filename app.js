@@ -72,12 +72,14 @@ const questionOptionInputs = Array.from(document.querySelectorAll(".question-opt
 const questionCorrectAnswerInput = document.querySelector("#questionCorrectAnswer");
 const questionExpectedInput = document.querySelector("#questionExpected");
 const questionKeywordsInput = document.querySelector("#questionKeywords");
+const questionCodeKeywordsInput = document.querySelector("#questionCodeKeywords");
 const questionFunctionNameInput = document.querySelector("#questionFunctionName");
 const questionLanguageInput = document.querySelector("#questionLanguage");
 const questionTestsInput = document.querySelector("#questionTests");
 const questionSolutionInput = document.querySelector("#questionSolution");
 const questionManagerStatus = document.querySelector("#questionManagerStatus");
 const closedQuestionFields = document.querySelector("#closedQuestionFields");
+const openQuestionFields = document.querySelector("#openQuestionFields");
 const codeQuestionFields = document.querySelector("#codeQuestionFields");
 const questionManagerModal = document.querySelector("#questionManagerModal");
 const openQuestionManagerButton = document.querySelector("#openQuestionManagerButton");
@@ -543,6 +545,7 @@ function syncQuestionCountLimit() {
 function toggleQuestionFormFields() {
   const type = questionTypeInput?.value || "closed";
   closedQuestionFields?.classList.toggle("hidden", type !== "closed");
+  openQuestionFields?.classList.toggle("hidden", type !== "open");
   codeQuestionFields?.classList.toggle("hidden", type !== "code");
 
   questionOptionInputs.forEach((input, index) => {
@@ -554,10 +557,24 @@ function toggleQuestionFormFields() {
   }
 
   if (questionExpectedInput) {
-    questionExpectedInput.required = type !== "closed";
-    questionExpectedInput.placeholder = type === "closed"
-      ? "Opcional. Si lo dejas vacío, se usará el texto del inciso correcto."
-      : "Respuesta correcta o explicación esperada";
+    questionExpectedInput.required = type === "open";
+    questionExpectedInput.placeholder = "Escribe la respuesta correcta o explicacion esperada.";
+  }
+
+  if (questionKeywordsInput) {
+    questionKeywordsInput.required = false;
+  }
+
+  if (questionCodeKeywordsInput) {
+    questionCodeKeywordsInput.required = false;
+  }
+
+  if (questionFunctionNameInput) {
+    questionFunctionNameInput.required = type === "code";
+  }
+
+  if (questionTestsInput) {
+    questionTestsInput.required = type === "code";
   }
 }
 
@@ -622,8 +639,12 @@ async function saveQuestionFromForm(event) {
     points: Number(questionPointsInput.value),
     options: type === "closed" ? parseQuestionOptions() : [],
     correctAnswer: type === "closed" ? questionCorrectAnswerInput.value.trim().toUpperCase() : "",
-    expected: questionExpectedInput.value.trim(),
-    keywords: parseQuestionKeywords(questionKeywordsInput.value),
+    expected: type === "code"
+      ? (questionSolutionInput?.value.trim() || questionExpectedInput.value.trim())
+      : questionExpectedInput.value.trim(),
+    keywords: type === "code"
+      ? parseQuestionKeywords(questionCodeKeywordsInput?.value || "")
+      : parseQuestionKeywords(questionKeywordsInput.value),
     runner,
   };
 

@@ -1449,7 +1449,7 @@ static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonEleme
             ? options.First(option => string.Equals(option.Key, correctAnswer, StringComparison.OrdinalIgnoreCase)).Text
             : expected;
     }
-    else
+    else if (type == "open")
     {
         options = [];
         correctAnswer = "";
@@ -1458,10 +1458,10 @@ static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonEleme
             return (null, "Escribe la respuesta esperada para poder evaluar la pregunta.");
         }
     }
-
-    if (keywords.Count == 0)
+    else
     {
-        keywords = BuildKeywordsFromExpected(expected);
+        options = [];
+        correctAnswer = "";
     }
 
     if (type != "code")
@@ -1471,6 +1471,21 @@ static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonEleme
     else if (runner is null)
     {
         return (null, "Configura la funcion y al menos una prueba JSON para una pregunta practica.");
+    }
+    else if (string.IsNullOrWhiteSpace(runner.FunctionName) || runner.Tests.Count == 0)
+    {
+        return (null, "La pregunta practica necesita una funcion esperada y al menos una prueba automatica.");
+    }
+    else if (string.IsNullOrWhiteSpace(expected))
+    {
+        expected = !string.IsNullOrWhiteSpace(runner.SolutionCode)
+            ? runner.SolutionCode
+            : $"{runner.FunctionName} {runner.Language}";
+    }
+
+    if (keywords.Count == 0)
+    {
+        keywords = BuildKeywordsFromExpected(expected);
     }
 
     if (string.IsNullOrWhiteSpace(id))

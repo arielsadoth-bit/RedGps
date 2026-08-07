@@ -991,8 +991,50 @@ textarea {
   align-items: end;
 }
 
+#codeQuestionFields {
+  display: block;
+}
+
+#codeQuestionFields.hidden {
+  display: none;
+}
+
 .question-type-fields:has(textarea) {
   align-items: start;
+}
+
+.code-config-panel {
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--accent);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #fffaf3);
+  padding: 18px;
+}
+
+.code-config-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.code-config-heading strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.code-config-heading span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.code-config-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px);
+  gap: 14px;
+  align-items: end;
 }
 
 .option-editor-grid {
