@@ -3928,6 +3928,7 @@ function expireInterviewerSession(showIntruderAlert = false) {
   updateSessionBadge();
   loginScreen.classList.remove("hidden");
   loginError.textContent = "Tu sesión expiró. Inicia sesión.";
+  loginError.classList.remove("login-error-lock");
   loginError.classList.remove("hidden");
 
   if (showIntruderAlert) {
@@ -4227,6 +4228,7 @@ loginForm.addEventListener("submit", async (event) => {
     loginUser.value = "";
     loginPassword.value = "";
     loginError.textContent = "Correo o contraseña incorrectos.";
+    loginError.classList.remove("login-error-lock");
     loginError.classList.add("hidden");
     loginScreen.classList.add("hidden");
     applyRoleVisibility();
@@ -4239,6 +4241,7 @@ loginForm.addEventListener("submit", async (event) => {
 
   const data = await response.json().catch(() => ({}));
   loginError.textContent = data.error || "No se pudo iniciar sesión. Verifica tus datos.";
+  loginError.classList.toggle("login-error-lock", loginError.textContent.toLowerCase().includes("bloqueado"));
   loginError.classList.remove("hidden");
   if (loginError.textContent.toLowerCase().includes("correo")) {
     loginUser.select();

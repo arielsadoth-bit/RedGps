@@ -145,6 +145,13 @@ button {
   font-weight: 800;
 }
 
+.login-error.login-error-lock {
+  border: 1px solid rgba(180, 35, 24, 0.28);
+  border-radius: 8px;
+  background: #fff1f0;
+  padding: 10px 12px;
+}
+
 .intruder-overlay {
   align-items: center;
   background: rgba(7, 9, 13, 0.78);

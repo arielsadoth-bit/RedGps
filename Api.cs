@@ -18,6 +18,8 @@ var dataDirectory = string.IsNullOrWhiteSpace(configuredDataDirectory)
     : configuredDataDirectory;
 var databasePath = Path.Combine(dataDirectory, "redgps_exam.db");
 var sessions = new ConcurrentDictionary<string, InterviewSession>();
+const int MaxLoginAttempts = 3;
+const int LoginLockMinutes = 10;
 
 Directory.CreateDirectory(dataDirectory);
 InitializeDatabase(databasePath);
@@ -838,6 +840,8 @@ static void InitializeDatabase(string databasePath)
             contrasena TEXT NOT NULL DEFAULT '',
             rol TEXT NOT NULL DEFAULT 'entrevistador',
             activo INTEGER NOT NULL DEFAULT 1,
+            intentos_fallidos INTEGER NOT NULL DEFAULT 0,
+            bloqueado_hasta TEXT NOT NULL DEFAULT '',
             creado_en TEXT NOT NULL DEFAULT ''
         );
 
@@ -1055,6 +1059,8 @@ static void InitializeDatabase(string databasePath)
         """;
     command.ExecuteNonQuery();
     EnsureColumn(connection, "usuarios_entrevistadores", "rol", "TEXT NOT NULL DEFAULT 'entrevistador'");
+    EnsureColumn(connection, "usuarios_entrevistadores", "intentos_fallidos", "INTEGER NOT NULL DEFAULT 0");
+    EnsureColumn(connection, "usuarios_entrevistadores", "bloqueado_hasta", "TEXT NOT NULL DEFAULT ''");
     BackfillUserRoles(connection);
     RefreshUserView(connection);
     SeedInterviewers(connection);
@@ -1750,12 +1756,12 @@ static LoginValidationResult ValidateInterviewerLogin(SqliteConnection connectio
 {
     if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
     {
-        return new(false, "Ingresa tu correo y contraseña.");
+        return new(false, "Ingresa tu correo y contrasena.");
     }
 
     using var command = connection.CreateCommand();
     command.CommandText = """
-        SELECT contrasena, activo
+        SELECT contrasena, activo, intentos_fallidos, bloqueado_hasta
         FROM usuarios_entrevistadores
         WHERE lower(correo) = $correo
         LIMIT 1
@@ -1770,15 +1776,33 @@ static LoginValidationResult ValidateInterviewerLogin(SqliteConnection connectio
 
     var savedPassword = GetDbString(reader, 0);
     var active = reader.GetInt32(1) == 1;
+    var failedAttempts = reader.GetInt32(2);
+    var lockedUntilText = GetDbString(reader, 3);
+    var now = DateTime.UtcNow;
 
     if (!active)
     {
         return new(false, "Usuario inactivo. Solicita acceso al administrador.");
     }
 
+    if (DateTime.TryParse(lockedUntilText, out var lockedUntil) && lockedUntil > now)
+    {
+        var remainingMinutes = Math.Max(1, (int)Math.Ceiling((lockedUntil - now).TotalMinutes));
+        return new(false, $"Acceso bloqueado por intentos fallidos. Intenta otra vez en {remainingMinutes} min.");
+    }
+
     if (string.IsNullOrWhiteSpace(savedPassword) || !VerifyPassword(password, savedPassword))
     {
-        return new(false, "Contraseña incorrecta.");
+        failedAttempts += 1;
+        if (failedAttempts >= MaxLoginAttempts)
+        {
+            LockInterviewerLogin(connection, user, failedAttempts, now.AddMinutes(LoginLockMinutes));
+            return new(false, $"Acceso bloqueado por seguridad. Intenta otra vez en {LoginLockMinutes} min.");
+        }
+
+        UpdateInterviewerFailedAttempts(connection, user, failedAttempts, "");
+        var remainingAttempts = MaxLoginAttempts - failedAttempts;
+        return new(false, $"Contrasena incorrecta. Te quedan {remainingAttempts} intento(s).");
     }
 
     if (!IsPasswordHash(savedPassword))
@@ -1786,7 +1810,28 @@ static LoginValidationResult ValidateInterviewerLogin(SqliteConnection connectio
         UpdateUserPasswordHash(connection, user, HashPassword(password));
     }
 
+    UpdateInterviewerFailedAttempts(connection, user, 0, "");
     return new(true, "");
+}
+
+static void UpdateInterviewerFailedAttempts(SqliteConnection connection, string user, int failedAttempts, string lockedUntil)
+{
+    using var command = connection.CreateCommand();
+    command.CommandText = """
+        UPDATE usuarios_entrevistadores
+        SET intentos_fallidos = $attempts,
+            bloqueado_hasta = $lockedUntil
+        WHERE lower(correo) = $correo
+        """;
+    command.Parameters.AddWithValue("$attempts", failedAttempts);
+    command.Parameters.AddWithValue("$lockedUntil", lockedUntil);
+    command.Parameters.AddWithValue("$correo", user.ToLowerInvariant());
+    command.ExecuteNonQuery();
+}
+
+static void LockInterviewerLogin(SqliteConnection connection, string user, int failedAttempts, DateTime lockedUntil)
+{
+    UpdateInterviewerFailedAttempts(connection, user, failedAttempts, lockedUntil.ToString("O"));
 }
 
 static string GetInterviewerRole(SqliteConnection connection, string user)
