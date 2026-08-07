@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Técnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
-    <link rel="stylesheet" href="styles.css?v=20260804-correo-link" />
+    <link rel="stylesheet" href="styles.css?v=20260807-intro-candidato" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -86,14 +86,6 @@
                 <label class="field">
                   Nombre del examen
                   <input id="examName" value="Evaluación técnica RedGPS" placeholder="Ej. Evaluación Full Stack" />
-                </label>
-                <label class="field">
-                  Nombre del candidato
-                  <input id="examCandidateName" placeholder="Nombre completo" />
-                </label>
-                <label class="field">
-                  Correo del candidato
-                  <input id="examCandidateEmail" type="email" placeholder="correo@ejemplo.com" />
                 </label>
                 <label class="field">
                   Preguntas
@@ -342,6 +334,29 @@
           </section>
           </div>
 
+          <section class="view" id="candidateIntroView">
+            <div class="exam-header">
+              <div>
+                <p class="eyebrow">Datos del candidato</p>
+                <h2>Confirma tus datos para iniciar</h2>
+              </div>
+            </div>
+
+            <div class="candidate-intro-card">
+              <label class="field">
+                Nombre del candidato
+                <input id="candidateIntroName" required minlength="3" placeholder="Escribe tu nombre completo" autocomplete="name" />
+              </label>
+
+              <label class="field">
+                Correo del candidato
+                <input id="candidateIntroEmail" required type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
+              </label>
+
+              <button class="primary-button" id="startCandidateExamButton" type="button">Confirmar e iniciar examen</button>
+            </div>
+          </section>
+
           <section class="view" id="candidateView">
             <div class="exam-header">
               <div>
@@ -351,12 +366,12 @@
               <div class="timer" id="timer">--:--</div>
             </div>
 
-            <label class="field candidate-name-field">
+            <label class="field candidate-name-field hidden">
               Nombre del candidato
               <input id="candidateName" required minlength="3" placeholder="Escribe tu nombre completo" autocomplete="name" />
             </label>
 
-            <label class="field candidate-name-field">
+            <label class="field candidate-name-field hidden">
               Correo del candidato
               <input id="candidateEmail" required type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
             </label>
@@ -413,6 +428,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260804-correo-link"></script>
+    <script src="app.js?v=20260807-intro-candidato"></script>
   </body>
 </html>

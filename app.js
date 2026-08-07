@@ -37,9 +37,10 @@ const questionBank = document.querySelector("#questionBank");
 const questionBankLayout = document.querySelector("#questionBankLayout");
 const areaBankSidebar = document.querySelector("#areaBankSidebar");
 const examNameInput = document.querySelector("#examName");
-const examCandidateNameInput = document.querySelector("#examCandidateName");
-const examCandidateEmailInput = document.querySelector("#examCandidateEmail");
 const candidateEmailInput = document.querySelector("#candidateEmail");
+const candidateIntroNameInput = document.querySelector("#candidateIntroName");
+const candidateIntroEmailInput = document.querySelector("#candidateIntroEmail");
+const startCandidateExamButton = document.querySelector("#startCandidateExamButton");
 const questionCountInput = document.querySelector("#questionCount");
 const createManualExamButton = document.querySelector("#createManualExamButton");
 const toggleQuestionSelectionButton = document.querySelector("#toggleQuestionSelectionButton");
@@ -1159,6 +1160,7 @@ function showView(viewId) {
     createdExamsView: "Exámenes",
     linkTrackingView: "Seguimiento de enlaces",
     liveMonitorView: "Monitoreo en vivo",
+    candidateIntroView: "Datos del candidato",
     candidateView: "Responder examen",
     resultsView: "Resultados del candidato",
     answersView: "Respuestas guardadas",
@@ -1212,25 +1214,11 @@ async function createExam(mode = "random") {
   const selectedQuestions = getSelectedQuestions();
   const questionCount = Number(questionCountInput.value);
   const examName = examNameInput.value.trim();
-  const examCandidateName = examCandidateNameInput.value.trim();
-  const examCandidateEmail = examCandidateEmailInput.value.trim().toLowerCase();
   const maxQuestions = bankQuestions.length;
 
   if (!examName) {
     alert("Escribe el nombre del examen.");
     examNameInput.focus();
-    return;
-  }
-
-  if (examCandidateName.length < 3) {
-    alert("Escribe el nombre completo del candidato.");
-    examCandidateNameInput.focus();
-    return;
-  }
-
-  if (!isValidEmail(examCandidateEmail)) {
-    alert("Escribe un correo valido para el candidato.");
-    examCandidateEmailInput.focus();
     return;
   }
 
@@ -1268,8 +1256,6 @@ async function createExam(mode = "random") {
     createdAt: new Date().toISOString(),
     timeLimit: Number(document.querySelector("#timeLimit").value),
     area: state.selectedQuestionArea,
-    candidateName: examCandidateName,
-    candidateEmail: examCandidateEmail,
     questions: examQuestions,
   };
 
@@ -1279,8 +1265,6 @@ async function createExam(mode = "random") {
     exam: state.activeExam.id,
     time: String(state.activeExam.timeLimit),
     q: questionIds,
-    cn: examCandidateName,
-    ce: examCandidateEmail,
   });
   const link = `${getExamBaseUrl()}${location.pathname}?${linkParams.toString()}`;
   document.querySelector("#examLink").value = link;
@@ -1292,8 +1276,8 @@ async function createExam(mode = "random") {
   await saveCreatedExam({
     id: state.activeExam.id,
     examName,
-    candidateName: examCandidateName,
-    candidateEmail: examCandidateEmail,
+    candidateName: "",
+    candidateEmail: "",
     questionCount: state.activeExam.questions.length,
     linkCount: 1,
     link,
@@ -1526,6 +1510,52 @@ function renderExam() {
   queueLiveExamUpdate();
 }
 
+function showCandidateIntro() {
+  const examFromLink = getExamFromLink();
+  const savedExam = localStorage.getItem("activeExam");
+  state.activeExam = examFromLink || state.activeExam;
+  state.activeExam = state.activeExam || (savedExam ? JSON.parse(savedExam) : null);
+
+  if (!state.activeExam) {
+    showView("candidateIntroView");
+    return;
+  }
+
+  const savedDraft = localStorage.getItem(getDraftKey());
+  const parsedDraft = savedDraft ? JSON.parse(savedDraft) : {};
+  candidateIntroNameInput.value = parsedDraft.__candidateName || "";
+  candidateIntroEmailInput.value = parsedDraft.__candidateEmail || "";
+  showView("candidateIntroView");
+}
+
+async function startCandidateExamFromIntro() {
+  const candidateName = candidateIntroNameInput.value.trim();
+  const candidateEmail = candidateIntroEmailInput.value.trim().toLowerCase();
+
+  if (candidateName.length < 3) {
+    alert("Escribe tu nombre completo para iniciar el examen.");
+    candidateIntroNameInput.focus();
+    return;
+  }
+
+  if (!isValidEmail(candidateEmail)) {
+    alert("Escribe un correo valido para iniciar el examen.");
+    candidateIntroEmailInput.focus();
+    return;
+  }
+
+  candidateNameInput.value = candidateName;
+  candidateEmailInput.value = candidateEmail;
+  state.activeExam.createdAt = getExamStartTime(state.activeExam.id);
+  localStorage.setItem("activeExam", JSON.stringify(state.activeExam));
+  saveDraftAnswers();
+  await sendLiveExamUpdate("Datos confirmados");
+  showView("candidateView");
+  renderExam();
+  startTimer();
+  bindCandidateSecurityRules();
+}
+
 function lockCandidateExam() {
   state.examLocked = true;
   clearInterval(state.timerId);
@@ -1607,10 +1637,8 @@ function getExamFromLink() {
 
   return {
     id: urlParams.get("exam"),
-    createdAt: getExamStartTime(urlParams.get("exam")),
+    createdAt: localStorage.getItem(`examStartedAt:${urlParams.get("exam")}`) || "",
     timeLimit: Number(urlParams.get("time") || 20),
-    candidateName: urlParams.get("cn") || "",
-    candidateEmail: urlParams.get("ce") || "",
     questions: selectedQuestions,
   };
 }
@@ -1990,7 +2018,6 @@ function restoreCandidateName() {
   const savedEmail = parsedDraft.__candidateEmail || "";
   candidateNameInput.value = savedName || state.activeExam?.candidateName || "";
   candidateEmailInput.value = savedEmail || state.activeExam?.candidateEmail || "";
-  candidateNameInput.readOnly = Boolean(state.activeExam?.candidateName);
 }
 
 function startTimer() {
@@ -3847,6 +3874,8 @@ createManualExamButton?.addEventListener("click", () => {
   createExam("manual");
 });
 
+startCandidateExamButton?.addEventListener("click", startCandidateExamFromIntro);
+
 toggleQuestionSelectionButton?.addEventListener("click", toggleQuestionSelection);
 
 document.querySelector("#newExamShortcutButton")?.addEventListener("click", () => {
@@ -4088,12 +4117,9 @@ async function initializeApp() {
 
   if (isCandidateLink) {
     document.body.classList.add("candidate-mode");
-    showView("candidateView");
     const allowed = await claimCandidateLink();
     if (allowed) {
-      renderExam();
-      startTimer();
-      bindCandidateSecurityRules();
+      showCandidateIntro();
     }
     return;
   }
