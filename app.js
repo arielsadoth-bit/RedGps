@@ -593,7 +593,7 @@ function updateCodeQuestionLanguageGuide() {
   }
 
   if (questionTestsHelp) {
-    questionTestsHelp.textContent = `Las pruebas se capturan en JSON y no cambian por lenguaje. Define los argumentos de entrada y el resultado esperado para ${language}.`;
+    questionTestsHelp.textContent = `Casos de prueba para ${language}: nombre, datos de entrada y resultado esperado.`;
   }
 
   if (questionSolutionInput) {
