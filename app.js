@@ -25,7 +25,7 @@ const state = {
   selectedQuestionIds: new Set(),
   questionSelectionInitialized: false,
   questionBankOpen: false,
-  areaBankVisible: false,
+  areaBankVisible: true,
   isFinishingExam: false,
   examLocked: false,
   securityFinishTriggered: false,
@@ -58,6 +58,9 @@ const createdExamsSummary = document.querySelector("#createdExamsSummary");
 const createdExamsList = document.querySelector("#createdExamsList");
 const linkTrackingSummary = document.querySelector("#linkTrackingSummary");
 const linkTrackingList = document.querySelector("#linkTrackingList");
+const generatedExamLinkInput = document.querySelector("#generatedExamLink");
+const copyGeneratedLinkButton = document.querySelector("#copyGeneratedLinkButton");
+const backToCreateExamButton = document.querySelector("#backToCreateExamButton");
 const liveMonitorSummary = document.querySelector("#liveMonitorSummary");
 const liveMonitorList = document.querySelector("#liveMonitorList");
 const refreshLiveMonitorButton = document.querySelector("#refreshLiveMonitorButton");
@@ -72,7 +75,6 @@ const questionOptionInputs = Array.from(document.querySelectorAll(".question-opt
 const questionCorrectAnswerInput = document.querySelector("#questionCorrectAnswer");
 const questionExpectedInput = document.querySelector("#questionExpected");
 const questionKeywordsInput = document.querySelector("#questionKeywords");
-const questionCodeKeywordsInput = document.querySelector("#questionCodeKeywords");
 const questionFunctionNameInput = document.querySelector("#questionFunctionName");
 const questionLanguageInput = document.querySelector("#questionLanguage");
 const questionTestsInput = document.querySelector("#questionTests");
@@ -342,9 +344,6 @@ function renderAreaBankSidebar() {
 
   const areas = getAvailableBankAreas();
   areaBankSidebar.innerHTML = `
-    <button class="ghost-button icon-button area-bank-menu-button" id="toggleAreaBankButton" type="button" aria-label="Banco por puesto" title="Banco por puesto">
-      ${getActionIcon("menu")}
-    </button>
     <div class="area-bank-panel">
       <p>Banco por puesto</p>
       ${areas
@@ -360,11 +359,6 @@ function renderAreaBankSidebar() {
         .join("")}
     </div>
   `;
-
-  areaBankSidebar.querySelector("#toggleAreaBankButton")?.addEventListener("click", () => {
-    state.areaBankVisible = !state.areaBankVisible;
-    updateAreaBankVisibility();
-  });
 
   areaBankSidebar.querySelectorAll(".area-bank-button").forEach((button) => {
     button.addEventListener("click", () => {
@@ -480,8 +474,7 @@ function renderQuestionBank() {
 }
 
 function updateAreaBankVisibility() {
-  questionBankLayout?.classList.toggle("area-bank-hidden", !state.areaBankVisible);
-  document.querySelector("#toggleAreaBankButton")?.classList.toggle("active", state.areaBankVisible);
+  questionBankLayout?.classList.remove("area-bank-hidden");
 }
 
 function syncSelectedQuestionsWithBank() {
@@ -593,14 +586,18 @@ function getCodeSolutionPlaceholder(language) {
 }
 
 function updateCodeQuestionLanguageGuide() {
-  const language = questionLanguageInput?.value || "JavaScript";
+  const language = "JavaScript";
+
+  if (questionLanguageInput) {
+    questionLanguageInput.value = language;
+  }
 
   if (questionTestsInput) {
     questionTestsInput.placeholder = '[{"name":"Caso valido","args":["correo@redgps.com","12345678"],"expected":true}]';
   }
 
   if (questionTestsHelp) {
-    questionTestsHelp.textContent = `Casos de prueba para ${language}: nombre, datos de entrada y resultado esperado.`;
+    questionTestsHelp.textContent = "Las pruebas automaticas se ejecutan con el mismo motor JavaScript que usa el candidato durante el examen.";
   }
 
   if (questionSolutionInput) {
@@ -629,10 +626,6 @@ function toggleQuestionFormFields() {
 
   if (questionKeywordsInput) {
     questionKeywordsInput.required = false;
-  }
-
-  if (questionCodeKeywordsInput) {
-    questionCodeKeywordsInput.required = false;
   }
 
   if (questionFunctionNameInput) {
@@ -664,7 +657,7 @@ function parseQuestionKeywords(value) {
 
 function parseQuestionRunner() {
   const functionName = questionFunctionNameInput?.value.trim() || "";
-  const language = questionLanguageInput?.value.trim() || "JavaScript";
+  const language = "JavaScript";
   const testsText = questionTestsInput?.value.trim() || "";
   const solutionCode = questionSolutionInput?.value.trim() || "";
 
@@ -708,11 +701,9 @@ async function saveQuestionFromForm(event) {
     options: type === "closed" ? parseQuestionOptions() : [],
     correctAnswer: type === "closed" ? questionCorrectAnswerInput.value.trim().toUpperCase() : "",
     expected: type === "code"
-      ? (questionSolutionInput?.value.trim() || questionExpectedInput.value.trim())
+      ? (questionSolutionInput?.value.trim() || `${runner?.functionName || ""} JavaScript`.trim())
       : questionExpectedInput.value.trim(),
-    keywords: type === "code"
-      ? parseQuestionKeywords(questionCodeKeywordsInput?.value || "")
-      : parseQuestionKeywords(questionKeywordsInput.value),
+    keywords: type === "code" ? [] : parseQuestionKeywords(questionKeywordsInput.value),
     runner,
   };
 
@@ -1289,6 +1280,7 @@ function showView(viewId) {
 
   const labels = {
     interviewerView: "Crear examen",
+    generatedLinkView: "Link generado",
     createdExamsView: "Exámenes",
     linkTrackingView: "Seguimiento de enlaces",
     liveMonitorView: "Monitoreo en vivo",
@@ -1393,11 +1385,12 @@ async function createExam(mode = "random") {
   });
   const link = `${getExamBaseUrl()}${location.pathname}?${linkParams.toString()}`;
   document.querySelector("#examLink").value = link;
+  if (generatedExamLinkInput) {
+    generatedExamLinkInput.value = link;
+  }
   document.querySelector("#examLinkBox").classList.remove("hidden");
   state.questionBankOpen = false;
-  state.areaBankVisible = false;
   renderQuestionBank();
-  document.querySelector("#examLinkBox")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   await saveCreatedExam({
     id: state.activeExam.id,
     examName,
@@ -1413,6 +1406,7 @@ async function createExam(mode = "random") {
   });
   await renderCreatedExams();
   renderExam();
+  showView("generatedLinkView");
 }
 
 function getExamBaseUrl() {
@@ -2425,12 +2419,14 @@ async function finishExam(options = {}) {
     state.unansweredQuestionIds.clear();
     const formData = new FormData(examForm);
     state.answers = Object.fromEntries(formData.entries());
+    const codeResults = await buildCodeResultsForServer();
     lockCandidateExam();
     await sendLiveExamUpdate(forced ? "Finalizado automatico" : "Finalizado", forced);
     state.lastResult = await evaluateAnswersOnServer(
       candidateName,
       candidateEmail,
-      forced
+      forced,
+      codeResults
     );
     localStorage.setItem(getFinishedKey(), JSON.stringify(state.lastResult));
     localStorage.removeItem(getDraftKey());
@@ -2457,7 +2453,40 @@ async function finishExam(options = {}) {
   }
 }
 
-async function evaluateAnswersOnServer(candidateName, candidateEmail, keepalive = false) {
+async function buildCodeResultsForServer() {
+  const resultsByQuestion = {};
+
+  if (!state.activeExam?.questions) {
+    return resultsByQuestion;
+  }
+
+  for (const question of state.activeExam.questions) {
+    const runner = getQuestionRunner(question) || question.runner;
+    if (question.type !== "code" || !runner) {
+      continue;
+    }
+
+    try {
+      const results = await executeCodeRunner(state.answers[question.id] || "", runner);
+      resultsByQuestion[question.id] = {
+        passed: results.filter((result) => result.passed).length,
+        total: results.length,
+        results,
+      };
+    } catch (error) {
+      const tests = runner.tests || runner.Tests || [];
+      resultsByQuestion[question.id] = {
+        passed: 0,
+        total: tests.length,
+        error: error.message || String(error),
+      };
+    }
+  }
+
+  return resultsByQuestion;
+}
+
+async function evaluateAnswersOnServer(candidateName, candidateEmail, keepalive = false, codeResults = {}) {
   const response = await fetchWithTimeout(`${location.origin}/api/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -2470,6 +2499,7 @@ async function evaluateAnswersOnServer(candidateName, candidateEmail, keepalive 
       securityReason: state.securityFinishReason,
       questionIds: state.activeExam.questions.map((question) => question.id),
       answers: state.answers,
+      codeResults,
       startedAt: state.activeExam.createdAt,
       finishedAt: new Date().toISOString(),
     }),
@@ -4078,6 +4108,23 @@ document.querySelector("#createExamButton").addEventListener("click", () => {
 
 createManualExamButton?.addEventListener("click", () => {
   createExam("manual");
+});
+
+copyGeneratedLinkButton?.addEventListener("click", async () => {
+  const link = generatedExamLinkInput?.value || "";
+  if (!link) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(link);
+  copyGeneratedLinkButton.textContent = "Copiado";
+  setTimeout(() => {
+    copyGeneratedLinkButton.textContent = "Copiar";
+  }, 1400);
+});
+
+backToCreateExamButton?.addEventListener("click", () => {
+  showView("interviewerView");
 });
 
 startCandidateExamButton?.addEventListener("click", startCandidateExamFromIntro);

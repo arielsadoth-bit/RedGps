@@ -683,10 +683,6 @@ textarea {
   padding: 16px;
 }
 
-.question-bank-layout.area-bank-hidden .area-bank-panel {
-  display: none;
-}
-
 .area-bank-panel p {
   color: var(--accent);
   font-size: 0.78rem;
@@ -694,6 +690,34 @@ textarea {
   letter-spacing: 0.02em;
   margin: 0 0 4px;
   text-transform: uppercase;
+}
+
+.link-ready-panel {
+  align-items: center;
+  border-top: 5px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  padding: 36px;
+  text-align: center;
+}
+
+.link-ready-panel img {
+  width: min(320px, 80%);
+}
+
+.link-ready-panel p {
+  color: var(--muted);
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.link-ready-panel .copy-row {
+  width: min(900px, 100%);
 }
 
 .area-bank-button {

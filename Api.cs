@@ -1490,7 +1490,11 @@ static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonEleme
             : $"{runner.FunctionName} {runner.Language}";
     }
 
-    if (keywords.Count == 0)
+    if (type == "code")
+    {
+        keywords = [];
+    }
+    else if (keywords.Count == 0)
     {
         keywords = BuildKeywordsFromExpected(expected);
     }
@@ -2172,7 +2176,7 @@ static CodeRunner? GetQuestionRunnerFromRequest(JsonElement element)
     }
 
     var functionName = GetFirstString(runnerElement, "functionName", "FunctionName").Trim();
-    var language = GetFirstString(runnerElement, "language", "Language").Trim();
+    var language = "JavaScript";
     var solutionCode = GetFirstString(runnerElement, "solutionCode", "SolutionCode", "codigoSolucion").Trim();
     var tests = GetCodeTestsFromRequest(runnerElement);
 
@@ -2181,7 +2185,7 @@ static CodeRunner? GetQuestionRunnerFromRequest(JsonElement element)
         return null;
     }
 
-    return new CodeRunner(functionName, string.IsNullOrWhiteSpace(language) ? "JavaScript" : language, tests, solutionCode);
+    return new CodeRunner(functionName, language, tests, solutionCode);
 }
 
 static List<CodeTest> GetCodeTestsFromRequest(JsonElement runnerElement)
@@ -2360,6 +2364,10 @@ static object? EvaluateExam(JsonElement request, bool includeExpected, IReadOnly
         ? answersElement
         : default;
 
+    var codeResults = request.TryGetProperty("codeResults", out var codeResultsElement) && codeResultsElement.ValueKind == JsonValueKind.Object
+        ? codeResultsElement
+        : default;
+
     var selectedQuestions = questionIds
         .Select(idValue => questions.FirstOrDefault(question => question.Id == idValue))
         .Where(question => question is not null)
@@ -2369,9 +2377,13 @@ static object? EvaluateExam(JsonElement request, bool includeExpected, IReadOnly
     var evaluated = selectedQuestions.Select(question =>
     {
         var answer = GetString(answers, question.Id);
-        return question.Type == "closed"
-            ? EvaluateClosed(question, answer, includeExpected)
-            : EvaluateOpen(question, answer, includeExpected);
+        object evaluatedQuestion = question.Type switch
+        {
+            "closed" => EvaluateClosed(question, answer, includeExpected),
+            "code" => EvaluateCode(question, answer, codeResults, includeExpected),
+            _ => EvaluateOpen(question, answer, includeExpected)
+        };
+        return evaluatedQuestion;
     }).ToList();
     var totalPoints = selectedQuestions.Sum(question => question.Points);
     var earnedPoints = evaluated.Sum(item => (int)item.GetType().GetProperty("earned")!.GetValue(item)!);
@@ -2435,6 +2447,68 @@ static object EvaluateClosed(ExamQuestion question, string answer, bool includeE
         stateLabel = isCorrect ? "Correcta" : "Incorrecta",
         stateClass = isCorrect ? "correct" : "wrong",
         feedback
+    };
+}
+
+static object EvaluateCode(ExamQuestion question, string answer, JsonElement codeResults, bool includeExpected)
+{
+    var totalTests = question.Runner?.Tests.Count ?? 0;
+    var passedTests = 0;
+
+    if (codeResults.ValueKind == JsonValueKind.Object &&
+        codeResults.TryGetProperty(question.Id, out var resultElement) &&
+        resultElement.ValueKind == JsonValueKind.Object)
+    {
+        passedTests = GetInt(resultElement, "passed");
+        var receivedTotal = GetInt(resultElement, "total");
+        if (receivedTotal > 0)
+        {
+            totalTests = receivedTotal;
+        }
+    }
+
+    if (totalTests <= 0)
+    {
+        return new
+        {
+            question = ToResultQuestion(question, includeExpected),
+            answer,
+            passedTests,
+            totalTests,
+            earned = 0,
+            stateLabel = "Incorrecta",
+            stateClass = "wrong",
+            feedback = "No se pudieron ejecutar las pruebas automaticas."
+        };
+    }
+
+    passedTests = Math.Clamp(passedTests, 0, totalTests);
+    var ratio = (double)passedTests / totalTests;
+    var earned = (int)Math.Round(question.Points * ratio);
+
+    var stateLabel = "Incorrecta";
+    var stateClass = "wrong";
+    if (earned >= question.Points)
+    {
+        stateLabel = "Correcta";
+        stateClass = "correct";
+    }
+    else if (earned > 0)
+    {
+        stateLabel = "Parcial";
+        stateClass = "partial";
+    }
+
+    return new
+    {
+        question = ToResultQuestion(question, includeExpected),
+        answer,
+        passedTests,
+        totalTests,
+        earned,
+        stateLabel,
+        stateClass,
+        feedback = $"{passedTests}/{totalTests} pruebas automaticas aprobadas."
     };
 }
 

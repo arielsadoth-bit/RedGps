@@ -152,7 +152,7 @@
               </div>
             </div>
 
-            <div class="question-bank-layout area-bank-hidden" id="questionBankLayout">
+            <div class="question-bank-layout" id="questionBankLayout">
               <aside class="area-bank-sidebar" id="areaBankSidebar"></aside>
               <div class="question-bank" id="questionBank"></div>
             </div>
@@ -162,6 +162,25 @@
               <div class="copy-row">
                 <input id="examLink" readonly />
                 <button id="copyLinkButton">Copiar</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="view" id="generatedLinkView">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Examen generado</p>
+                <h2>Enlace listo para enviar</h2>
+              </div>
+              <button class="ghost-button" id="backToCreateExamButton" type="button">Crear otro examen</button>
+            </div>
+
+            <div class="link-ready-panel">
+              <img src="assets/redgps-logo.svg" alt="RedGPS" />
+              <p>Comparte este enlace con el candidato.</p>
+              <div class="copy-row">
+                <input id="generatedExamLink" readonly />
+                <button id="copyGeneratedLinkButton" type="button">Copiar</button>
               </div>
             </div>
           </section>
@@ -304,15 +323,6 @@
                       Lenguaje
                       <select id="questionLanguage">
                         <option value="JavaScript" selected>JavaScript</option>
-                        <option value="TypeScript">TypeScript</option>
-                        <option value="Python">Python</option>
-                        <option value="Java">Java</option>
-                        <option value="C#">C#</option>
-                        <option value="Kotlin">Kotlin</option>
-                        <option value="Swift">Swift</option>
-                        <option value="PHP">PHP</option>
-                        <option value="SQL">SQL</option>
-                        <option value="Dart">Dart</option>
                       </select>
                     </label>
                   </div>
@@ -320,10 +330,6 @@
                     Pruebas automaticas en JSON
                     <textarea id="questionTests" placeholder='[{"name":"Caso valido","args":["correo@redgps.com","12345678"],"expected":true}]'></textarea>
                     <small class="field-help" id="questionTestsHelp">Define los casos de prueba con nombre, datos de entrada y resultado esperado.</small>
-                  </label>
-                  <label class="field">
-                    Criterios de evaluacion
-                    <input id="questionCodeKeywords" placeholder="Separados por coma. Ej. function, return, correo, true" />
                   </label>
                   <label class="field">
                     Codigo de solucion
