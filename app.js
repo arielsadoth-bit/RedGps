@@ -4237,9 +4237,14 @@ loginForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  loginError.textContent = "Correo o contraseña incorrectos.";
+  const data = await response.json().catch(() => ({}));
+  loginError.textContent = data.error || "No se pudo iniciar sesión. Verifica tus datos.";
   loginError.classList.remove("hidden");
-  loginPassword.select();
+  if (loginError.textContent.toLowerCase().includes("correo")) {
+    loginUser.select();
+  } else {
+    loginPassword.select();
+  }
 });
 
 logoutButton.addEventListener("click", () => {

@@ -39,9 +39,10 @@ app.MapPost("/api/login", async (HttpRequest request) =>
     var password = GetString(document.RootElement, "password");
 
     using var connection = OpenConnection(databasePath);
-    if (!IsAuthorizedInterviewer(connection, user, password))
+    var loginResult = ValidateInterviewerLogin(connection, user, password);
+    if (!loginResult.Success)
     {
-        return Results.Unauthorized();
+        return Results.Json(new { error = loginResult.Message }, statusCode: StatusCodes.Status401Unauthorized);
     }
 
     var role = GetInterviewerRole(connection, user);
@@ -1745,27 +1746,39 @@ static List<object> LoadLiveExamProgress(SqliteConnection connection)
     return items;
 }
 
-static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, string password)
+static LoginValidationResult ValidateInterviewerLogin(SqliteConnection connection, string user, string password)
 {
     if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(password))
     {
-        return false;
+        return new(false, "Ingresa tu correo y contraseña.");
     }
 
     using var command = connection.CreateCommand();
     command.CommandText = """
-        SELECT contrasena
+        SELECT contrasena, activo
         FROM usuarios_entrevistadores
         WHERE lower(correo) = $correo
-            AND activo = 1
         LIMIT 1
         """;
     command.Parameters.AddWithValue("$correo", user.ToLowerInvariant());
-    var savedPassword = command.ExecuteScalar() as string;
+
+    using var reader = command.ExecuteReader();
+    if (!reader.Read())
+    {
+        return new(false, "Correo no autorizado.");
+    }
+
+    var savedPassword = GetDbString(reader, 0);
+    var active = reader.GetInt32(1) == 1;
+
+    if (!active)
+    {
+        return new(false, "Usuario inactivo. Solicita acceso al administrador.");
+    }
 
     if (string.IsNullOrWhiteSpace(savedPassword) || !VerifyPassword(password, savedPassword))
     {
-        return false;
+        return new(false, "Contraseña incorrecta.");
     }
 
     if (!IsPasswordHash(savedPassword))
@@ -1773,7 +1786,7 @@ static bool IsAuthorizedInterviewer(SqliteConnection connection, string user, st
         UpdateUserPasswordHash(connection, user, HashPassword(password));
     }
 
-    return true;
+    return new(true, "");
 }
 
 static string GetInterviewerRole(SqliteConnection connection, string user)
@@ -2605,6 +2618,8 @@ record CodeRunner(string FunctionName, string Language, List<CodeTest> Tests, st
 record CodeTest(string Name, object[] Args, object Expected);
 
 record InterviewSession(string User, string Role);
+
+record LoginValidationResult(bool Success, string Message);
 
 record InterviewerUserRequest(string Email, string Password, string Role, bool Active);
 
