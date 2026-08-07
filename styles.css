@@ -103,24 +103,39 @@ button {
   padding-right: 74px;
 }
 
-.password-field button {
+.password-field .password-toggle-button {
   position: absolute;
   top: 50%;
   right: 8px;
-  height: 30px;
-  min-width: 52px;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 36px;
+  min-width: 42px;
+  padding: 0;
   transform: translateY(-50%);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff7ed;
   color: var(--accent-dark);
-  font-size: 0.82rem;
-  font-weight: 900;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-.password-field button:hover {
+.password-field .password-toggle-button:hover {
   border-color: var(--accent);
   background: #fff1d6;
+  color: var(--accent);
+}
+
+.password-eye-icon {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 .login-error {

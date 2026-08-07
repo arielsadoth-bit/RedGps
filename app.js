@@ -3966,12 +3966,41 @@ questionForm?.addEventListener("submit", saveQuestionFromForm);
 positionForm?.addEventListener("submit", createPositionFromForm);
 userForm?.addEventListener("submit", createUserFromForm);
 
+function getPasswordEyeIcon(isVisible) {
+  if (isVisible) {
+    return `
+      <svg class="password-eye-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+        <path d="M3 3l18 18"></path>
+        <path d="M10.6 10.6A2.1 2.1 0 0 0 12 14.1c.6 0 1.1-.2 1.5-.6"></path>
+        <path d="M9.9 5.8c.7-.2 1.4-.3 2.1-.3 6.2 0 9.9 6.5 9.9 6.5a17 17 0 0 1-2.7 3.4"></path>
+        <path d="M6.4 7.1A17.8 17.8 0 0 0 2.1 12s3.7 6.5 9.9 6.5c1.5 0 2.8-.4 4-1"></path>
+      </svg>
+    `;
+  }
+
+  return `
+    <svg class="password-eye-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+      <path d="M2.1 12s3.7-6.5 9.9-6.5S21.9 12 21.9 12s-3.7 6.5-9.9 6.5S2.1 12 2.1 12Z"></path>
+      <circle cx="12" cy="12" r="2.8"></circle>
+    </svg>
+  `;
+}
+
+function updatePasswordToggleButton(isVisible) {
+  if (!togglePasswordButton) return;
+  togglePasswordButton.innerHTML = getPasswordEyeIcon(isVisible);
+  const label = isVisible ? "Ocultar contrase\u00f1a" : "Mostrar contrase\u00f1a";
+  togglePasswordButton.setAttribute("aria-label", label);
+  togglePasswordButton.setAttribute("title", label);
+}
+
 togglePasswordButton?.addEventListener("click", () => {
-  const isPasswordHidden = loginPassword.type === "password";
-  loginPassword.type = isPasswordHidden ? "text" : "password";
-  togglePasswordButton.textContent = isPasswordHidden ? "Ocultar" : "Ver";
-  togglePasswordButton.setAttribute("aria-label", isPasswordHidden ? "Ocultar contraseña" : "Mostrar contraseña");
+  const shouldShowPassword = loginPassword.type === "password";
+  loginPassword.type = shouldShowPassword ? "text" : "password";
+  updatePasswordToggleButton(shouldShowPassword);
 });
+
+updatePasswordToggleButton(false);
 
 closeIntruderAlertButton?.addEventListener("click", closeIntruderAccessAlert);
 refreshLiveMonitorButton?.addEventListener("click", renderLiveMonitor);
