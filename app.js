@@ -108,6 +108,10 @@ const loginError = document.querySelector("#loginError");
 const togglePasswordButton = document.querySelector("#togglePasswordButton");
 const intruderAlert = document.querySelector("#intruderAlert");
 const closeIntruderAlertButton = document.querySelector("#closeIntruderAlertButton");
+const finishExamConfirm = document.querySelector("#finishExamConfirm");
+const finishExamConfirmMessage = document.querySelector("#finishExamConfirmMessage");
+const confirmFinishExamButton = document.querySelector("#confirmFinishExamButton");
+const reviewPendingButton = document.querySelector("#reviewPendingButton");
 const logoutButton = document.querySelector("#logoutButton");
 const urlParams = new URLSearchParams(location.search);
 const isCandidateLink = urlParams.has("exam");
@@ -2111,6 +2115,51 @@ function triggerSecurityFinish(reason) {
   finishExam({ forced: true });
 }
 
+function showFinishExamConfirmation(unansweredCount) {
+  const hasUnanswered = unansweredCount > 0;
+  const message = hasUnanswered
+    ? `Aun tienes ${unansweredCount} pregunta(s) sin responder. Puedes revisar las pendientes o finalizar ahora con las respuestas capturadas.`
+    : "Estas por finalizar tu evaluacion. Una vez enviada, ya no podras modificar tus respuestas.";
+
+  if (!finishExamConfirm || !confirmFinishExamButton || !reviewPendingButton || !finishExamConfirmMessage) {
+    return Promise.resolve(confirm(message));
+  }
+
+  finishExamConfirmMessage.textContent = message;
+  reviewPendingButton.textContent = hasUnanswered ? "Revisar pendientes" : "Seguir revisando";
+  finishExamConfirm.classList.remove("hidden");
+  confirmFinishExamButton.focus();
+
+  return new Promise((resolve) => {
+    const close = (confirmed) => {
+      finishExamConfirm.classList.add("hidden");
+      confirmFinishExamButton.removeEventListener("click", onConfirm);
+      reviewPendingButton.removeEventListener("click", onReview);
+      finishExamConfirm.removeEventListener("click", onOverlayClick);
+      document.removeEventListener("keydown", onKeyDown);
+      resolve(confirmed);
+    };
+
+    const onConfirm = () => close(true);
+    const onReview = () => close(false);
+    const onOverlayClick = (event) => {
+      if (event.target === finishExamConfirm) {
+        close(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        close(false);
+      }
+    };
+
+    confirmFinishExamButton.addEventListener("click", onConfirm);
+    reviewPendingButton.addEventListener("click", onReview);
+    finishExamConfirm.addEventListener("click", onOverlayClick);
+    document.addEventListener("keydown", onKeyDown);
+  });
+}
+
 function bindCandidateSecurityRules() {
   if (!isCandidateLink) {
     return;
@@ -2215,11 +2264,9 @@ async function finishExam(options = {}) {
     if (!forced) {
       const unansweredQuestions = getUnansweredQuestions();
       const hasUnanswered = unansweredQuestions.length > 0;
-      const confirmationMessage = hasUnanswered
-        ? `Tienes ${unansweredQuestions.length} pregunta(s) sin responder. ¿Seguro que quieres finalizar el examen?`
-        : "¿Seguro que quieres finalizar el examen?";
+      const confirmed = await showFinishExamConfirmation(unansweredQuestions.length);
 
-      if (!confirm(confirmationMessage)) {
+      if (!confirmed) {
         if (hasUnanswered) {
           markUnansweredQuestions(unansweredQuestions);
           focusUnansweredQuestion(unansweredQuestions[0]);

@@ -845,6 +845,60 @@ textarea {
   font-weight: 700;
 }
 
+.exam-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(rgba(5, 6, 7, 0.78), rgba(5, 6, 7, 0.86)),
+    radial-gradient(circle at top left, rgba(245, 124, 0, 0.2), transparent 38%);
+  padding: 24px;
+}
+
+.exam-confirm-panel {
+  width: min(520px, 100%);
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--accent);
+  border-radius: 8px;
+  background: #fff;
+  padding: 26px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+}
+
+.exam-confirm-logo {
+  display: block;
+  width: 190px;
+  max-width: 100%;
+  margin: 0 auto 18px;
+}
+
+.exam-confirm-panel .eyebrow,
+.exam-confirm-panel h2 {
+  text-align: center;
+}
+
+.exam-confirm-panel p:not(.eyebrow) {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.exam-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.exam-confirm-actions button {
+  min-height: 56px;
+}
+
 .exam-pagination {
   margin-top: 0;
 }

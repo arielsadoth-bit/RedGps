@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Técnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
-    <link rel="stylesheet" href="styles.css?v=20260807-preguntas-practicas" />
+    <link rel="stylesheet" href="styles.css?v=20260807-confirmacion-finalizar" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -36,6 +36,19 @@
         <h2 id="intruderAlertTitle">Alerta de intruso</h2>
         <p>Se detectó un intento de entrar a funciones sin permiso. La sesión fue cerrada por seguridad.</p>
         <button class="primary-button" id="closeIntruderAlertButton" type="button">Entendido</button>
+      </div>
+    </div>
+
+    <div class="exam-confirm-overlay hidden" id="finishExamConfirm" role="dialog" aria-modal="true" aria-labelledby="finishExamConfirmTitle">
+      <div class="exam-confirm-panel">
+        <img class="exam-confirm-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
+        <p class="eyebrow">Confirmacion requerida</p>
+        <h2 id="finishExamConfirmTitle">Finalizar examen</h2>
+        <p id="finishExamConfirmMessage">Estas por finalizar tu evaluacion. Revisa tus respuestas antes de continuar.</p>
+        <div class="exam-confirm-actions">
+          <button class="ghost-button" id="reviewPendingButton" type="button">Revisar pendientes</button>
+          <button class="primary-button" id="confirmFinishExamButton" type="button">Finalizar examen</button>
+        </div>
       </div>
     </div>
 
@@ -441,6 +454,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260807-preguntas-practicas"></script>
+    <script src="app.js?v=20260807-confirmacion-finalizar"></script>
   </body>
 </html>
