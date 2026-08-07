@@ -2193,9 +2193,16 @@ async function finishExam(options = {}) {
 
     if (!forced) {
       const unansweredQuestions = getUnansweredQuestions();
-      if (unansweredQuestions.length > 0) {
-        markUnansweredQuestions(unansweredQuestions);
-        focusUnansweredQuestion(unansweredQuestions[0]);
+      const hasUnanswered = unansweredQuestions.length > 0;
+      const confirmationMessage = hasUnanswered
+        ? `Tienes ${unansweredQuestions.length} pregunta(s) sin responder. ¿Seguro que quieres finalizar el examen?`
+        : "¿Seguro que quieres finalizar el examen?";
+
+      if (!confirm(confirmationMessage)) {
+        if (hasUnanswered) {
+          markUnansweredQuestions(unansweredQuestions);
+          focusUnansweredQuestion(unansweredQuestions[0]);
+        }
         return;
       }
     }
