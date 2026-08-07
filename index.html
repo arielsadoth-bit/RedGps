@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Técnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
-    <link rel="stylesheet" href="styles.css?v=20260807-intro-candidato" />
+    <link rel="stylesheet" href="styles.css?v=20260807-intro-candidato-logo" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -335,14 +335,13 @@
           </div>
 
           <section class="view" id="candidateIntroView">
-            <div class="exam-header">
-              <div>
+            <div class="candidate-intro-card">
+              <img class="candidate-intro-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
+              <div class="candidate-intro-heading">
                 <p class="eyebrow">Datos del candidato</p>
                 <h2>Confirma tus datos para iniciar</h2>
               </div>
-            </div>
 
-            <div class="candidate-intro-card">
               <label class="field">
                 Nombre del candidato
                 <input id="candidateIntroName" required minlength="3" placeholder="Escribe tu nombre completo" autocomplete="name" />
@@ -428,6 +427,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260807-intro-candidato"></script>
+    <script src="app.js?v=20260807-intro-candidato-logo"></script>
   </body>
 </html>

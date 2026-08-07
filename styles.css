@@ -443,10 +443,70 @@ h3 {
   margin-top: 18px;
 }
 
+#candidateIntroView {
+  align-items: center;
+  background:
+    linear-gradient(rgba(5, 6, 7, 0.78), rgba(5, 6, 7, 0.86)),
+    radial-gradient(circle at top left, rgba(245, 124, 0, 0.18), transparent 34%),
+    #050607;
+  display: none;
+  justify-content: center;
+  min-height: 620px;
+  overflow: hidden;
+  padding: 24px;
+  position: relative;
+}
+
+#candidateIntroView.active {
+  display: flex;
+}
+
+#candidateIntroView::before {
+  content: "";
+  position: absolute;
+  inset: -80px;
+  background-image: url("assets/redgps-logo.svg");
+  background-repeat: repeat;
+  background-size: 230px auto;
+  opacity: 0.16;
+  pointer-events: none;
+  transform: rotate(-12deg);
+}
+
 .candidate-intro-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
   display: grid;
   gap: 18px;
-  max-width: 720px;
+  max-width: 480px;
+  padding: 28px;
+  position: relative;
+  width: min(100%, 480px);
+  z-index: 1;
+}
+
+.candidate-intro-logo {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: block;
+  margin: 0 auto 4px;
+  padding: 10px 12px;
+  width: 220px;
+}
+
+.candidate-intro-heading {
+  text-align: center;
+}
+
+.candidate-intro-heading .eyebrow {
+  justify-content: center;
+}
+
+.candidate-intro-card .primary-button {
+  width: 100%;
 }
 
 select,
