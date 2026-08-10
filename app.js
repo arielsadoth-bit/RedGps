@@ -43,7 +43,6 @@ const candidateIntroEmailInput = document.querySelector("#candidateIntroEmail");
 const startCandidateExamButton = document.querySelector("#startCandidateExamButton");
 const questionCountInput = document.querySelector("#questionCount");
 const createManualExamButton = document.querySelector("#createManualExamButton");
-const toggleQuestionSelectionButton = document.querySelector("#toggleQuestionSelectionButton");
 const examForm = document.querySelector("#examForm");
 const resultList = document.querySelector("#resultList");
 const resultSummary = document.querySelector("#resultSummary");
@@ -398,7 +397,10 @@ function renderQuestionBank() {
     <div class="question-bank-list ${state.questionBankOpen ? "" : "hidden"}" id="questionBankList">
       <div class="question-bank-toolbar">
         <strong>Banco de preguntas</strong>
-        <span>${rangeLabel}</span>
+        <div class="question-bank-toolbar-actions">
+          <button class="ghost-button" id="toggleQuestionSelectionButton" type="button"></button>
+          <span>${rangeLabel}</span>
+        </div>
       </div>
       ${pageQuestions
         .map(
@@ -438,6 +440,8 @@ function renderQuestionBank() {
       ? "Ocultar preguntas"
       : "Ver preguntas";
   });
+
+  document.querySelector("#toggleQuestionSelectionButton")?.addEventListener("click", toggleQuestionSelection);
 
   document.querySelectorAll(".question-delete-button").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1301,6 +1305,7 @@ function getSelectedQuestions() {
 }
 
 function updateQuestionSelectionToggleLabel() {
+  const toggleQuestionSelectionButton = document.querySelector("#toggleQuestionSelectionButton");
   if (!toggleQuestionSelectionButton) {
     return;
   }
@@ -4128,8 +4133,6 @@ backToCreateExamButton?.addEventListener("click", () => {
 });
 
 startCandidateExamButton?.addEventListener("click", startCandidateExamFromIntro);
-
-toggleQuestionSelectionButton?.addEventListener("click", toggleQuestionSelection);
 
 document.querySelector("#newExamShortcutButton")?.addEventListener("click", () => {
   showView("interviewerView");
