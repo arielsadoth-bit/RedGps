@@ -657,8 +657,7 @@ textarea {
 .question-bank-layout {
   align-items: start;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 22px;
 }
 
@@ -671,6 +670,7 @@ textarea {
   align-self: start;
   display: grid;
   gap: 10px;
+  width: 100%;
 }
 
 .area-bank-panel {
@@ -679,7 +679,8 @@ textarea {
   border-radius: 8px;
   box-shadow: 0 20px 42px rgba(15, 23, 42, 0.16);
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   padding: 16px;
 }
 
@@ -687,6 +688,7 @@ textarea {
   color: var(--accent);
   font-size: 0.78rem;
   font-weight: 900;
+  grid-column: 1 / -1;
   letter-spacing: 0.02em;
   margin: 0 0 4px;
   text-transform: uppercase;
@@ -731,8 +733,8 @@ textarea {
   font-weight: 900;
   gap: 10px;
   justify-content: space-between;
-  min-height: 46px;
-  padding: 10px 12px;
+  min-height: 74px;
+  padding: 14px 16px;
   text-align: left;
 }
 
