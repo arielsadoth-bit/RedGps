@@ -395,14 +395,16 @@ function renderQuestionBank() {
         </div>
       </div>
       <div class="question-bank-toggle-actions">
-        <button class="ghost-button" id="toggleQuestionSelectionButton" type="button">${selectionButtonLabel}</button>
         <button class="ghost-button" id="toggleQuestionBankButton" type="button">${state.questionBankOpen ? "Ocultar preguntas" : "Ver preguntas"}</button>
       </div>
     </div>
     <div class="question-bank-list ${state.questionBankOpen ? "" : "hidden"}" id="questionBankList">
       <div class="question-bank-toolbar">
         <strong>Banco de preguntas</strong>
-        <span>${rangeLabel}</span>
+        <div class="question-bank-toolbar-actions">
+          <span>${rangeLabel}</span>
+          <button class="ghost-button" id="toggleQuestionSelectionButton" type="button">${selectionButtonLabel}</button>
+        </div>
       </div>
       ${pageQuestions
         .map(
