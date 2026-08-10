@@ -263,18 +263,25 @@ button {
   display: grid;
   grid-template-columns: max-content max-content max-content;
   align-items: center;
-  column-gap: 18px;
+  column-gap: 20px;
   color: #d7d9dd;
   font-size: 0.88rem;
   font-weight: 700;
 }
 
+.topbar-meta > span {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+}
+
 .session-badge {
   align-items: center;
   display: grid;
-  gap: 7px;
+  gap: 6px;
   justify-items: center;
-  min-width: 230px;
+  min-width: 210px;
 }
 
 .session-badge small {
@@ -287,6 +294,12 @@ button {
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.topbar-meta .logout-button {
+  align-self: center;
+  min-height: 52px;
+  padding-inline: 26px;
 }
 
 .eyebrow {
@@ -455,7 +468,7 @@ h3 {
 
 .exam-config-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 110px 120px;
+  grid-template-columns: minmax(220px, 1fr) 150px 190px;
   gap: 12px;
   align-items: end;
   width: 100%;
@@ -509,7 +522,8 @@ h3 {
   color: var(--ink);
   font-size: 1rem;
   font-weight: 900;
-  min-height: 62px;
+  min-height: 64px;
+  width: 100%;
   padding: 0 14px;
   text-transform: none;
 }
