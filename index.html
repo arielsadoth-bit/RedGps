@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Evaluador Técnico</title>
     <link rel="icon" type="image/svg+xml" href="assets/redgps-favicon.svg?v=20260729-waves-black" />
-    <link rel="stylesheet" href="styles.css?v=20260810-boton-seleccion-barra" />
+    <link rel="stylesheet" href="styles.css?v=20260810-textos-espanol" />
   </head>
   <body>
     <section class="login-screen hidden" id="loginScreen">
@@ -29,7 +29,7 @@
             </button>
           </div>
         </label>
-        <p class="login-error hidden" id="loginError" role="alert" aria-live="assertive">Correo o contrasena incorrectos.</p>
+        <p class="login-error hidden" id="loginError" role="alert" aria-live="assertive">Correo o contraseña incorrectos.</p>
         <button class="primary-button" type="submit">Entrar</button>
       </form>
     </section>
@@ -47,9 +47,9 @@
     <div class="exam-confirm-overlay hidden" id="finishExamConfirm" role="dialog" aria-modal="true" aria-labelledby="finishExamConfirmTitle">
       <div class="exam-confirm-panel">
         <img class="exam-confirm-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
-        <p class="eyebrow">Confirmacion requerida</p>
+        <p class="eyebrow">Confirmación requerida</p>
         <h2 id="finishExamConfirmTitle">Finalizar examen</h2>
-        <p id="finishExamConfirmMessage">Estas por finalizar tu evaluacion. Revisa tus respuestas antes de continuar.</p>
+        <p id="finishExamConfirmMessage">Estás por finalizar tu evaluación. Revisa tus respuestas antes de continuar.</p>
         <div class="exam-confirm-actions">
           <button class="ghost-button" id="reviewPendingButton" type="button">Revisar pendientes</button>
           <button class="primary-button" id="confirmFinishExamButton" type="button">Finalizar examen</button>
@@ -60,9 +60,9 @@
     <div class="exam-confirm-overlay hidden" id="clearHistoryConfirm" role="dialog" aria-modal="true" aria-labelledby="clearHistoryConfirmTitle">
       <div class="exam-confirm-panel">
         <img class="exam-confirm-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
-        <p class="eyebrow">Confirmacion requerida</p>
+        <p class="eyebrow">Confirmación requerida</p>
         <h2 id="clearHistoryConfirmTitle">Limpiar historial</h2>
-        <p>Se eliminaran los resultados y respuestas guardadas. Esta accion no se puede deshacer.</p>
+        <p>Se eliminarán los resultados y respuestas guardadas. Esta acción no se puede deshacer.</p>
         <div class="exam-confirm-actions">
           <button class="ghost-button" id="cancelClearHistoryButton" type="button">Cancelar</button>
           <button class="primary-button danger-confirm-button" id="confirmClearHistoryButton" type="button">Eliminar historial</button>
@@ -73,9 +73,9 @@
     <div class="exam-confirm-overlay hidden" id="deletePositionConfirm" role="dialog" aria-modal="true" aria-labelledby="deletePositionConfirmTitle">
       <div class="exam-confirm-panel">
         <img class="exam-confirm-logo" src="assets/redgps-logo.svg" alt="RedGPS" />
-        <p class="eyebrow">Confirmacion requerida</p>
+        <p class="eyebrow">Confirmación requerida</p>
         <h2 id="deletePositionConfirmTitle">Eliminar puesto</h2>
-        <p id="deletePositionConfirmMessage">Este puesto dejara de aparecer en el banco de preguntas.</p>
+        <p id="deletePositionConfirmMessage">Este puesto dejará de aparecer en el banco de preguntas.</p>
         <div class="exam-confirm-actions">
           <button class="ghost-button" id="cancelDeletePositionButton" type="button">Cancelar</button>
           <button class="primary-button danger-confirm-button" id="confirmDeletePositionButton" type="button">Eliminar puesto</button>
@@ -93,7 +93,7 @@
           </div>
         </div>
         <div class="topbar-meta">
-          <span>Pre filtro de evaluacion</span>
+          <span>Prefiltro de evaluación</span>
           <div class="session-badge">
             <div class="status-pill" id="modeLabel">Entrevistador</div>
             <small id="sessionUserLabel"></small>
@@ -106,7 +106,7 @@
         <aside class="sidebar">
           <div class="sidebar-title">
             <span>REDGPS</span>
-            <strong>Assessment</strong>
+            <strong>Evaluación</strong>
           </div>
           <button class="nav-button active" data-view="interviewerView">Crear examen</button>
           <button class="nav-button admin-nav-button" id="openQuestionManagerButton" type="button">Crear preguntas</button>
@@ -124,7 +124,7 @@
             <div class="section-heading">
               <div>
                 <p class="eyebrow">Banco de preguntas</p>
-                <h2>Arma una evaluacion para el puesto</h2>
+                <h2>Arma una evaluación para el puesto</h2>
               </div>
               <div class="exam-builder-top">
                 <div class="exam-builder-controls">
@@ -262,8 +262,8 @@
               </div>
 
               <label class="field">
-                Titulo
-                <input id="questionTitle" placeholder="Ej. Validacion de login" required />
+                Título
+                <input id="questionTitle" placeholder="Ej. Validación de login" required />
               </label>
 
               <label class="field">
@@ -302,7 +302,7 @@
               <div class="question-type-fields hidden" id="openQuestionFields">
                 <label class="field">
                   Respuesta esperada
-                  <textarea id="questionExpected" placeholder="Escribe la respuesta correcta o explicacion esperada."></textarea>
+                  <textarea id="questionExpected" placeholder="Escribe la respuesta correcta o explicación esperada."></textarea>
                 </label>
 
                 <label class="field">
@@ -314,12 +314,12 @@
               <div class="question-type-fields hidden" id="codeQuestionFields">
                 <div class="code-config-panel">
                   <div class="code-config-heading">
-                    <strong>Evaluacion practica</strong>
-                    <span>Configura la funcion, pruebas automaticas y una solucion de referencia.</span>
+                    <strong>Evaluación práctica</strong>
+                    <span>Configura la función, pruebas automáticas y una solución de referencia.</span>
                   </div>
                   <div class="code-config-grid">
                     <label class="field">
-                      Funcion esperada
+                      Función esperada
                       <input id="questionFunctionName" placeholder="Ej. validarLogin" />
                     </label>
                     <label class="field">
@@ -330,13 +330,13 @@
                     </label>
                   </div>
                   <label class="field">
-                    Pruebas automaticas en JSON
-                    <textarea id="questionTests" placeholder='[{"name":"Caso valido","args":["correo@redgps.com","12345678"],"expected":true}]'></textarea>
+                    Pruebas automáticas en JSON
+                    <textarea id="questionTests" placeholder='[{"name":"Caso válido","args":["correo@redgps.com","12345678"],"expected":true}]'></textarea>
                     <small class="field-help" id="questionTestsHelp">Define los casos de prueba con nombre, datos de entrada y resultado esperado.</small>
                   </label>
                   <label class="field">
-                    Codigo de solucion
-                    <textarea id="questionSolution" class="code-editor" spellcheck="false" placeholder="Escribe una solucion ejemplo para respuestas correctas."></textarea>
+                    Código de solución
+                    <textarea id="questionSolution" class="code-editor" spellcheck="false" placeholder="Escribe una solución ejemplo para respuestas correctas."></textarea>
                   </label>
                 </div>
               </div>
@@ -364,7 +364,7 @@
               <div class="position-editor-grid">
                 <label class="field">
                   Nombre del puesto
-                  <input id="newPositionName" placeholder="Ej. Soporte tecnico GPS" required />
+                  <input id="newPositionName" placeholder="Ej. Soporte técnico GPS" required />
                 </label>
                 <button class="primary-button" type="submit">Agregar puesto</button>
               </div>
@@ -506,6 +506,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260810-boton-seleccion-barra"></script>
+    <script src="app.js?v=20260810-textos-espanol"></script>
   </body>
 </html>

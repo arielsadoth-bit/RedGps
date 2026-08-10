@@ -599,11 +599,11 @@ function updateCodeQuestionLanguageGuide() {
   }
 
   if (questionTestsInput) {
-    questionTestsInput.placeholder = '[{"name":"Caso valido","args":["correo@redgps.com","12345678"],"expected":true}]';
+    questionTestsInput.placeholder = '[{"name":"Caso válido","args":["correo@redgps.com","12345678"],"expected":true}]';
   }
 
   if (questionTestsHelp) {
-    questionTestsHelp.textContent = "Las pruebas automaticas se ejecutan con el mismo motor JavaScript que usa el candidato durante el examen.";
+    questionTestsHelp.textContent = "Las pruebas automáticas se ejecutan con el mismo motor JavaScript que usa el candidato durante el examen.";
   }
 
   if (questionSolutionInput) {
@@ -768,7 +768,7 @@ async function deleteQuestionById(questionId) {
 
   const question = questions.find((item) => item.id === questionId);
   if (!question) {
-    alert("No se encontro la pregunta seleccionada.");
+    alert("No se encontró la pregunta seleccionada.");
     return;
   }
 
@@ -956,8 +956,8 @@ function showDeletePositionConfirmation(name, count) {
   }
 
   deletePositionConfirmMessage.textContent = count
-    ? `El puesto "${name}" dejara de aparecer en el banco. Sus ${count} pregunta(s) se conservaran en la base de datos.`
-    : `El puesto "${name}" dejara de aparecer en el banco de preguntas.`;
+    ? `El puesto "${name}" dejará de aparecer en el banco. Sus ${count} pregunta(s) se conservarán en la base de datos.`
+    : `El puesto "${name}" dejará de aparecer en el banco de preguntas.`;
   deletePositionConfirm.classList.remove("hidden");
   cancelDeletePositionButton.focus();
 
@@ -1286,7 +1286,7 @@ function showView(viewId) {
 
   const labels = {
     interviewerView: "Crear examen",
-    generatedLinkView: "Link generado",
+    generatedLinkView: "Enlace generado",
     createdExamsView: "Exámenes",
     linkTrackingView: "Seguimiento de enlaces",
     liveMonitorView: "Monitoreo en vivo",
@@ -1348,7 +1348,7 @@ async function createExam(mode = "random") {
   }
 
   if (maxQuestions < 1) {
-    alert(`No hay preguntas activas en ${state.selectedQuestionArea}. Agrega preguntas o cambia de area.`);
+    alert(`No hay preguntas activas en ${state.selectedQuestionArea}. Agrega preguntas o cambia de área.`);
     return;
   }
 
@@ -1656,7 +1656,7 @@ async function startCandidateExamFromIntro() {
   }
 
   if (!isValidEmail(candidateEmail)) {
-    alert("Escribe un correo valido para iniciar el examen.");
+    alert("Escribe un correo válido para iniciar el examen.");
     candidateIntroEmailInput.focus();
     return;
   }
@@ -2079,7 +2079,7 @@ function executeCodeRunner(code, runner) {
           const fn = factory();
 
           if (!fn) {
-            throw new Error("No se encontro la funcion " + runner.functionName + ".");
+            throw new Error("No se encontró la función " + runner.functionName + ".");
           }
 
           const results = [];
@@ -2226,8 +2226,8 @@ function triggerSecurityFinish(reason) {
 function showFinishExamConfirmation(unansweredCount) {
   const hasUnanswered = unansweredCount > 0;
   const message = hasUnanswered
-    ? `Aun tienes ${unansweredCount} pregunta(s) sin responder. Puedes revisar las pendientes o finalizar ahora con las respuestas capturadas.`
-    : "Estas por finalizar tu evaluacion. Una vez enviada, ya no podras modificar tus respuestas.";
+    ? `Aún tienes ${unansweredCount} pregunta(s) sin responder. Puedes revisar las pendientes o finalizar ahora con las respuestas capturadas.`
+    : "Estás por finalizar tu evaluación. Una vez enviada, ya no podrás modificar tus respuestas.";
 
   if (!finishExamConfirm || !confirmFinishExamButton || !reviewPendingButton || !finishExamConfirmMessage) {
     return Promise.resolve(confirm(message));
@@ -2269,7 +2269,7 @@ function showFinishExamConfirmation(unansweredCount) {
 }
 
 function showClearHistoryConfirmation() {
-  const fallbackMessage = "Esta accion eliminara de forma permanente los resultados y respuestas guardadas en la base de datos. ¿Deseas continuar?";
+  const fallbackMessage = "Esta acción eliminará de forma permanente los resultados y respuestas guardadas en la base de datos. ¿Deseas continuar?";
 
   if (!clearHistoryConfirm || !confirmClearHistoryButton || !cancelClearHistoryButton) {
     return Promise.resolve(confirm(fallbackMessage));
@@ -2428,7 +2428,7 @@ async function finishExam(options = {}) {
     state.answers = Object.fromEntries(formData.entries());
     const codeResults = await buildCodeResultsForServer();
     lockCandidateExam();
-    await sendLiveExamUpdate(forced ? "Finalizado automatico" : "Finalizado", forced);
+    await sendLiveExamUpdate(forced ? "Finalizado automático" : "Finalizado", forced);
     state.lastResult = await evaluateAnswersOnServer(
       candidateName,
       candidateEmail,
@@ -2550,7 +2550,7 @@ function evaluateClosed(question) {
   const answer = state.answers[question.id] || "";
   const isCorrect = answer === question.correctAnswer;
   const wrongFeedback = isCandidateLink
-    ? "La opcion seleccionada no fue correcta."
+    ? "La opción seleccionada no fue correcta."
     : `La respuesta correcta era ${question.correctAnswer}) ${question.expected}.`;
 
   return {
@@ -2559,7 +2559,7 @@ function evaluateClosed(question) {
     earned: isCorrect ? question.points : 0,
     stateLabel: isCorrect ? "Correcta" : "Incorrecta",
     stateClass: isCorrect ? "correct" : "wrong",
-    feedback: isCorrect ? "La opcion seleccionada es correcta." : wrongFeedback,
+    feedback: isCorrect ? "La opción seleccionada es correcta." : wrongFeedback,
   };
 }
 
@@ -2880,7 +2880,7 @@ function getQuestionTitle(item) {
     getQuestionValue(item, "title", "Title") ||
     getQuestionValue(item, "prompt", "Prompt") ||
     item?.title ||
-    "Pregunta sin titulo"
+    "Pregunta sin título"
   );
 }
 
@@ -3183,10 +3183,10 @@ async function renderCreatedExams() {
         <thead>
           <tr>
             <th>Nombre del examen</th>
-            <th>Núm. preguntas</th>
+            <th>Número de preguntas</th>
             <th>Generado por</th>
             <th>Candidato</th>
-            <th>Link único de acceso</th>
+            <th>Enlace único de acceso</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -3232,7 +3232,7 @@ async function renderLinkTracking() {
             <th>Candidato</th>
             <th>Generado por</th>
             <th>Estado</th>
-            <th>Link</th>
+            <th>Enlace</th>
           </tr>
         </thead>
         <tbody>
@@ -3269,7 +3269,7 @@ async function renderLiveMonitor() {
     liveMonitorSummary.classList.remove("hidden");
     liveMonitorSummary.textContent = exams.length
       ? `${exams.length} examen(es) con actividad reciente.`
-      : "Aun no hay candidatos contestando.";
+      : "Aún no hay candidatos contestando.";
     liveMonitorList.innerHTML = exams.length
       ? exams.map(renderLiveMonitorCard).join("")
       : "";
@@ -3282,7 +3282,7 @@ async function renderLiveMonitor() {
 
 function renderLiveMonitorCard(exam) {
   const answers = Array.isArray(exam.answers) ? exam.answers : [];
-  const updatedAt = exam.updatedAt ? new Date(exam.updatedAt).toLocaleString("es-MX") : "Sin actualizacion";
+  const updatedAt = exam.updatedAt ? new Date(exam.updatedAt).toLocaleString("es-MX") : "Sin actualización";
   const remaining = formatRemainingTime(Number(exam.remainingSeconds || 0));
   const statusClass = String(exam.status || "").startsWith("Finalizado") ? "completed" : "opened";
 
@@ -3312,7 +3312,7 @@ function renderLiveMonitorCard(exam) {
 function renderLiveAnswerItem(answer) {
   return `
     <div class="live-answer-item ${answer.answered ? "answered" : ""}">
-      <strong>${Number(answer.number || 0)}. ${escapeHtml(answer.title || "Pregunta sin titulo")}</strong>
+      <strong>${Number(answer.number || 0)}. ${escapeHtml(answer.title || "Pregunta sin título")}</strong>
       <span>${escapeHtml(answer.area || "")} · ${escapeHtml(answer.type || "")}</span>
       <p>${escapeHtml(answer.answer || "Sin respuesta")}</p>
     </div>
@@ -3343,7 +3343,7 @@ function renderLinkStats(stats) {
         <article class="link-stat-card">
           <span>${label}</span>
           <strong>${Number(values?.generated || 0)}</strong>
-          <p>links generados</p>
+          <p>enlaces generados</p>
           <small>${Number(values?.opened || 0)} abiertos · ${Number(values?.completed || 0)} terminados</small>
         </article>
       `).join("")}
@@ -3445,14 +3445,14 @@ function getExamTrackingStatus(exam) {
   if (exam.openedAt) {
     return {
       className: "opened",
-      label: "Link abierto",
+      label: "Enlace abierto",
       dateLabel: new Date(exam.openedAt).toLocaleString("es-MX"),
     };
   }
 
   return {
     className: "generated",
-    label: "Link generado",
+    label: "Enlace generado",
     dateLabel: exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha",
   };
 }
