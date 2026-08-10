@@ -342,30 +342,29 @@ function renderAreaBankSidebar() {
   }
 
   const areas = getAvailableBankAreas();
+  const options = areas
+    .map((area) => {
+      const count = questions.filter((question) => getQuestionBankArea(question) === area).length;
+      return `<option value="${escapeHtml(area)}" ${area === state.selectedQuestionArea ? "selected" : ""}>${escapeHtml(area)} (${count})</option>`;
+    })
+    .join("");
+
   areaBankSidebar.innerHTML = `
-    <div class="area-bank-panel">
-      <p>Banco por puesto</p>
-      ${areas
-        .map((area) => {
-          const count = questions.filter((question) => getQuestionBankArea(question) === area).length;
-          return `
-            <button class="area-bank-button ${area === state.selectedQuestionArea ? "active" : ""}" type="button" data-area="${escapeHtml(area)}">
-              <span>${escapeHtml(area)}</span>
-              <strong>${count}</strong>
-            </button>
-          `;
-        })
-        .join("")}
+    <div class="area-bank-panel area-bank-select-panel">
+      <label class="field area-bank-select-field">
+        Banco por puesto
+        <select id="areaBankSelect">
+          ${options}
+        </select>
+      </label>
     </div>
   `;
 
-  areaBankSidebar.querySelectorAll(".area-bank-button").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedQuestionArea = button.dataset.area || DEFAULT_JOB_POSITIONS[0];
-      state.questionBankPage = 1;
-      renderQuestionBank();
-      syncQuestionCountLimit();
-    });
+  areaBankSidebar.querySelector("#areaBankSelect")?.addEventListener("change", (event) => {
+    state.selectedQuestionArea = event.target.value || DEFAULT_JOB_POSITIONS[0];
+    state.questionBankPage = 1;
+    renderQuestionBank();
+    syncQuestionCountLimit();
   });
 }
 
