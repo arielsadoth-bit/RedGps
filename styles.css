@@ -485,8 +485,12 @@ h3 {
   padding: 0;
 }
 
+.exam-config-grid .area-bank-sidebar {
+  grid-column: 2 / 4;
+}
+
 .area-bank-select-panel {
-  width: min(420px, 100%);
+  width: 100%;
 }
 
 .area-bank-select-field {
@@ -505,7 +509,7 @@ h3 {
   color: var(--ink);
   font-size: 1rem;
   font-weight: 900;
-  min-height: 58px;
+  min-height: 62px;
   padding: 0 14px;
   text-transform: none;
 }
@@ -1712,6 +1716,10 @@ textarea {
 @media (max-width: 920px) {
   .exam-builder-top {
     grid-template-columns: 1fr;
+  }
+
+  .exam-config-grid .area-bank-sidebar {
+    grid-column: 1 / -1;
   }
 
   .question-bank-layout {
