@@ -29,6 +29,11 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+body.app-loading .login-screen,
+body.app-loading .app-shell {
+  visibility: hidden;
+}
+
 button,
 input,
 textarea,

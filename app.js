@@ -4394,6 +4394,10 @@ function applyRoleVisibility() {
   }
 }
 
+function finishInitialRender() {
+  document.body.classList.remove("app-loading");
+}
+
 liveMonitorRefreshTimer = window.setInterval(() => {
   if (document.querySelector("#liveMonitorView")?.classList.contains("active") && isAdminUser()) {
     renderLiveMonitor();
@@ -4401,33 +4405,37 @@ liveMonitorRefreshTimer = window.setInterval(() => {
 }, 1000);
 
 async function initializeApp() {
-  clearDeliveryLocalDataOnce();
-  await loadQuestions();
-  renderQuestionBank();
-  toggleQuestionFormFields();
-  protectInterviewerPanel();
-  applyRoleVisibility();
+  try {
+    clearDeliveryLocalDataOnce();
+    await loadQuestions();
+    renderQuestionBank();
+    toggleQuestionFormFields();
+    protectInterviewerPanel();
+    applyRoleVisibility();
 
-  if (isCandidateLink) {
-    document.body.classList.add("candidate-mode");
-    const allowed = await claimCandidateLink();
-    if (allowed) {
-      showCandidateIntro();
+    if (isCandidateLink) {
+      document.body.classList.add("candidate-mode");
+      const allowed = await claimCandidateLink();
+      if (allowed) {
+        showCandidateIntro();
+      }
+      return;
     }
-    return;
-  }
 
-  if (hasInterviewerSession()) {
-    await renderResults();
-    await renderCreatedExams();
-    await renderSavedAnswers();
-    await renderAnswerKey();
-    if (isAdminUser()) {
-      await renderLiveMonitor();
+    if (hasInterviewerSession()) {
+      await renderResults();
+      await renderCreatedExams();
+      await renderSavedAnswers();
+      await renderAnswerKey();
+      if (isAdminUser()) {
+        await renderLiveMonitor();
+      }
     }
-  }
 
-  renderExam();
+    renderExam();
+  } finally {
+    finishInitialRender();
+  }
 }
 
 initializeApp();
