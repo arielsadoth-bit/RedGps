@@ -470,7 +470,7 @@ h3 {
 
 .exam-config-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 150px 190px 280px;
+  grid-template-columns: minmax(260px, 1fr) 150px 170px 230px;
   gap: 14px;
   align-items: end;
   width: 100%;
@@ -520,13 +520,14 @@ h3 {
   appearance: auto;
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--ink);
-  font-size: 1rem;
-  font-weight: 900;
-  min-height: 62px;
+  font-size: inherit;
+  font-weight: 700;
+  height: 42px;
+  min-height: 42px;
   width: 100%;
-  padding: 0 14px;
+  padding: 0 12px;
   text-transform: none;
 }
 
@@ -1729,12 +1730,12 @@ textarea {
   }
 
   .exam-config-grid {
-    grid-template-columns: minmax(240px, 1fr) 140px 170px;
+    grid-template-columns: minmax(240px, 1fr) 140px 160px;
   }
 
   .exam-config-grid .area-bank-sidebar {
     grid-column: 1 / -1;
-    max-width: 420px;
+    max-width: 230px;
   }
 }
 
