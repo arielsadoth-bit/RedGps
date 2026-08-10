@@ -268,7 +268,7 @@ button {
 .topbar-meta {
   display: grid;
   grid-template-columns: max-content max-content max-content;
-  align-items: center;
+  align-items: start;
   column-gap: 24px;
   color: #d7d9dd;
   font-size: 0.88rem;
@@ -277,14 +277,15 @@ button {
 }
 
 .topbar-meta > span {
-  align-self: center;
+  align-self: start;
   display: inline-flex;
   align-items: center;
-  min-height: 52px;
+  min-height: 60px;
 }
 
 .session-badge {
-  align-items: center;
+  align-self: start;
+  align-items: start;
   display: grid;
   gap: 6px;
   justify-items: center;
@@ -304,8 +305,8 @@ button {
 }
 
 .topbar-meta .logout-button {
-  align-self: center;
-  min-height: 52px;
+  align-self: start;
+  min-height: 60px;
   padding-inline: 26px;
 }
 
@@ -350,6 +351,14 @@ h3 {
   color: #b54708;
   text-align: center;
   font-weight: 800;
+}
+
+.topbar-meta .status-pill {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 60px;
+  min-width: 168px;
 }
 
 .layout {
