@@ -465,7 +465,7 @@ h3 {
   align-items: start;
   display: grid;
   gap: 22px;
-  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   width: 100%;
 }
 
@@ -482,7 +482,8 @@ h3 {
 }
 
 .area-bank-select-panel {
-  padding: 18px;
+  padding: 18px 20px;
+  width: min(440px, 100%);
 }
 
 .area-bank-select-field {
@@ -494,15 +495,21 @@ h3 {
 }
 
 .area-bank-select-field select {
-  background: #fff;
-  border: 1px solid transparent;
+  appearance: auto;
+  background: #111827;
+  border: 1px solid rgba(255, 122, 0, 0.72);
   border-radius: 8px;
-  color: var(--ink);
+  color: #fff;
   font-size: 1rem;
   font-weight: 900;
   min-height: 56px;
   padding: 0 14px;
   text-transform: none;
+}
+
+.area-bank-select-field select option {
+  background: #fff;
+  color: var(--ink);
 }
 
 .area-bank-select-field select:focus {

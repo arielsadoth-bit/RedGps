@@ -378,6 +378,9 @@ function renderQuestionBank() {
   const pageStart = (state.questionBankPage - 1) * pageSize;
   const pageQuestions = bankQuestions.slice(pageStart, pageStart + pageSize);
   const selectedCount = bankQuestions.filter((question) => state.selectedQuestionIds.has(question.id)).length;
+  const allAreaSelected = bankQuestions.length > 0
+    && bankQuestions.every((question) => state.selectedQuestionIds.has(question.id));
+  const selectionButtonLabel = allAreaSelected ? "Deseleccionar todo" : "Seleccionar todo";
   const rangeLabel = bankQuestions.length
     ? `Mostrando ${pageStart + 1}-${Math.min(pageStart + pageSize, bankQuestions.length)} de ${bankQuestions.length}`
     : "Sin preguntas activas";
@@ -392,7 +395,7 @@ function renderQuestionBank() {
         </div>
       </div>
       <div class="question-bank-toggle-actions">
-        <button class="ghost-button" id="toggleQuestionSelectionButton" type="button"></button>
+        <button class="ghost-button" id="toggleQuestionSelectionButton" type="button">${selectionButtonLabel}</button>
         <button class="ghost-button" id="toggleQuestionBankButton" type="button">${state.questionBankOpen ? "Ocultar preguntas" : "Ver preguntas"}</button>
       </div>
     </div>
