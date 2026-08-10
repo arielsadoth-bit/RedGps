@@ -929,9 +929,9 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--muted);
-  display: flex;
+  display: grid;
   gap: 12px;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   padding: 12px 14px;
 }
 
@@ -939,15 +939,7 @@ textarea {
   color: var(--ink);
 }
 
-.question-bank-toolbar-actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.question-bank-toolbar-actions .ghost-button {
+.question-bank-toolbar .ghost-button {
   min-height: 42px;
   min-width: 170px;
 }
