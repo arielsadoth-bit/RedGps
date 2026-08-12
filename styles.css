@@ -289,7 +289,7 @@ button {
   display: grid;
   gap: 6px;
   justify-items: center;
-  min-width: 210px;
+  width: 250px;
 }
 
 .session-badge small {
@@ -306,6 +306,7 @@ button {
 
 .topbar-meta .logout-button {
   align-self: start;
+  width: 250px;
   min-height: 60px;
   padding-inline: 26px;
 }
@@ -358,7 +359,8 @@ h3 {
   display: inline-flex;
   justify-content: center;
   min-height: 60px;
-  min-width: 168px;
+  width: 250px;
+  min-width: 0;
 }
 
 .layout {
