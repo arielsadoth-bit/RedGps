@@ -2278,9 +2278,29 @@ code {
 
   .brand-block,
   .topbar-meta {
-    align-items: stretch;
     display: flex;
     flex-direction: column;
+  }
+
+  .topbar-meta {
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .session-badge,
+  .topbar-meta .logout-button,
+  .topbar-meta .status-pill {
+    width: min(100%, 315px);
+  }
+
+  .topbar-meta .logout-button,
+  .topbar-meta .status-pill {
+    min-width: 0;
+  }
+
+  .brand-block {
+    align-items: stretch;
   }
 
   .question-bank-toggle,
