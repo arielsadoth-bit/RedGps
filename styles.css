@@ -363,6 +363,41 @@ h3 {
   min-width: 0;
 }
 
+@media (max-width: 1040px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    align-items: start;
+  }
+
+  .topbar-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .topbar-meta > span {
+    justify-content: center;
+    min-height: auto;
+  }
+
+  .session-badge,
+  .topbar-meta .status-pill,
+  .topbar-meta .logout-button {
+    width: 236px;
+  }
+
+  .topbar-meta .status-pill,
+  .topbar-meta .logout-button {
+    min-height: 54px;
+  }
+
+  .session-badge {
+    gap: 4px;
+  }
+}
+
 .layout {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
