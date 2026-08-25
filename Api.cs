@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.FileProviders;
@@ -855,6 +856,7 @@ static void InitializeDatabase(string databasePath)
         CREATE TABLE IF NOT EXISTS banco_preguntas (
             id TEXT PRIMARY KEY,
             area TEXT NOT NULL DEFAULT '',
+            categoria TEXT NOT NULL DEFAULT '',
             tipo TEXT NOT NULL DEFAULT '',
             titulo TEXT NOT NULL DEFAULT '',
             pregunta TEXT NOT NULL DEFAULT '',
@@ -1074,6 +1076,9 @@ static void InitializeDatabase(string databasePath)
     EnsureColumn(connection, "resultados_examenes", "eliminado", "INTEGER NOT NULL DEFAULT 0");
     EnsureColumn(connection, "resultados_examenes", "eliminado_por", "TEXT NOT NULL DEFAULT ''");
     EnsureColumn(connection, "resultados_examenes", "eliminado_en", "TEXT NOT NULL DEFAULT ''");
+    EnsureColumn(connection, "banco_preguntas", "categoria", "TEXT NOT NULL DEFAULT ''");
+    BackfillQuestionCategories(connection);
+    SeedTopicQuestionSupplements(connection);
     MigrateOldResultsTable(connection);
     BackfillAnswerRows(connection);
 }
@@ -1198,12 +1203,15 @@ static void SeedQuestions(SqliteConnection connection)
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO banco_preguntas
-                (id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+                (id, area, categoria, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
             VALUES
-                ($id, $area, $type, $title, $prompt, $points, $options, $correctAnswer, $expected, $keywords, $runner, 1, $createdAt)
+                ($id, $area, $category, $type, $title, $prompt, $points, $options, $correctAnswer, $expected, $keywords, $runner, 1, $createdAt)
             """;
         command.Parameters.AddWithValue("$id", question.Id);
         command.Parameters.AddWithValue("$area", question.Area);
+        command.Parameters.AddWithValue("$category", string.IsNullOrWhiteSpace(question.Category)
+            ? InferQuestionCategory(question.Title, question.Prompt, question.Area)
+            : question.Category);
         command.Parameters.AddWithValue("$type", question.Type);
         command.Parameters.AddWithValue("$title", question.Title);
         command.Parameters.AddWithValue("$prompt", question.Prompt);
@@ -1213,6 +1221,76 @@ static void SeedQuestions(SqliteConnection connection)
         command.Parameters.AddWithValue("$expected", question.Expected);
         command.Parameters.AddWithValue("$keywords", JsonSerializer.Serialize(question.Keywords));
         command.Parameters.AddWithValue("$runner", question.Runner is null ? "" : JsonSerializer.Serialize(question.Runner));
+        command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
+        command.ExecuteNonQuery();
+    }
+}
+
+static void SeedTopicQuestionSupplements(SqliteConnection connection)
+{
+    var questions = new (string Id, string Category, string Title, string Prompt, string[] Options, string Correct)[]
+    {
+        ("topic-css-019", "CSS", "Modelo de caja", "¿Qué valor de box-sizing incluye el relleno y el borde dentro del ancho declarado?", ["content-box", "border-box", "padding-box", "inherit-box"], "B"),
+        ("topic-css-020", "CSS", "Posición adhesiva", "¿Qué valor de position mantiene un elemento dentro del flujo y lo fija al alcanzar un límite de desplazamiento?", ["absolute", "fixed", "sticky", "relative-fixed"], "C"),
+        ("topic-php-019", "PHP", "Método de la solicitud", "¿Qué variable permite consultar el método HTTP de una solicitud en PHP?", ["$_SERVER['REQUEST_METHOD']", "$_GET['METHOD']", "$_HTTP['TYPE']", "$REQUEST_METHOD"], "A"),
+        ("topic-php-020", "PHP", "Verificar una contraseña", "¿Qué función de PHP compara una contraseña con un hash creado mediante password_hash?", ["hash_equals", "password_check", "password_verify", "verify_hash"], "C"),
+        ("topic-mysql-012", "MySQL", "Unión interna", "¿Qué tipo de JOIN devuelve solamente las filas con coincidencia en ambas tablas?", ["LEFT JOIN", "INNER JOIN", "CROSS JOIN", "FULL JOIN"], "B"),
+        ("topic-mysql-013", "MySQL", "Unión izquierda", "¿Qué JOIN conserva todas las filas de la tabla izquierda aunque no tengan coincidencia?", ["LEFT JOIN", "INNER JOIN", "RIGHT ONLY JOIN", "CROSS JOIN"], "A"),
+        ("topic-mysql-014", "MySQL", "Clave primaria", "¿Qué restricción identifica de forma única cada fila y no admite valores NULL?", ["FOREIGN KEY", "DEFAULT", "PRIMARY KEY", "CHECK"], "C"),
+        ("topic-mysql-015", "MySQL", "Valor único", "¿Qué restricción impide almacenar valores repetidos en una columna?", ["UNIQUE", "DEFAULT", "CHECK NULL", "AUTO_INCREMENT"], "A"),
+        ("topic-mysql-016", "MySQL", "Orden descendente", "¿Qué cláusula ordena la columna precio de mayor a menor?", ["ORDER precio DOWN", "SORT BY precio", "ORDER BY precio DESC", "GROUP BY precio DESC"], "C"),
+        ("topic-mysql-017", "MySQL", "Clave foránea", "¿Qué restricción relaciona una columna con la clave de otra tabla?", ["PRIMARY KEY", "FOREIGN KEY", "UNIQUE INDEX", "AUTO_INCREMENT"], "B"),
+        ("topic-mysql-018", "MySQL", "Filtrar grupos", "¿Qué cláusula filtra los resultados después de aplicar GROUP BY?", ["WHERE", "HAVING", "LIMIT", "FILTER"], "B"),
+        ("topic-mysql-019", "MySQL", "Sustituir valores NULL", "¿Qué función devuelve el primer valor que no sea NULL de una lista?", ["COALESCE", "CONCAT", "CONVERT", "CURRENT_VALUE"], "A"),
+        ("topic-mysql-020", "MySQL", "Limitar resultados", "¿Qué cláusula restringe la cantidad de filas devueltas por una consulta?", ["TOP", "LIMIT", "RANGE", "MAXROWS"], "B"),
+        ("topic-jquery-016", "jQuery", "Documento listo", "¿Qué forma ejecuta código cuando el DOM está listo?", ["$(document).ready(function() {})", "$(window).close(function() {})", "$(document).stop()", "$.domStart()"], "A"),
+        ("topic-jquery-017", "jQuery", "Eliminar elementos", "¿Qué método elimina del DOM los elementos seleccionados y sus datos asociados?", [".clear()", ".remove()", ".hide()", ".emptyValue()"], "B"),
+        ("topic-jquery-018", "jQuery", "Seleccionar por índice", "¿Qué método selecciona el elemento ubicado en un índice específico del conjunto actual?", [".at()", ".index()", ".eq()", ".item()"], "C"),
+        ("topic-jquery-019", "jQuery", "Datos asociados", "¿Qué método permite leer o guardar datos asociados a un elemento?", [".data()", ".store()", ".valueMap()", ".cacheOnly()"], "A"),
+        ("topic-jquery-020", "jQuery", "Ancestro más cercano", "¿Qué método busca el primer ancestro que coincide con un selector?", [".parentsAll()", ".closest()", ".ancestorOne()", ".findUp()"], "B"),
+        ("topic-html-015", "HTML", "Campo obligatorio", "¿Qué atributo indica que un control debe completarse antes de enviar el formulario?", ["validate", "required", "mandatory", "checked"], "B"),
+        ("topic-html-016", "HTML", "Etiqueta de formulario", "¿Qué atributo de label debe coincidir con el id de un control?", ["name", "target", "for", "rel"], "C"),
+        ("topic-html-017", "HTML", "Datos personalizados", "¿Con qué prefijo se crean atributos de datos personalizados válidos en HTML?", ["custom-", "data-", "meta-", "value-"], "B"),
+        ("topic-html-018", "HTML", "Carga diferida de script", "¿Qué atributo ejecuta un script después de analizar el documento, conservando su orden?", ["async", "defer", "lazy", "module-only"], "B"),
+        ("topic-html-019", "HTML", "Abrir enlaces con seguridad", "¿Qué valor de rel evita que una pestaña nueva controle la página que la abrió?", ["external", "noopener", "nofollow", "alternate"], "B"),
+        ("topic-html-020", "HTML", "Idioma del documento", "¿Qué atributo del elemento html declara el idioma principal del documento?", ["locale", "language", "lang", "charset"], "C"),
+        ("topic-git-019", "Git/GitHub", "Crear y cambiar de rama", "¿Qué comando crea una rama y cambia inmediatamente a ella?", ["git branch nueva", "git switch -c nueva", "git checkout nueva --only", "git merge nueva"], "B"),
+        ("topic-git-020", "Git/GitHub", "Quitar del área de preparación", "¿Qué comando retira un archivo del área de preparación sin borrar sus cambios locales?", ["git restore --staged archivo", "git delete --cached archivo", "git clean archivo", "git revert archivo"], "A"),
+        ("topic-js-015", "JavaScript", "Filtrar un arreglo", "¿Qué método crea un arreglo con los elementos que cumplen una condición?", ["filter", "every", "reduceOnly", "includes"], "A"),
+        ("topic-js-016", "JavaScript", "Transformar un arreglo", "¿Qué método crea un nuevo arreglo aplicando una función a cada elemento?", ["forEach", "map", "find", "some"], "B"),
+        ("topic-js-017", "JavaScript", "Funciones asíncronas", "¿Qué devuelve siempre una función declarada con async?", ["Un arreglo", "Una Promise", "Un evento", "Un número"], "B"),
+        ("topic-js-018", "JavaScript", "Convertir JSON", "¿Qué método convierte una cadena JSON válida en un valor de JavaScript?", ["JSON.parse", "JSON.stringify", "JSON.convert", "Object.json"], "A"),
+        ("topic-js-019", "JavaScript", "Encadenamiento opcional", "¿Qué operador permite acceder a una propiedad sin fallar si la referencia es null o undefined?", ["::", "??=", "?.", "=>"], "C"),
+        ("topic-js-020", "JavaScript", "Desestructuración", "¿Qué sintaxis extrae la propiedad nombre de un objeto usuario?", ["const { nombre } = usuario", "const nombre <- usuario", "const [nombre] = usuario.nombre", "extract usuario.nombre"], "A"),
+    };
+
+    foreach (var question in questions)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO banco_preguntas
+                (id, area, categoria, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+            VALUES
+                ($id, 'Área de Desarrollo', $category, 'closed', $title, $prompt, 20, $options, $correct, $expected, '[]', '', 1, $createdAt)
+            ON CONFLICT(id) DO UPDATE SET
+                categoria = excluded.categoria,
+                titulo = excluded.titulo,
+                pregunta = excluded.pregunta,
+                opciones_json = excluded.opciones_json,
+                respuesta_correcta = excluded.respuesta_correcta,
+                respuesta_esperada = excluded.respuesta_esperada
+            """;
+        var options = question.Options
+            .Select((text, index) => new ExamOption(((char)('A' + index)).ToString(), text))
+            .ToList();
+        var correctIndex = question.Correct[0] - 'A';
+        command.Parameters.AddWithValue("$id", question.Id);
+        command.Parameters.AddWithValue("$category", question.Category);
+        command.Parameters.AddWithValue("$title", question.Title);
+        command.Parameters.AddWithValue("$prompt", question.Prompt);
+        command.Parameters.AddWithValue("$options", JsonSerializer.Serialize(options));
+        command.Parameters.AddWithValue("$correct", question.Correct);
+        command.Parameters.AddWithValue("$expected", question.Options[correctIndex]);
         command.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("O"));
         command.ExecuteNonQuery();
     }
@@ -1319,16 +1397,63 @@ static string NormalizeJobPositionName(string name)
     return string.Join(" ", name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
 }
 
+static string InferQuestionCategory(string title, string prompt, string area)
+{
+    var text = $"{title} {prompt} {area}".ToLowerInvariant();
+
+    if (text.Contains("jquery")) return "jQuery";
+    if (text.Contains("github") || Regex.IsMatch(text, @"\bgit\b")) return "Git/GitHub";
+    if (text.Contains("mysql") || Regex.IsMatch(text, @"\bsql\b") || text.Contains("base de datos")) return "MySQL";
+    if (text.Contains("php")) return "PHP";
+    if (text.Contains("html")) return "HTML";
+    if (text.Contains("css")) return "CSS";
+    if (text.Contains("javascript") || Regex.IsMatch(text, @"\bjs\b")) return "JavaScript";
+    if (text.Contains("android") || text.Contains("ios") || text.Contains("mobile") || text.Contains("movil") || text.Contains("móvil")) return "Desarrollo móvil";
+    return "Programación general";
+}
+
+static void BackfillQuestionCategories(SqliteConnection connection)
+{
+    using var select = connection.CreateCommand();
+    select.CommandText = """
+        SELECT id, titulo, pregunta, area
+        FROM banco_preguntas
+        WHERE trim(categoria) = ''
+        """;
+
+    var pending = new List<(string Id, string Category)>();
+    using (var reader = select.ExecuteReader())
+    {
+        while (reader.Read())
+        {
+            pending.Add((
+                GetDbString(reader, 0),
+                InferQuestionCategory(GetDbString(reader, 1), GetDbString(reader, 2), GetDbString(reader, 3))
+            ));
+        }
+    }
+
+    foreach (var item in pending)
+    {
+        using var update = connection.CreateCommand();
+        update.CommandText = "UPDATE banco_preguntas SET categoria = $category WHERE id = $id";
+        update.Parameters.AddWithValue("$category", item.Category);
+        update.Parameters.AddWithValue("$id", item.Id);
+        update.ExecuteNonQuery();
+    }
+}
+
 static void SaveQuestion(SqliteConnection connection, ExamQuestion question)
 {
     using var command = connection.CreateCommand();
     command.CommandText = """
         INSERT INTO banco_preguntas
-            (id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
+            (id, area, categoria, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json, activo, creado_en)
         VALUES
-            ($id, $area, $type, $title, $prompt, $points, $options, $correctAnswer, $expected, $keywords, $runner, 1, $createdAt)
+            ($id, $area, $category, $type, $title, $prompt, $points, $options, $correctAnswer, $expected, $keywords, $runner, 1, $createdAt)
         ON CONFLICT(id) DO UPDATE SET
             area = excluded.area,
+            categoria = excluded.categoria,
             tipo = excluded.tipo,
             titulo = excluded.titulo,
             pregunta = excluded.pregunta,
@@ -1342,6 +1467,7 @@ static void SaveQuestion(SqliteConnection connection, ExamQuestion question)
         """;
     command.Parameters.AddWithValue("$id", question.Id);
     command.Parameters.AddWithValue("$area", question.Area);
+    command.Parameters.AddWithValue("$category", question.Category);
     command.Parameters.AddWithValue("$type", question.Type);
     command.Parameters.AddWithValue("$title", question.Title);
     command.Parameters.AddWithValue("$prompt", question.Prompt);
@@ -1360,13 +1486,13 @@ static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool active
     using var command = connection.CreateCommand();
     command.CommandText = activeOnly
         ? """
-            SELECT id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
+            SELECT id, area, categoria, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
             FROM banco_preguntas
             WHERE activo = 1
             ORDER BY rowid ASC
             """
         : """
-            SELECT id, area, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
+            SELECT id, area, categoria, tipo, titulo, pregunta, puntos, opciones_json, respuesta_correcta, respuesta_esperada, palabras_clave_json, runner_json
             FROM banco_preguntas
             ORDER BY rowid ASC
             """;
@@ -1376,9 +1502,9 @@ static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool active
 
     while (reader.Read())
     {
-        var options = DeserializeJson<List<ExamOption>>(GetDbString(reader, 6)) ?? [];
-        var keywords = DeserializeJson<List<string>>(GetDbString(reader, 9)) ?? [];
-        var runnerJson = GetDbString(reader, 10);
+        var options = DeserializeJson<List<ExamOption>>(GetDbString(reader, 7)) ?? [];
+        var keywords = DeserializeJson<List<string>>(GetDbString(reader, 10)) ?? [];
+        var runnerJson = GetDbString(reader, 11);
         var runner = string.IsNullOrWhiteSpace(runnerJson)
             ? null
             : DeserializeJson<CodeRunner>(runnerJson);
@@ -1386,15 +1512,16 @@ static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool active
         questions.Add(new ExamQuestion(
             GetDbString(reader, 0),
             GetDbString(reader, 1),
-            GetDbString(reader, 2),
             GetDbString(reader, 3),
             GetDbString(reader, 4),
-            reader.GetInt32(5),
+            GetDbString(reader, 5),
+            reader.GetInt32(6),
             options,
-            GetDbString(reader, 7),
             GetDbString(reader, 8),
+            GetDbString(reader, 9),
             keywords,
-            runner
+            runner,
+            GetDbString(reader, 2)
         ));
     }
 
@@ -1404,6 +1531,7 @@ static List<ExamQuestion> LoadQuestions(SqliteConnection connection, bool active
 static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonElement root)
 {
     var area = GetFirstString(root, "area", "Area").Trim();
+    var category = GetFirstString(root, "category", "categoria", "Category").Trim();
     var type = GetFirstString(root, "type", "tipo", "Type").Trim().ToLowerInvariant();
     var title = GetFirstString(root, "title", "titulo", "Title").Trim();
     var prompt = GetFirstString(root, "prompt", "pregunta", "Prompt").Trim();
@@ -1418,6 +1546,11 @@ static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonEleme
     if (string.IsNullOrWhiteSpace(area))
     {
         return (null, "Escribe el area de la pregunta.");
+    }
+
+    if (string.IsNullOrWhiteSpace(category))
+    {
+        category = InferQuestionCategory(title, prompt, area);
     }
 
     if (type is not ("closed" or "open" or "code"))
@@ -1504,7 +1637,7 @@ static (ExamQuestion? Question, string Error) BuildQuestionFromRequest(JsonEleme
         id = GenerateQuestionId(title);
     }
 
-    return (new ExamQuestion(id, area, type, title, prompt, points, options, correctAnswer, expected, keywords, runner), "");
+    return (new ExamQuestion(id, area, type, title, prompt, points, options, correctAnswer, expected, keywords, runner, category), "");
 }
 
 static T? DeserializeJson<T>(string value)
@@ -2302,6 +2435,7 @@ static object ToPublicQuestion(ExamQuestion question) => new
 {
     question.Id,
     question.Area,
+    question.Category,
     question.Type,
     question.Title,
     question.Prompt,
@@ -2336,6 +2470,7 @@ static object ToResultQuestion(ExamQuestion question, bool includeExpected)
     {
         question.Id,
         question.Area,
+        question.Category,
         question.Type,
         question.Title,
         question.Prompt,
@@ -2729,7 +2864,8 @@ record ExamQuestion(
     string CorrectAnswer,
     string Expected,
     List<string> Keywords,
-    CodeRunner? Runner = null
+    CodeRunner? Runner = null,
+    string Category = ""
 );
 
 record CodeRunner(string FunctionName, string Language, List<CodeTest> Tests, string SolutionCode = "");

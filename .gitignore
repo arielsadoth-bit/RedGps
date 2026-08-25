@@ -13,3 +13,4 @@ data/*.csv
 
 .vs/
 .vscode/
+tmp/

@@ -99,11 +99,15 @@
             <small id="sessionUserLabel"></small>
           </div>
           <button class="logout-button" id="logoutButton" type="button">Cerrar sesión</button>
+          <button class="mobile-menu-button" id="mobileMenuButton" type="button" aria-expanded="false" aria-controls="mainSidebar">
+            <span aria-hidden="true">☰</span>
+            <span>Menú</span>
+          </button>
         </div>
       </section>
 
       <section class="layout">
-        <aside class="sidebar">
+        <aside class="sidebar" id="mainSidebar">
           <div class="sidebar-title">
             <span>REDGPS</span>
             <strong>Evaluación</strong>
@@ -246,6 +250,21 @@
                 <label class="field">
                   Puesto
                   <select id="questionArea" required></select>
+                </label>
+                <label class="field">
+                  Categoría
+                  <input id="questionCategory" list="questionCategoryOptions" placeholder="Ej. Categoría del puesto" />
+                  <datalist id="questionCategoryOptions">
+                    <option value="HTML"></option>
+                    <option value="CSS"></option>
+                    <option value="JavaScript"></option>
+                    <option value="PHP"></option>
+                    <option value="MySQL"></option>
+                    <option value="jQuery"></option>
+                    <option value="Git/GitHub"></option>
+                    <option value="Programación general"></option>
+                    <option value="Desarrollo móvil"></option>
+                  </datalist>
                 </label>
                 <label class="field">
                   Tipo

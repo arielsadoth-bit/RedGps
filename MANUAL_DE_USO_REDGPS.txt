@@ -1,0 +1,277 @@
+MANUAL DE USO - CENTRO DE EVALUACION REDGPS
+============================================================
+
+1. DESCRIPCION DEL SISTEMA
+------------------------------------------------------------
+El Centro de Evaluacion RedGPS permite:
+
+- Crear examenes tecnicos manuales o aleatorios.
+- Organizar preguntas por puesto y categoria.
+- Compartir enlaces individuales con candidatos.
+- Guardar resultados y respuestas en una base de datos SQLite.
+- Revisar y ajustar calificaciones.
+- Administrar puestos, preguntas, usuarios y permisos.
+
+
+2. INICIAR EL SISTEMA CON DOCKER
+------------------------------------------------------------
+Requisitos:
+
+- Docker Desktop instalado.
+- Docker Desktop abierto y con el motor activo.
+
+Pasos:
+
+1. Abre PowerShell en la carpeta del proyecto.
+2. Ejecuta:
+
+   docker compose up --build -d
+
+3. Abre en el navegador:
+
+   http://localhost:8080
+
+Para apagar el sistema ejecuta:
+
+   docker compose down
+
+
+3. INICIAR EL SISTEMA SIN DOCKER
+------------------------------------------------------------
+1. Ejecuta el archivo iniciar-sistema.bat.
+2. Espera a que aparezca la ventana del servidor.
+3. Abre en el navegador:
+
+   http://localhost:8080
+
+No cierres la ventana del servidor mientras uses el sistema.
+
+
+4. INICIAR SESION
+------------------------------------------------------------
+1. Escribe un correo autorizado.
+2. Escribe la contrasena correspondiente.
+3. Presiona Entrar.
+
+El icono del ojo permite mostrar u ocultar la contrasena.
+
+Roles:
+
+- Administrador: administra usuarios, puestos y preguntas, ademas de
+  consultar todas las funciones del sistema.
+- Entrevistador: crea examenes y consulta la informacion permitida por
+  su rol.
+
+
+5. CREAR UN EXAMEN
+------------------------------------------------------------
+1. Entra a Crear examen.
+2. Escribe el nombre de la evaluacion.
+3. Selecciona la cantidad de preguntas.
+4. Selecciona el tiempo disponible.
+5. Elige el banco por puesto.
+6. Elige una categoria cuando corresponda.
+7. Abre el banco de preguntas y revisa la seleccion.
+
+Botones disponibles:
+
+- Generar examen aleatorio: selecciona al azar la cantidad indicada,
+  dentro del puesto y categoria elegidos.
+- Crear examen: usa exactamente las preguntas marcadas manualmente.
+- Seleccionar/Deseleccionar: cambia la seleccion de las preguntas que
+  se muestran en el banco actual.
+
+Al terminar se muestra un enlace. Presiona Copiar y envialo al candidato.
+
+
+6. EXPERIENCIA DEL CANDIDATO
+------------------------------------------------------------
+1. El candidato abre el enlace recibido.
+2. Registra su nombre y correo.
+3. Confirma sus datos para entrar al examen.
+4. Responde las preguntas antes de que termine el tiempo.
+5. Presiona Finalizar examen.
+6. Confirma la finalizacion cuando aparezca el mensaje.
+
+El sistema guarda lo contestado y muestra el resultado correspondiente.
+Las reglas de seguridad pueden finalizar el examen si el candidato
+abandona la pagina, cambia de pestana o intenta inspeccionarla.
+
+
+7. CREAR PREGUNTAS
+------------------------------------------------------------
+Esta funcion esta disponible para administradores.
+
+1. Entra a Crear preguntas.
+2. Selecciona el puesto y la categoria.
+3. Escribe el titulo y el enunciado.
+4. Selecciona el tipo de pregunta.
+5. Asigna los puntos.
+6. Completa los campos correspondientes al tipo elegido.
+7. Presiona Guardar pregunta.
+
+Pregunta teorica cerrada:
+
+- Captura por separado las opciones A, B, C y D.
+- Selecciona la respuesta correcta.
+
+Pregunta teorica abierta:
+
+- Captura la respuesta esperada y los criterios necesarios para su
+  evaluacion.
+
+Pregunta practica:
+
+- El lenguaje utilizado por el evaluador es JavaScript.
+- Define la funcion esperada.
+- Agrega las pruebas automaticas en formato JSON.
+- Agrega el codigo de solucion para la revision del entrevistador.
+
+
+8. ADMINISTRAR PUESTOS
+------------------------------------------------------------
+1. Entra a Administrar puestos.
+2. Escribe el nombre del nuevo puesto.
+3. Presiona Agregar puesto.
+
+Para retirar un puesto, usa el icono de papelera y confirma la accion.
+Antes de eliminarlo, revisa si tiene preguntas asignadas.
+
+
+9. EXAMENES CREADOS Y SEGUIMIENTO
+------------------------------------------------------------
+Examenes creados:
+
+- Muestra las evaluaciones generadas.
+- Permite consultar y copiar sus enlaces.
+- Identifica el usuario que creo cada examen.
+
+Seguimiento de enlaces:
+
+- Registra cuando se genera un enlace.
+- Permite consultar el correo capturado y el estado del examen.
+- Ayuda a identificar enlaces abiertos, iniciados o finalizados.
+
+
+10. RESULTADOS Y RESPUESTAS
+------------------------------------------------------------
+Resultados del candidato:
+
+- Muestra la calificacion obtenida por el candidato.
+- Presenta el detalle de cada respuesta.
+
+Respuestas guardadas:
+
+1. Busca por nombre, correo o identificador.
+2. Presiona el icono del ojo para abrir el examen.
+3. Revisa las respuestas y la calificacion automatica.
+4. Ajusta la calificacion cuando sea necesario.
+5. Agrega una nota y guarda el ajuste.
+
+Respuestas correctas:
+
+- Permite consultar las respuestas esperadas.
+- En preguntas practicas muestra el codigo de solucion autorizado.
+
+El icono de papelera solicita confirmacion antes de retirar un registro.
+
+
+11. ADMINISTRAR USUARIOS
+------------------------------------------------------------
+Esta funcion esta disponible solamente para administradores.
+
+1. Entra a Administrar usuarios.
+2. Escribe el correo del usuario.
+3. Define una contrasena valida.
+4. Selecciona el rol: Administrador o Entrevistador.
+5. Presiona Agregar usuario.
+
+Desde la lista se puede:
+
+- Cambiar el rol.
+- Cambiar la contrasena.
+- Marcar al usuario como Activo o Inactivo.
+
+Los cambios realizados desde esta pantalla se guardan en SQLite.
+Las contrasenas se almacenan protegidas, no como texto legible.
+
+
+12. BASE DE DATOS SQLITE
+------------------------------------------------------------
+La base de datos se encuentra en:
+
+   data\redgps_exam.db
+
+Para verla:
+
+1. Apaga el sistema para evitar bloqueos del archivo.
+2. Ejecuta abrir-sqlite.bat.
+3. Abre las tablas o vistas desde SQLiteStudio.
+
+Recomendacion: administra usuarios, preguntas y puestos desde la pagina.
+Modificar directamente SQLite debe reservarse para mantenimiento.
+
+
+13. RESPALDO DE INFORMACION
+------------------------------------------------------------
+1. Apaga el sistema.
+2. Copia el archivo data\redgps_exam.db a una carpeta segura.
+3. Anota la fecha del respaldo.
+
+Para restaurarlo, reemplaza la base de datos con una copia valida mientras
+el sistema permanece apagado.
+
+
+14. ACCESO DESDE OTRA COMPUTADORA DE LA RED
+------------------------------------------------------------
+1. Ambas computadoras deben estar conectadas a la misma red.
+2. Inicia el sistema en la computadora principal.
+3. Consulta la direccion IPv4 de la computadora principal con ipconfig.
+4. Desde el otro equipo abre:
+
+   http://IP-DE-LA-COMPUTADORA:8080
+
+Ejemplo:
+
+   http://192.168.1.50:8080
+
+Si no abre, revisa el Firewall de Windows y ejecuta como administrador
+permitir-red-local.bat.
+
+
+15. SOLUCION DE PROBLEMAS
+------------------------------------------------------------
+La pagina no abre:
+
+- Confirma que el servidor o contenedor este activo.
+- Revisa que el puerto sea 8080.
+- Prueba http://localhost:8080 en la computadora principal.
+
+Los cambios no aparecen:
+
+- Actualiza la pagina con Ctrl+F5.
+- Si usas Docker, ejecuta docker compose up --build -d.
+
+El usuario no puede entrar:
+
+- Confirma que el correo sea correcto.
+- Confirma que el usuario este Activo.
+- Verifica su rol y cambia la contrasena desde Administrar usuarios.
+
+SQLiteStudio no muestra cambios:
+
+- Actualiza la tabla.
+- Cierra y vuelve a abrir la base de datos.
+- Confirma que abriste data\redgps_exam.db del proyecto correcto.
+
+
+16. RECOMENDACIONES DE OPERACION
+------------------------------------------------------------
+- Usa una cuenta diferente para cada entrevistador.
+- No compartas contrasenas.
+- Realiza respaldos frecuentes.
+- Prueba cada examen antes de enviarlo.
+- No edites la base de datos mientras el sistema esta funcionando.
+- Cierra sesion al terminar.
+
+Fin del manual.

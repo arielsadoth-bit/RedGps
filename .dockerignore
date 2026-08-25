@@ -3,6 +3,7 @@ obj/
 .git/
 .vs/
 .vscode/
+tmp/
 
 *.log
 cloudflared*.log
