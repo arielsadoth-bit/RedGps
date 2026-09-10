@@ -2949,12 +2949,6 @@ function renderResultCard(item) {
   const stateClass = getEffectiveStateClass(item);
   const points = getQuestionPoints(item);
   const title = getQuestionTitle(item);
-  const options = getQuestionOptions(item);
-  const optionsMarkup = options.length ? `<ul class="answer-options">${options.map(option => {
-    const key = String(option.key ?? option.Key ?? "");
-    const selected = key === String(item.answer ?? "");
-    return `<li${selected ? ' class="selected-answer-option"' : ""}>${escapeHtml(key)}) ${escapeHtml(option.text ?? option.Text ?? "")}${selected ? " <strong>— Respuesta elegida</strong>" : ""}</li>`;
-  }).join("")}</ul>` : "";
   const expected = getQuestionExpected(item);
   const expectedAnswer =
     isCandidateLink || !expected
@@ -2970,7 +2964,6 @@ function renderResultCard(item) {
       <h3>${escapeHtml(title)}</h3>
       <p><strong>Pregunta:</strong></p>
       <p style="white-space: pre-wrap">${escapeHtml(getQuestionValue(item, "prompt", "Prompt") || title)}</p>
-      ${optionsMarkup}
       <p class="result-state">${stateLabel}: ${earned}/${points} pts</p>
       <p>${item.feedback}</p>
       ${expectedAnswer}
@@ -4150,23 +4143,28 @@ async function renderAnswerKey() {
           ? `${question.correctAnswer}) ${question.expected}`
           : question.expected;
       const solutionCode = question.solutionCode || question.SolutionCode || runner?.solutionCode || runner?.SolutionCode || "";
+      const options = getQuestionOptions({ question });
 
       return `
         <article class="result-card">
-          <h3>${question.title}</h3>
+          <h3>${escapeHtml(question.title)}</h3>
           <div class="tag-row">
             <span class="tag">${question.area}</span>
             <span class="tag">${getQuestionTypeLabel(question)}</span>
             ${question.type === "code" ? `<span class="tag">Lenguaje: ${escapeHtml(getRunnerLanguage(runner))}</span>` : ""}
             <span class="tag">${question.points} pts</span>
           </div>
-          <p><strong>Pregunta:</strong> ${question.prompt}</p>
+          <p><strong>Pregunta:</strong> ${escapeHtml(question.prompt)}</p>
+          ${options.length ? `<ul class="answer-options">${options.map(option => `<li>${escapeHtml(option.key ?? option.Key ?? "")}) ${escapeHtml(option.text ?? option.Text ?? "")}</li>`).join("")}</ul>` : ""}
+          <details class="answer-key-disclosure">
+          <summary>Ver respuesta</summary>
           <p><strong>Respuesta correcta:</strong></p>
           <code>${escapeHtml(correctAnswer)}</code>
           ${question.type === "code" && solutionCode ? `
             <p><strong>Código de solución:</strong></p>
             <code>${escapeHtml(solutionCode)}</code>
           ` : ""}
+          </details>
         </article>
       `;
     })

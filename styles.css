@@ -2653,9 +2653,11 @@ textarea {
   overflow-wrap: anywhere;
 }
 
-.answer-options .selected-answer-option {
-  border-color: var(--accent);
-  background: #fff7ed;
+.answer-key-disclosure summary {
+  cursor: pointer;
+  color: var(--accent-dark);
+  font-weight: 800;
+  padding: 12px 0;
 }
 
 .manual-score-panel {
