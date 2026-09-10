@@ -1904,6 +1904,11 @@ textarea {
   display: none;
 }
 
+.candidate-mode #mobileMenuButton,
+.candidate-mode #newExamShortcutButton {
+  display: none;
+}
+
 .candidate-mode .sidebar {
   display: none;
 }

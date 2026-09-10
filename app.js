@@ -1,4 +1,4 @@
-﻿let questions = [];
+let questions = [];
 let jobPositions = [];
 let jobPositionsLoaded = false;
 
@@ -1425,6 +1425,9 @@ function showUserManagerStatus(message, isError) {
 }
 
 function showView(viewId) {
+  if (isCandidateLink && !["candidateIntroView", "candidateView", "resultsView"].includes(viewId)) {
+    viewId = "candidateIntroView";
+  }
   if ((viewId === "linkTrackingView" || viewId === "liveMonitorView") && !isAdminUser()) {
     viewId = "interviewerView";
   }
@@ -1784,6 +1787,10 @@ function renderExam() {
 
 function showCandidateIntro() {
   const examFromLink = getExamFromLink();
+  if (isCandidateLink && !examFromLink) {
+    showExamBlockedMessage("Enlace incompleto o no disponible", "Solicita al entrevistador un enlace completo y vigente para este examen.");
+    return;
+  }
   const savedExam = localStorage.getItem("activeExam");
   state.activeExam = examFromLink || state.activeExam;
   state.activeExam = state.activeExam || (savedExam ? JSON.parse(savedExam) : null);
@@ -1878,7 +1885,7 @@ function bindCandidateExamPagination(totalPages) {
   });
 }
 
-function showExamBlockedMessage() {
+function showExamBlockedMessage(title = "Este enlace ya fue usado", message = "Por seguridad, este examen solo puede abrirse una vez. Pide al entrevistador que genere un nuevo enlace.") {
   clearInterval(state.timerId);
   state.examLocked = true;
   timer.textContent = "Bloqueado";
@@ -1887,10 +1894,11 @@ function showExamBlockedMessage() {
   document.querySelector("#finishExamButton").disabled = true;
   examForm.innerHTML = `
     <article class="result-card wrong">
-      <h3>Este enlace ya fue usado</h3>
-      <p>Por seguridad, este examen solo puede abrirse una vez. Pide al entrevistador que genere un nuevo enlace.</p>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
     </article>
   `;
+  showView("candidateView");
 }
 
 function getExamFromLink() {
@@ -1903,7 +1911,7 @@ function getExamFromLink() {
     .map((id) => questions.find((question) => question.id === id))
     .filter(Boolean);
 
-  if (!selectedQuestions.length) {
+  if (!urlParams.get("exam")?.trim() || !selectedQuestions.length || selectedQuestions.length !== questionIds.length) {
     return null;
   }
 
@@ -2831,6 +2839,9 @@ async function claimCandidateLink() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     }, 9000);
+    if (!response.ok) {
+      throw new Error("No se pudo verificar el acceso al examen.");
+    }
     const data = await response.json();
 
     if (!data.allowed) {
@@ -2842,7 +2853,7 @@ async function claimCandidateLink() {
     return true;
   } catch {
     state.candidateAccessDenied = true;
-    showExamBlockedMessage();
+    showExamBlockedMessage("No se pudo verificar el enlace", "Comprueba tu conexión e intenta recargar la página. Si el problema continúa, contacta al entrevistador.");
     return false;
   }
 }
@@ -3623,11 +3634,7 @@ function bindCreatedExamControls() {
         return;
       }
 
-      await copyText(link);
-      button.textContent = "Copiado";
-      setTimeout(() => {
-        button.textContent = "Copiar";
-      }, 1400);
+      await copyExamLink(button, link);
     });
   });
 }
@@ -3640,11 +3647,7 @@ function bindLinkTrackingControls() {
         return;
       }
 
-      await copyText(link);
-      button.textContent = "Copiado";
-      setTimeout(() => {
-        button.textContent = "Copiar";
-      }, 1400);
+      await copyExamLink(button, link);
     });
   });
 }
@@ -4209,8 +4212,12 @@ async function fetchWithTimeout(url, options = {}, timeout = 3500) {
 
 async function copyText(value) {
   if (navigator.clipboard && window.isSecureContext) {
-    await navigator.clipboard.writeText(value);
-    return;
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // Algunos navegadores deniegan el permiso: intentar el método compatible.
+    }
   }
 
   const temporaryInput = document.createElement("input");
@@ -4219,8 +4226,25 @@ async function copyText(value) {
   temporaryInput.style.opacity = "0";
   document.body.appendChild(temporaryInput);
   temporaryInput.select();
-  document.execCommand("copy");
-  temporaryInput.remove();
+  try {
+    temporaryInput.focus();
+    temporaryInput.setSelectionRange(0, value.length);
+    if (!document.execCommand("copy")) {
+      throw new Error("El navegador no permitió copiar.");
+    }
+  } finally {
+    temporaryInput.remove();
+  }
+}
+
+async function copyExamLink(button, link) {
+  try {
+    await copyText(link);
+    button.textContent = "Copiado";
+    setTimeout(() => { button.textContent = "Copiar"; }, 1400);
+  } catch {
+    window.prompt("Copia este enlace completo (Ctrl + C o mantén presionado el texto):", link);
+  }
 }
 
 function escapeHtml(value) {
@@ -4295,11 +4319,7 @@ copyGeneratedLinkButton?.addEventListener("click", async () => {
     return;
   }
 
-  await navigator.clipboard.writeText(link);
-  copyGeneratedLinkButton.textContent = "Copiado";
-  setTimeout(() => {
-    copyGeneratedLinkButton.textContent = "Copiar";
-  }, 1400);
+  await copyExamLink(copyGeneratedLinkButton, link);
 });
 
 backToCreateExamButton?.addEventListener("click", () => {
@@ -4584,6 +4604,12 @@ liveMonitorRefreshTimer = window.setInterval(() => {
 
 async function initializeApp() {
   try {
+    if (isCandidateLink) {
+      document.body.classList.add("candidate-mode");
+      startCandidateExamButton.disabled = true;
+      protectInterviewerPanel();
+      showView("candidateIntroView");
+    }
     clearDeliveryLocalDataOnce();
     await loadQuestions();
     renderQuestionBank();
@@ -4596,6 +4622,7 @@ async function initializeApp() {
       const allowed = await claimCandidateLink();
       if (allowed) {
         showCandidateIntro();
+        startCandidateExamButton.disabled = state.examLocked;
       }
       return;
     }
@@ -4611,6 +4638,15 @@ async function initializeApp() {
     }
 
     renderExam();
+  } catch (error) {
+    console.error("No se pudo iniciar la aplicación.", error);
+    if (isCandidateLink) {
+      state.candidateAccessDenied = true;
+      showExamBlockedMessage("No se pudo cargar el examen", "Comprueba tu conexión y recarga la página. Si el problema continúa, contacta al entrevistador.");
+    } else {
+      protectInterviewerPanel();
+      alert("No se pudo cargar el sistema. Comprueba tu conexión y recarga la página.");
+    }
   } finally {
     finishInitialRender();
   }
