@@ -456,6 +456,7 @@
               </label>
 
               <button class="primary-button" id="startCandidateExamButton" type="button">Confirmar e iniciar examen</button>
+              <button class="ghost-button request-exam-review" type="button">Revisar con mi cuenta</button>
             </div>
           </section>
 
@@ -483,6 +484,11 @@
             <div class="actions-row">
               <button class="primary-button" id="finishExamButton" type="button">Finalizar examen</button>
             </div>
+          </section>
+
+          <section class="view" id="examReviewView">
+            <div class="section-heading"><h2>Revisión del examen</h2></div>
+            <div id="examReviewContent" aria-live="polite"></div>
           </section>
 
           <section class="view" id="resultsView">
@@ -530,6 +536,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260910-pantalla-bloqueada"></script>
+    <script src="app.js?v=20260910-revision-examen"></script>
   </body>
 </html>

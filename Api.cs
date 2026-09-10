@@ -282,6 +282,35 @@ app.MapGet("/api/results", (HttpRequest request) =>
     return Results.Json(results);
 });
 
+app.MapGet("/api/exam-review/{examId}", (string examId, HttpRequest request, HttpResponse response) =>
+{
+    response.Headers.CacheControl = "no-store";
+    if (!TryGetInterviewer(request, sessions, out _)) return Results.Unauthorized();
+    using var connection = OpenConnection(databasePath);
+    using var resultCommand = connection.CreateCommand();
+    resultCommand.CommandText = "SELECT datos_json FROM resultados_examenes WHERE id = $id AND COALESCE(eliminado, 0) = 0 LIMIT 1";
+    resultCommand.Parameters.AddWithValue("$id", examId);
+    var resultPayload = resultCommand.ExecuteScalar() as string;
+    if (resultPayload is not null)
+    {
+        using var resultDocument = JsonDocument.Parse(resultPayload);
+        return Results.Json(new { result = resultDocument.RootElement.Clone() });
+    }
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT datos_json FROM examenes_creados WHERE id = $id LIMIT 1";
+    command.Parameters.AddWithValue("$id", examId);
+    var payload = command.ExecuteScalar() as string;
+    if (payload is null) return Results.NotFound();
+    using var document = JsonDocument.Parse(payload);
+    var exam = document.RootElement;
+    var bank = LoadQuestions(connection, activeOnly: false);
+    var questions = GetStringArray(exam, "questionIds")
+        .Select(id => bank.FirstOrDefault(question => question.Id == id))
+        .Where(question => question is not null)
+        .Select(question => ToResultQuestion(question!, includeExpected: true)).ToList();
+    return Results.Json(new { examName = GetString(exam, "examName"), questions });
+});
+
 app.MapGet("/e/{examId}", (string examId, HttpResponse response) =>
 {
     response.Headers.CacheControl = "no-store";

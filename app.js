@@ -1425,7 +1425,7 @@ function showUserManagerStatus(message, isError) {
 }
 
 function showView(viewId) {
-  if (isCandidateLink && !["candidateIntroView", "candidateView", "resultsView"].includes(viewId)) {
+  if (isCandidateLink && !["candidateIntroView", "candidateView", "resultsView", "examReviewView"].includes(viewId)) {
     viewId = "candidateIntroView";
   }
   if ((viewId === "linkTrackingView" || viewId === "liveMonitorView") && !isAdminUser()) {
@@ -1448,6 +1448,7 @@ function showView(viewId) {
     candidateIntroView: "Datos del candidato",
     candidateView: "Responder examen",
     resultsView: "Resultados del candidato",
+    examReviewView: "Revisión del examen",
     answersView: "Respuestas guardadas",
     answerKeyView: "Respuestas correctas",
   };
@@ -1903,6 +1904,7 @@ function showExamBlockedMessage(title = "Este enlace ya fue usado", message = "P
     <article class="result-card wrong">
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(message)}</p>
+      <button class="ghost-button request-exam-review" type="button">Revisar con mi cuenta</button>
     </article>
   `;
   showView("candidateView");
@@ -2960,10 +2962,13 @@ function renderResultCard(item) {
   return `
     <article class="result-card ${stateClass}">
       <h3>${escapeHtml(title)}</h3>
+      <p><strong>Pregunta:</strong></p>
+      <p style="white-space: pre-wrap">${escapeHtml(getQuestionValue(item, "prompt", "Prompt") || title)}</p>
       <p class="result-state">${stateLabel}: ${earned}/${points} pts</p>
       <p>${item.feedback}</p>
       ${expectedAnswer}
       ${manualDetail}
+      <p><strong>Respuesta del candidato:</strong></p>
       <code>${escapeHtml(formatAnswer(item))}</code>
     </article>
   `;
@@ -3569,7 +3574,7 @@ function renderLinkTrackingRow(exam) {
       </td>
       <td>
         <div class="created-link-cell">
-          <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
+          <a href="${escapeHtml(exam.link || "#")}" class="review-exam-link" data-exam-id="${escapeHtml(exam.id)}">${escapeHtml(exam.link || "Sin enlace")}</a>
           <button class="ghost-button copy-tracking-link-button" type="button" data-link="${escapeHtml(exam.link || "")}">Copiar</button>
         </div>
       </td>
@@ -3620,11 +3625,12 @@ function renderCreatedExamRow(exam) {
       </td>
       <td>
         <div class="created-link-cell">
-          <a href="${escapeHtml(exam.link || "#")}" target="_blank" rel="noopener">${escapeHtml(exam.link || "Sin enlace")}</a>
+          <a href="${escapeHtml(exam.link || "#")}" class="review-exam-link" data-exam-id="${escapeHtml(exam.id)}">${escapeHtml(exam.link || "Sin enlace")}</a>
         </div>
       </td>
       <td>
         <button class="ghost-button copy-created-link-button" type="button" data-link="${escapeHtml(exam.link || "")}">Copiar</button>
+        <button class="ghost-button review-exam-link" type="button" data-exam-id="${escapeHtml(exam.id)}">Ver examen</button>
       </td>
     </tr>
   `;
@@ -3653,6 +3659,50 @@ function getExamTrackingStatus(exam) {
     dateLabel: exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha",
   };
 }
+
+let pendingReviewExamId = null;
+
+async function openExamReview(examId) {
+  pendingReviewExamId = examId;
+  showView("examReviewView");
+  const content = document.querySelector("#examReviewContent");
+  content.textContent = "Cargando examen…";
+  try {
+    const response = await fetchWithTimeout(`/api/exam-review/${encodeURIComponent(examId)}`, {
+      headers: getAuthHeaders(), cache: "no-store",
+    }, 9000);
+    if (response.status === 401 || response.status === 403) {
+      content.textContent = "Inicia sesión para revisar este examen.";
+      loginScreen.classList.remove("hidden");
+      return;
+    }
+    if (!response.ok) throw new Error("No se encontró el examen o no se pudo cargar.");
+    const data = await response.json();
+    if (data.result) {
+      content.innerHTML = `<h3>${escapeHtml(data.result.candidateName || "Candidato")} · ${getDisplayScore(data.result)}/100</h3>`
+        + data.result.evaluated.map(renderResultCard).join("");
+    } else {
+      content.innerHTML = `<h3>${escapeHtml(data.examName || "Examen")}</h3><p>Este examen todavía no tiene un resultado final. Puedes consultar sus preguntas sin iniciar el intento del candidato.</p>`
+        + data.questions.map(question => {
+          const item = { question };
+          return `<article class="result-card"><h3>${escapeHtml(getQuestionTitle(item))}</h3><p style="white-space: pre-wrap">${escapeHtml(getQuestionValue(item, "prompt", "Prompt") || getQuestionTitle(item))}</p>${getQuestionOptions(item).map(option => `<p>${escapeHtml(option.key || option.Key || "")}) ${escapeHtml(option.text || option.Text || "")}</p>`).join("")}</article>`;
+        }).join("");
+    }
+  } catch (error) {
+    content.textContent = error.message || "No se pudo cargar el examen. Intenta nuevamente.";
+  }
+}
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".request-exam-review")) {
+    openExamReview(urlParams.get("exam"));
+    return;
+  }
+  const link = event.target.closest(".review-exam-link");
+  if (!link) return;
+  event.preventDefault();
+  openExamReview(link.dataset.examId);
+});
 
 function bindCreatedExamControls() {
   bindCreatedExamFilterControls();
@@ -4519,6 +4569,10 @@ loginForm.addEventListener("submit", async (event) => {
     loginError.classList.add("hidden");
     loginScreen.classList.add("hidden");
     applyRoleVisibility();
+    if (pendingReviewExamId) {
+      await openExamReview(pendingReviewExamId);
+      return;
+    }
     await renderResults();
     await renderCreatedExams();
     await renderSavedAnswers();
@@ -4645,6 +4699,10 @@ async function initializeApp() {
       document.body.classList.add("candidate-mode");
       startCandidateExamButton.disabled = true;
       protectInterviewerPanel();
+      if (hasInterviewerSession()) {
+        await openExamReview(urlParams.get("exam"));
+        return;
+      }
       showView("candidateIntroView");
       if (await showLatestCandidateResult()) return;
     }
