@@ -2638,6 +2638,26 @@ textarea {
   box-shadow: none;
 }
 
+.answer-options {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.answer-options li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.answer-options .selected-answer-option {
+  border-color: var(--accent);
+  background: #fff7ed;
+}
+
 .manual-score-panel {
   display: grid;
   gap: 12px;

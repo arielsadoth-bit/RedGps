@@ -2949,6 +2949,12 @@ function renderResultCard(item) {
   const stateClass = getEffectiveStateClass(item);
   const points = getQuestionPoints(item);
   const title = getQuestionTitle(item);
+  const options = getQuestionOptions(item);
+  const optionsMarkup = options.length ? `<ul class="answer-options">${options.map(option => {
+    const key = String(option.key ?? option.Key ?? "");
+    const selected = key === String(item.answer ?? "");
+    return `<li${selected ? ' class="selected-answer-option"' : ""}>${escapeHtml(key)}) ${escapeHtml(option.text ?? option.Text ?? "")}${selected ? " <strong>— Respuesta elegida</strong>" : ""}</li>`;
+  }).join("")}</ul>` : "";
   const expected = getQuestionExpected(item);
   const expectedAnswer =
     isCandidateLink || !expected
@@ -2964,6 +2970,7 @@ function renderResultCard(item) {
       <h3>${escapeHtml(title)}</h3>
       <p><strong>Pregunta:</strong></p>
       <p style="white-space: pre-wrap">${escapeHtml(getQuestionValue(item, "prompt", "Prompt") || title)}</p>
+      ${optionsMarkup}
       <p class="result-state">${stateLabel}: ${earned}/${points} pts</p>
       <p>${item.feedback}</p>
       ${expectedAnswer}
