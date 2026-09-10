@@ -1897,6 +1897,8 @@ function showExamBlockedMessage(title = "Este enlace ya fue usado", message = "P
   candidateNameInput.disabled = true;
   candidateEmailInput.disabled = true;
   document.querySelector("#finishExamButton").disabled = true;
+  document.querySelector("#finishExamButton").classList.add("hidden");
+  document.querySelector("#candidateView .exam-header .eyebrow").textContent = "Acceso al examen";
   examForm.innerHTML = `
     <article class="result-card wrong">
       <h3>${escapeHtml(title)}</h3>
