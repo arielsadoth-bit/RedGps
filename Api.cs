@@ -282,6 +282,27 @@ app.MapGet("/api/results", (HttpRequest request) =>
     return Results.Json(results);
 });
 
+app.MapGet("/e/{examId}", (string examId, HttpResponse response) =>
+{
+    response.Headers.CacheControl = "no-store";
+    using var connection = OpenConnection(databasePath);
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT datos_json FROM examenes_creados WHERE id = $id LIMIT 1";
+    command.Parameters.AddWithValue("$id", examId);
+    var payload = command.ExecuteScalar() as string;
+    if (payload is null) return Results.Content("Este enlace no existe. Solicita al entrevistador un enlace válido.", "text/plain; charset=utf-8", statusCode: 404);
+    using var document = JsonDocument.Parse(payload);
+    var exam = document.RootElement;
+    var ids = GetStringArray(exam, "questionIds");
+    var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/", new Dictionary<string, string?>
+    {
+        ["exam"] = examId,
+        ["time"] = GetInt(exam, "timeLimit").ToString(),
+        ["q"] = string.Join(",", ids)
+    });
+    return Results.Redirect(query);
+});
+
 app.MapGet("/api/exam-result/{examId}", (string examId, HttpRequest request, HttpResponse response) =>
 {
     response.Headers.CacheControl = "no-store";

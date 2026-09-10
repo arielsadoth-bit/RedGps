@@ -1542,13 +1542,7 @@ async function createExam(mode = "random") {
   };
 
   localStorage.setItem("activeExam", JSON.stringify(state.activeExam));
-  const questionIds = state.activeExam.questions.map((question) => question.id).join(",");
-  const linkParams = new URLSearchParams({
-    exam: state.activeExam.id,
-    time: String(state.activeExam.timeLimit),
-    q: questionIds,
-  });
-  const link = `${getExamBaseUrl()}${location.pathname}?${linkParams.toString()}`;
+  const link = getShareableExamLink(state.activeExam);
   document.querySelector("#examLink").value = link;
   if (generatedExamLinkInput) {
     generatedExamLinkInput.value = link;
@@ -1556,7 +1550,7 @@ async function createExam(mode = "random") {
   document.querySelector("#examLinkBox").classList.remove("hidden");
   state.questionBankOpen = false;
   renderQuestionBank();
-  await saveCreatedExam({
+  const saved = await saveCreatedExam({
     id: state.activeExam.id,
     examName,
     candidateName: "",
@@ -1569,6 +1563,13 @@ async function createExam(mode = "random") {
     questionIds: state.activeExam.questions.map((question) => question.id),
     createdAt: state.activeExam.createdAt,
   });
+  if (!saved) {
+    document.querySelector("#examLink").value = "";
+    if (generatedExamLinkInput) generatedExamLinkInput.value = "";
+    document.querySelector("#examLinkBox").classList.add("hidden");
+    alert("No se pudo guardar el examen. Revisa tu conexión y tu sesión antes de generar otro enlace.");
+    return;
+  }
   await renderCreatedExams();
   renderExam();
   showView("generatedLinkView");
@@ -1576,6 +1577,10 @@ async function createExam(mode = "random") {
 
 function getExamBaseUrl() {
   return location.origin;
+}
+
+function getShareableExamLink(exam) {
+  return `${getExamBaseUrl()}/e/${encodeURIComponent(exam.id)}`;
 }
 
 function isValidEmail(value) {
@@ -3217,12 +3222,8 @@ async function renderSavedAnswers() {
 }
 
 async function saveCreatedExam(exam) {
-  const localHistory = getCreatedExamHistory();
-  const updatedHistory = [exam, ...localHistory.filter((item) => item.id !== exam.id)].slice(0, 200);
-  localStorage.setItem("createdExamHistory", JSON.stringify(updatedHistory));
-
   if (!location.protocol.startsWith("http") || !hasInterviewerSession()) {
-    return;
+    return false;
   }
 
   try {
@@ -3235,8 +3236,14 @@ async function saveCreatedExam(exam) {
     if (response.status === 401 || response.status === 403) {
       expireInterviewerSession(response.status === 403);
     }
+    if (!response.ok) return false;
+    const localHistory = getCreatedExamHistory();
+    const updatedHistory = [exam, ...localHistory.filter((item) => item.id !== exam.id)].slice(0, 200);
+    localStorage.setItem("createdExamHistory", JSON.stringify(updatedHistory));
+    return true;
   } catch {
     console.warn("No se pudo guardar el examen creado en el servidor.");
+    return false;
   }
 }
 
@@ -3538,6 +3545,7 @@ function renderLinkStats(stats) {
 }
 
 function renderLinkTrackingRow(exam) {
+  exam = { ...exam, link: getShareableExamLink(exam) };
   const createdAt = exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha";
   const tracking = getExamTrackingStatus(exam);
 
@@ -3592,6 +3600,7 @@ function renderCreatedExamsPagination(totalItems, totalPages) {
 }
 
 function renderCreatedExamRow(exam) {
+  exam = { ...exam, link: getShareableExamLink(exam) };
   const createdAt = exam.createdAt ? new Date(exam.createdAt).toLocaleString("es-MX") : "Sin fecha";
   const candidateName = exam.candidateName || "";
   const candidateEmail = exam.candidateEmail || "";
