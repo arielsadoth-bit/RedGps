@@ -241,6 +241,7 @@ app.MapGet("/api/answer-key", (HttpRequest request) =>
     {
         question.Id,
         question.Area,
+        question.Category,
         question.Type,
         question.Title,
         question.Prompt,

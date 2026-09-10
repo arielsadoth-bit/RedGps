@@ -4135,8 +4135,59 @@ async function renderAnswerKey() {
     }
 
     const answerKey = await response.json();
-    answerKeyList.innerHTML = answerKey
-    .map((question) => {
+    const areaOf = question => String(question.area || "Sin área").trim();
+    const categoryOf = question => String(question.category || "General").trim();
+    const sorted = values => [...new Set(values)].sort((a, b) => a.localeCompare(b, "es"));
+    const optionMarkup = values => values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+    answerKeyList.innerHTML = `
+      <div class="answer-key-filters">
+        <label class="field">Área<select id="answerKeyArea"><option value="">Todas las áreas</option>${optionMarkup(sorted(answerKey.map(areaOf)))}</select></label>
+        <label class="field">Sección<select id="answerKeyCategory"><option value="">Todas las secciones</option></select></label>
+        <label class="field">Buscar pregunta<input id="answerKeySearch" type="search" placeholder="Título, pregunta o tema" /></label>
+        <button class="ghost-button" id="answerKeyClear" type="button">Limpiar filtros</button>
+      </div>
+      <p id="answerKeyCount" role="status"></p>
+      <div id="answerKeyGroups"></div>`;
+    const areaSelect = document.querySelector("#answerKeyArea");
+    const categorySelect = document.querySelector("#answerKeyCategory");
+    const searchInput = document.querySelector("#answerKeySearch");
+    function updateCategories() {
+      const previous = categorySelect.value;
+      const categories = sorted(answerKey.filter(question => !areaSelect.value || areaOf(question) === areaSelect.value).map(categoryOf));
+      categorySelect.innerHTML = '<option value="">Todas las secciones</option>' + optionMarkup(categories);
+      categorySelect.value = categories.includes(previous) ? previous : "";
+    }
+    function drawGroups() {
+      const term = normalizeText(searchInput.value.trim());
+      const filtered = answerKey.filter(question =>
+        (!areaSelect.value || areaOf(question) === areaSelect.value) &&
+        (!categorySelect.value || categoryOf(question) === categorySelect.value) &&
+        (!term || normalizeText(`${question.title} ${question.prompt} ${areaOf(question)} ${categoryOf(question)}`).includes(term)));
+      document.querySelector("#answerKeyCount").textContent = `${filtered.length} de ${answerKey.length} preguntas`;
+      const areas = sorted(filtered.map(areaOf));
+      document.querySelector("#answerKeyGroups").innerHTML = areas.length ? areas.map(area => {
+        const areaQuestions = filtered.filter(question => areaOf(question) === area);
+        return `<section class="answer-key-area"><h3>${escapeHtml(area)}</h3>${sorted(areaQuestions.map(categoryOf)).map(category => {
+          const questions = areaQuestions.filter(question => categoryOf(question) === category);
+          return `<details class="answer-key-section"${term || categorySelect.value ? " open" : ""}><summary>${escapeHtml(category)} <span>(${questions.length})</span></summary><div class="result-list">${questions.map(renderAnswerKeyQuestion).join("")}</div></details>`;
+        }).join("")}</section>`;
+      }).join("") : "<p>No hay preguntas que coincidan. Prueba otro texto o limpia los filtros.</p>";
+    }
+    areaSelect.addEventListener("change", () => { updateCategories(); drawGroups(); });
+    categorySelect.addEventListener("change", drawGroups);
+    searchInput.addEventListener("input", drawGroups);
+    document.querySelector("#answerKeyClear").addEventListener("click", () => {
+      areaSelect.value = ""; categorySelect.value = ""; searchInput.value = "";
+      updateCategories(); drawGroups();
+    });
+    updateCategories();
+    drawGroups();
+  } catch {
+    answerKeyList.innerHTML = "<p>No se pudieron cargar las respuestas correctas.</p>";
+  }
+}
+
+function renderAnswerKeyQuestion(question) {
       const runner = getQuestionRunner(question);
       const correctAnswer =
         question.type === "closed"
@@ -4167,11 +4218,6 @@ async function renderAnswerKey() {
           </details>
         </article>
       `;
-    })
-    .join("");
-  } catch {
-    answerKeyList.innerHTML = "<p>No se pudieron cargar las respuestas correctas.</p>";
-  }
 }
 
 async function getServerHistory() {

@@ -2660,6 +2660,28 @@ textarea {
   padding: 12px 0;
 }
 
+.answer-key-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.answer-key-filters > * { min-width: 0; }
+.answer-key-area { margin-bottom: 24px; }
+.answer-key-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+  margin: 12px 0;
+}
+.answer-key-section > summary { cursor: pointer; font-weight: 800; }
+.answer-key-section > .result-list { margin-top: 16px; }
+@media (max-width: 800px) {
+  .answer-key-filters { grid-template-columns: 1fr; }
+}
+
 .manual-score-panel {
   display: grid;
   gap: 12px;
