@@ -2795,17 +2795,37 @@ function saveResultLocally(result) {
 async function saveResultOnServer(result) {
   if (location.protocol.startsWith("http")) {
     try {
-      await fetchWithTimeout(`${location.origin}/api/results`, {
+      const response = await fetchWithTimeout(`${location.origin}/api/results`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(result),
         keepalive: true,
       }, 9000);
+      if (!response.ok) throw new Error("No se pudo guardar el ajuste.");
+      return true;
     } catch {
       markServerSaveStatus("Resultado guardado en este teléfono, pero no se pudo enviar al entrevistador.");
       console.warn("No se pudo guardar el resultado en el servidor local.");
+      return false;
     }
   }
+  return false;
+}
+
+async function showLatestCandidateResult() {
+  const examId = urlParams.get("exam");
+  const response = await fetchWithTimeout(`${location.origin}/api/exam-result/${encodeURIComponent(examId)}`, {
+    headers: { ...getAuthHeaders(), "X-Candidate-Token": getCandidateToken() },
+    cache: "no-store",
+  }, 9000);
+  if (response.status === 404 || response.status === 401) return false;
+  if (!response.ok) throw new Error("No se pudo consultar la calificación actualizada.");
+  state.lastResult = await response.json();
+  localStorage.setItem(`examFinished:${examId}`, JSON.stringify(state.lastResult));
+  state.examLocked = true;
+  await renderResults();
+  showView("resultsView");
+  return true;
 }
 
 function getCandidateToken() {
@@ -2893,14 +2913,14 @@ async function renderResults() {
     return;
   }
 
-  scoreLabel.textContent = `${state.lastResult.score}/100`;
+  scoreLabel.textContent = `${getDisplayScore(state.lastResult)}/100`;
   const displayName = state.lastResult.candidateName || "Candidato sin nombre";
   const manualLabel =
     state.lastResult.manualScore !== null && state.lastResult.manualScore !== undefined
       ? ` Calificación ajustada por entrevistador: ${state.lastResult.manualScore}/100.`
       : "";
   resultSummary.textContent = isCandidateLink
-    ? `Obtuviste ${state.lastResult.earnedPoints} de ${state.lastResult.totalPoints} puntos. Estamos guardando tu resultado para el entrevistador.`
+    ? `Calificación: ${getDisplayScore(state.lastResult)}/100.${manualLabel}`
     : `${displayName} obtuvo ${state.lastResult.earnedPoints} de ${state.lastResult.totalPoints} puntos. Calificación automática: ${state.lastResult.automaticScore ?? state.lastResult.score}/100.${manualLabel}`;
   if (!isCandidateLink && state.lastResult.securityReason) {
     resultSummary.textContent += ` Finalización automática: ${state.lastResult.securityReason}`;
@@ -3949,7 +3969,10 @@ function bindManualScoreControls(history) {
       };
 
       status.textContent = "Guardando...";
-      await saveResultOnServer(updatedResult);
+      if (!await saveResultOnServer(updatedResult)) {
+        status.textContent = "No se guardó el ajuste. Revisa tu conexión y tu sesión e intenta nuevamente.";
+        return;
+      }
       saveResultLocally(updatedResult);
       status.textContent = "Ajuste guardado en la base de datos.";
       await renderSavedAnswers();
@@ -4002,7 +4025,10 @@ function bindManualScoreControls(history) {
         });
 
         questionStatus.textContent = "Guardando...";
-        await saveResultOnServer(updatedResult);
+        if (!await saveResultOnServer(updatedResult)) {
+          questionStatus.textContent = "No se guardó el puntaje. Revisa tu conexión y tu sesión e intenta nuevamente.";
+          return;
+        }
         saveResultLocally(updatedResult);
         questionStatus.textContent = "Puntaje guardado en la base de datos.";
         await renderSavedAnswers();
@@ -4609,6 +4635,7 @@ async function initializeApp() {
       startCandidateExamButton.disabled = true;
       protectInterviewerPanel();
       showView("candidateIntroView");
+      if (await showLatestCandidateResult()) return;
     }
     clearDeliveryLocalDataOnce();
     await loadQuestions();

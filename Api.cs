@@ -282,6 +282,40 @@ app.MapGet("/api/results", (HttpRequest request) =>
     return Results.Json(results);
 });
 
+app.MapGet("/api/exam-result/{examId}", (string examId, HttpRequest request, HttpResponse response) =>
+{
+    response.Headers.CacheControl = "no-store";
+    using var connection = OpenConnection(databasePath);
+    if (!TryGetInterviewer(request, sessions, out _) &&
+        !CandidateTokenMatches(connection, examId, request.Headers["X-Candidate-Token"].ToString()))
+    {
+        return Results.Unauthorized();
+    }
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT datos_json FROM resultados_examenes WHERE id = $id AND COALESCE(eliminado, 0) = 0 LIMIT 1";
+    command.Parameters.AddWithValue("$id", examId);
+    var payload = command.ExecuteScalar() as string;
+    if (payload is null) return Results.NotFound();
+    using var document = JsonDocument.Parse(payload);
+    var result = document.RootElement;
+    var visible = SelectPublicResultFields(result, "id", "candidateName", "candidateEmail", "score", "automaticScore", "manualScore", "earnedPoints", "totalPoints", "startedAt", "finishedAt");
+    visible["evaluated"] = result.GetProperty("evaluated").EnumerateArray().Select(item =>
+    {
+        var evaluation = SelectPublicResultFields(item, "answer", "earned", "manualEarned", "stateLabel", "stateClass", "feedback");
+        var question = item.TryGetProperty("question", out var lower) ? lower : item.GetProperty("Question");
+        evaluation["question"] = SelectPublicResultFields(question, "id", "title", "prompt", "points", "type", "options");
+        return evaluation;
+    }).ToList();
+    return Results.Json(visible);
+});
+
+static Dictionary<string, object?> SelectPublicResultFields(JsonElement value, params string[] names)
+{
+    var allowed = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+    return value.EnumerateObject().Where(property => allowed.Contains(property.Name))
+        .ToDictionary(property => property.Name, property => (object?)property.Value.Clone());
+}
+
 app.MapGet("/api/exams", (HttpRequest request) =>
 {
     if (!TryGetInterviewer(request, sessions, out _))
