@@ -2317,10 +2317,21 @@ textarea {
 }
 
 .created-link-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
   max-width: 360px;
 }
 
+.link-tracking-table .created-link-cell {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .created-link-cell a {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   color: #111827;
   font-weight: 800;
