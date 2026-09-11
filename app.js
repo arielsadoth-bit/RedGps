@@ -10,6 +10,9 @@ const state = {
   lastResult: null,
   candidateAccessDenied: false,
   selectedHistoryId: null,
+  savedAnswersPage: 1,
+  linkTrackingPage: 1,
+  resultsPage: 1,
   answerFilters: {
     text: "",
   },
@@ -2892,7 +2895,45 @@ function getHistory() {
   return savedHistory ? JSON.parse(savedHistory) : [];
 }
 
+function sortNewest(items, dateField) {
+  return [...items].sort((a, b) => (Date.parse(b[dateField]) || 0) - (Date.parse(a[dateField]) || 0) || String(b.id).localeCompare(String(a.id)));
+}
+
+function pageItems(items, key, size = 5) {
+  const totalPages = Math.max(1, Math.ceil(items.length / size));
+  state[key] = Math.max(1, Math.min(state[key], totalPages));
+  const start = (state[key] - 1) * size;
+  return { items: items.slice(start, start + size), total: items.length, totalPages, page: state[key], start, size };
+}
+
+function renderRecordPagination(paging, key) {
+  if (!paging.total) return "";
+  return `<nav class="pagination-bar" aria-label="Paginación de registros">
+    <span>Mostrando ${paging.start + 1}–${Math.min(paging.start + paging.size, paging.total)} de ${paging.total}</span>
+    <div class="pagination-actions">
+      <button class="ghost-button record-page-button" data-page-key="${key}" data-page="${paging.page - 1}" ${paging.page === 1 ? "disabled" : ""}>Anterior</button>
+      <label>Página <select class="record-page-select" data-page-key="${key}" aria-label="Seleccionar página">${Array.from({length:paging.totalPages}, (_, index) => `<option value="${index + 1}" ${index + 1 === paging.page ? "selected" : ""}>${index + 1}</option>`).join("")}</select> de ${paging.totalPages}</label>
+      <button class="ghost-button record-page-button" data-page-key="${key}" data-page="${paging.page + 1}" ${paging.page === paging.totalPages ? "disabled" : ""}>Siguiente</button>
+    </div></nav>`;
+}
+
+async function changeRecordPage(key, page) {
+  const renders = { savedAnswersPage: renderSavedAnswers, linkTrackingPage: renderLinkTracking, resultsPage: renderResults };
+  if (!renders[key] || !Number.isInteger(page) || page < 1) return;
+  state[key] = page;
+  if (key === "savedAnswersPage") state.selectedHistoryId = null;
+  await renders[key]();
+}
+document.addEventListener("click", event => {
+  const button = event.target.closest(".record-page-button");
+  if (button && !button.disabled) changeRecordPage(button.dataset.pageKey, Number(button.dataset.page));
+});
+document.addEventListener("change", event => {
+  if (event.target.matches(".record-page-select")) changeRecordPage(event.target.dataset.pageKey, Number(event.target.value));
+});
+
 async function renderResults() {
+  document.querySelector("#resultsPagination")?.remove();
   if (!isCandidateLink && location.protocol.startsWith("http") && !hasInterviewerSession()) {
     state.lastResult = null;
     scoreLabel.textContent = "0/100";
@@ -2902,10 +2943,12 @@ async function renderResults() {
   }
 
   if (!isCandidateLink && location.protocol.startsWith("http")) {
-    const history = (await getServerHistory()).filter((result) => result && result.id && result.evaluated);
+    const history = sortNewest((await getServerHistory()).filter((result) => result && result.id && result.evaluated), "finishedAt");
+    const paging = pageItems(history, "resultsPage", 1);
+    resultList.insertAdjacentHTML("beforebegin", `<div id="resultsPagination">${renderRecordPagination(paging, "resultsPage")}</div>`);
 
     if (history.length) {
-      state.lastResult = history[0];
+      state.lastResult = paging.items[0];
       localStorage.setItem("lastResult", JSON.stringify(state.lastResult));
     } else {
       state.lastResult = null;
@@ -3176,7 +3219,7 @@ async function renderSavedAnswers() {
     return;
   }
 
-  const history = (await getServerHistory()).filter((result) => result && result.id && result.evaluated);
+  const history = sortNewest((await getServerHistory()).filter((result) => result && result.id && result.evaluated), "finishedAt");
 
   if (!history.length) {
     answersSummary.classList.remove("hidden");
@@ -3186,6 +3229,7 @@ async function renderSavedAnswers() {
   }
 
   const filteredHistory = filterSavedResults(history);
+  const paging = pageItems(filteredHistory, "savedAnswersPage");
   const hasFilters = hasActiveFilters(state.answerFilters);
 
   answersSummary.textContent = "";
@@ -3216,11 +3260,12 @@ async function renderSavedAnswers() {
         </thead>
         <tbody>
           ${filteredHistory.length
-            ? filteredHistory.map((result) => renderCandidateRow(result, result.id === state.selectedHistoryId)).join("")
+            ? paging.items.map((result) => renderCandidateRow(result, result.id === state.selectedHistoryId)).join("")
             : renderNoSearchResultsRow(hasFilters)}
         </tbody>
       </table>
     </div>
+    ${renderRecordPagination(paging, "savedAnswersPage")}
     ${selectedResult ? `<div class="answer-detail-modal" role="dialog" aria-modal="true">${renderSavedAnswerDetail(selectedResult)}</div>` : ""}
   `;
   bindAnswerSearchControls();
@@ -3418,6 +3463,7 @@ async function renderLinkTracking() {
     getLinkStats(),
     getServerLinkTracking(),
   ]);
+  const paging = pageItems(sortNewest(links, "createdAt"), "linkTrackingPage");
 
   linkTrackingSummary.textContent = "";
   linkTrackingSummary.classList.add("hidden");
@@ -3436,11 +3482,12 @@ async function renderLinkTracking() {
           </tr>
         </thead>
         <tbody>
-          ${links.length ? links.map(renderLinkTrackingRow).join("") : renderNoLinkTrackingRow()}
+          ${links.length ? paging.items.map(renderLinkTrackingRow).join("") : renderNoLinkTrackingRow()}
         </tbody>
       </table>
     </div>
   `;
+  linkTrackingList.insertAdjacentHTML("beforeend", renderRecordPagination(paging, "linkTrackingPage"));
   bindLinkTrackingControls();
 }
 
@@ -3840,6 +3887,8 @@ function bindAnswerSearchControls() {
 
     input.addEventListener("input", async () => {
       state.answerFilters[key] = input.value;
+      state.savedAnswersPage = 1;
+      state.selectedHistoryId = null;
       await renderSavedAnswers();
       const nextInput = document.querySelector(selector);
       if (nextInput) {
@@ -3856,6 +3905,8 @@ function bindAnswerSearchControls() {
       state.answerFilters = {
         text: "",
       };
+      state.savedAnswersPage = 1;
+      state.selectedHistoryId = null;
       await renderSavedAnswers();
       document.querySelector("#answerSearchInput")?.focus();
     });

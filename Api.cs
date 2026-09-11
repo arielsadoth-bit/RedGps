@@ -267,8 +267,7 @@ app.MapGet("/api/results", (HttpRequest request) =>
         SELECT datos_json
         FROM resultados_examenes
         WHERE COALESCE(eliminado, 0) = 0
-        ORDER BY finalizado_en DESC
-        LIMIT 50
+        ORDER BY finalizado_en DESC, id DESC
         """;
 
     using var reader = command.ExecuteReader();
@@ -454,8 +453,7 @@ app.MapGet("/api/link-tracking", (HttpRequest request) =>
         LEFT JOIN enlaces_examenes l ON l.id_examen = e.id
         LEFT JOIN resultados_examenes r ON r.id = e.id AND COALESCE(r.eliminado, 0) = 0
         LEFT JOIN monitoreo_examenes m ON m.id_examen = e.id
-        ORDER BY e.creado_en DESC
-        LIMIT 300
+        ORDER BY e.creado_en DESC, e.id DESC
         """;
 
     using var reader = command.ExecuteReader();
