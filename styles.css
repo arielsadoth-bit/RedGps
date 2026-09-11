@@ -2916,14 +2916,16 @@ code {
   }
   .topbar-meta > span { display: none; }
   .topbar-meta .session-badge {
-    width: auto;
+    width: fit-content;
+    max-width: 100%;
     min-width: 0;
     grid-column: auto;
-    justify-items: start;
+    justify-items: center;
+    justify-self: start;
     align-self: center;
   }
-  .topbar-meta .status-pill { width: auto; min-height: 36px; padding: 6px 14px; }
-  .session-badge small { max-width: 100%; text-align: left; }
+  .topbar-meta .status-pill { width: 100%; min-height: 36px; padding: 6px 14px; }
+  .session-badge small { max-width: 100%; text-align: center; }
   .topbar-meta .logout-button,
   .topbar-meta .mobile-menu-button {
     width: auto;
